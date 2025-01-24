@@ -21,5 +21,12 @@
 
     # NOTE: This option is available in nixvim-unstable.
     #nixpkgs.useGlobalPackages = true;
+
+    colorscheme = "vim-zend55";
+
+    opts = {
+      expandtab = true;
+      shiftwidth = 2;
+    };
   };
 }

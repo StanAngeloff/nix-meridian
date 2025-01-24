@@ -2,8 +2,13 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
-
+{ ... }:
+let
+  nixvim = import (builtins.fetchGit {
+    url = "https://github.com/nix-community/nixvim";
+    ref = "nixos-24.11";
+  });
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -94,45 +99,10 @@
   systemd.services."getty@tty1".enable = false;
   systemd.services."autovt@tty1".enable = false;
 
-  programs.nix-ld.enable = true;
-
-  # Install firefox.
-  programs.firefox.enable = true;
-
-  # List packages installed in system profile. To search, run:
-  # $ nix search wget
-  environment.systemPackages = with pkgs; [
-    gcc14
-    gnumake
-    nodejs_22
-    python313
-  ];
-
-  # Electron and Chromium
-  environment.sessionVariables.NIXOS_OZONE_WL = "1";
-
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
-
-  # Make Zsh the default on a system level.
-  programs.zsh = { enable = true; };
-  users.defaultUserShell = pkgs.zsh;
-  environment.shells = [pkgs.zsh];
-
-  home-manager.users.stan = { config, pkgs, lib, ... }: let
-    nixvim = import (builtins.fetchGit {
-      url = "https://github.com/nix-community/nixvim";
-      ref = "nixos-24.11";
-    });
-  in {
+  home-manager.users.stan = { ... }: {
     imports = [
       nixvim.homeManagerModules.nixvim
-      ./home.nix
+      ./home
     ];
   };
 
