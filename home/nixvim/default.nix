@@ -104,49 +104,49 @@
         event = [ "BufRead" ];
         pattern = "*";
         group = "views";
-        callback = { __raw = ''
+        callback.__raw = ''
           function()
             if vim.fn.expand("%") ~= "" and vim.bo.buftype:find("nofile") == nil then
               vim.cmd("silent! loadview")
             end
           end
-        ''; };
+        '';
       }
       {
         event = [ "BufWritePost" ];
         pattern = "*";
         group = "views";
-        callback = { __raw = ''
+        callback.__raw = ''
           function()
             if vim.fn.expand("%") ~= "" and vim.bo.buftype:find("nofile") == nil then
               vim.cmd("mkview")
             end
           end
-        ''; };
+        '';
       }
       # Open help windows on the right in a vertical split, credits @EvanPurkhiser.
       {
         event = [ "FileType" ];
         pattern = "help";
-        callback = { __raw = ''
+        callback.__raw = ''
           function()
             vim.cmd "wincmd L"
             vim.keymap.set("n", "q", ":bwipeout<CR>", { buffer = true, silent = true })
           end
-        ''; };
+        '';
       }
       # Highlight trailing whitespace after the colour scheme has loaded.
       {
         event = [ "BufEnter" ];
         pattern = "*";
-        callback = { __raw = ''
+        callback.__raw = ''
           function()
             if vim.bo.buftype:find("terminal") == nil then
               vim.cmd("syntax match BadWhitespace /\\s\\+$\\| \\+\\ze\\t/ containedin=ALL")
               vim.cmd("highlight BadWhitespace guibg=#ff0000")
             end
           end
-        ''; };
+        '';
       }
     ];
   };

@@ -46,7 +46,7 @@
         # the state is reset for the next mirror.
         event = [ "TabEnter" ];
         pattern = "*";
-        callback = { __raw = ''
+        callback.__raw = ''
           function()
             if vim.t.hasNERDTree == nil then
               vim.cmd("silent! NERDTreeMirrorOpen")
@@ -54,12 +54,12 @@
               vim.t.hasNERDTree = 1
             end
           end
-        ''; };
+        '';
       }
       {
         event = [ "VimEnter" ];
         pattern = "*";
-        callback = { __raw = ''
+        callback.__raw = ''
           function()
             vim.fn.NERDTreeAddKeyMap({
               key="a",
@@ -67,7 +67,7 @@
               quickhelpText="reveal the node for the open file"
             })
           end
-        ''; };
+        '';
       }
     ];
   };
