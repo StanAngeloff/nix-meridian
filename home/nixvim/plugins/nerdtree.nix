@@ -6,6 +6,15 @@
       vim-nerdtree-tabs
     ];
 
+    extraConfigLua = ''
+      vim.cmd([[
+        function! NERDTreeReveal()
+          wincmd p
+          execute "silent! NERDTreeFind"
+        endfunction
+      ]])
+    '';
+
     globals = {
       TreeDirArrows = 1;
       NERDTreeChDirMode = 1;
@@ -35,15 +44,30 @@
         # Make sure a NERDTree instance is mirrored for all tabs.
         # This is needed as if the buffer with the only NERDTree instance is closed,
         # the state is reset for the next mirror.
-        event = "TabEnter";
+        event = [ "TabEnter" ];
         pattern = "*";
-        command = ''
-          if !exists('t:hasNERDTree')
-            let t:hasNERDTree=1
-            execute 'silent! NERDTreeMirrorOpen'
-            execute 'silent! NERDTreeMirrorToggle'
-          endif
-        '';
+        callback = { __raw = ''
+          function()
+            if vim.t.hasNERDTree == nil then
+              vim.cmd("silent! NERDTreeMirrorOpen")
+              vim.cmd("silent! NERDTreeMirrorToggle")
+              vim.t.hasNERDTree = 1
+            end
+          end
+        ''; };
+      }
+      {
+        event = [ "VimEnter" ];
+        pattern = "*";
+        callback = { __raw = ''
+          function()
+            vim.fn.NERDTreeAddKeyMap({
+              key="a",
+              callback="NERDTreeReveal",
+              quickhelpText="reveal the node for the open file"
+            })
+          end
+        ''; };
       }
     ];
   };

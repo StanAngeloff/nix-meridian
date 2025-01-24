@@ -7,10 +7,14 @@
     ./git
     ./gnome-shell
     ./nixvim
+    ./ripgrep
     ./ssh
     ./tig
     ./zsh
   ];
+
+  # Enable management of XDG base directories.
+  xdg.enable = true;
 
   # The home.packages option allows you to install Nix packages into your
   # environment.

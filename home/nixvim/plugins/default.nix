@@ -16,6 +16,7 @@ in
     ./fzf.nix
     ./lsp.nix
     ./nerdtree.nix
+    ./ripgrep.nix
     ./tree-sitter.nix
   ];
 
