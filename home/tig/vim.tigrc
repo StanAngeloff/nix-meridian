@@ -62,13 +62,13 @@ bind generic @k :?^@@
 bind generic @- :toggle diff-context -1
 bind generic @+ :toggle diff-context +1
 
-bind generic u  none
-bind generic uu status-update
-bind generic ur status-revert
-bind generic um status-merge
-bind generic ul stage-update-line
-bind generic up stage-update-part
-bind generic us stage-split-chunk
+bind generic u status-update
+bind generic s  none
+bind generic sr status-revert
+bind generic sm status-merge
+bind generic sl stage-update-line
+bind generic sp stage-update-part
+bind generic ss stage-split-chunk
 
 bind generic c  none
 bind generic cc !git commit

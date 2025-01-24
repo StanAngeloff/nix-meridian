@@ -1,4 +1,6 @@
 {
+  programs.nixvim.globals.mapleader = ",";
+
   programs.nixvim.keymaps = [
     {
       action = ":NERDTreeMirrorToggle<CR>";

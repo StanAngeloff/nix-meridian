@@ -2,6 +2,7 @@
 {
   imports = [
     ./alacritty
+    ./eza
     ./fzf
     ./git
     ./gnome-shell

@@ -12,6 +12,8 @@ let
 in
 {
   imports = [
+    ./copilot.nix
+    ./fzf.nix
     ./lsp.nix
     ./nerdtree.nix
     ./tree-sitter.nix

@@ -30,4 +30,7 @@
       shiftwidth = 2;
     };
   };
+
+  # Allow unfree packages
+  nixpkgs.config.allowUnfree = true;
 }
