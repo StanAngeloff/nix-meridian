@@ -11,20 +11,18 @@ let
 in
 {
   imports = [
-    ./hardware-configuration.nix
+    ./machines/stan-latitude
     ./system
     <home-manager/nixos>
   ];
 
-  networking.hostName = "nixos"; # Define your hostname.
+  # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+  networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
-  # Enable networking
-  networking.networkmanager.enable = true;
 
   # Set your time zone.
   time.timeZone = "Europe/Sofia";
@@ -77,12 +75,13 @@ in
   };
 
   # Enable touchpad support (enabled default in most desktopManager).
-  # services.xserver.libinput.enable = true;
+  # services.libinput.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.stan = {
     isNormalUser = true;
-    description = "Stan";
+    createHome = true;
+    description = "Stan Angeloff";
     extraGroups = [ "networkmanager" "wheel" ];
     packages = [
       # See home/ for user-specific packages.

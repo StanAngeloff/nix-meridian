@@ -1,6 +1,7 @@
 { pkgs, ... }:
 {
   imports = [
+    ./alacritty
     ./fzf
     ./git
     ./gnome-shell
@@ -14,6 +15,8 @@
   home.packages = with pkgs; [
     dconf2nix
     mise
+    tig
+    wl-clipboard
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -70,7 +73,7 @@
   #  /etc/profiles/per-user/stan/etc/profile.d/hm-session-vars.sh
   #
   home.sessionVariables = {
-    # EDITOR="nano";
+    # EDITOR="nvim";
   };
 
   # Let Home Manager install and manage itself.
