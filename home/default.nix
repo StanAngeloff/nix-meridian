@@ -7,6 +7,7 @@
     ./gnome-shell
     ./nixvim
     ./ssh
+    ./tig
     ./zsh
   ];
 
@@ -15,7 +16,7 @@
   home.packages = with pkgs; [
     dconf2nix
     mise
-    tig
+    trash-cli
     wl-clipboard
 
     # # It is sometimes useful to fine-tune packages, for example, by applying

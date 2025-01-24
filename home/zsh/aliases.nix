@@ -1,6 +1,6 @@
 {
   programs.zsh.shellAliases = {
     v = "nvim -p";
-    t = "tig";
+    t = "tig status";
   };
 }
