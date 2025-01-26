@@ -8,6 +8,7 @@
     ./git
     ./nixvim
     ./ripgrep
+    ./thunderbird
     ./tig
     ./tmux
     ./zsh

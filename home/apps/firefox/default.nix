@@ -3,8 +3,9 @@
     enable = true;
 
     policies = {
-      DisableTelemetry = true;
+      DisableFirefoxStudies = true;
       DisablePocket = true;
+      DisableTelemetry = true;
     };
 
     profiles = {

@@ -1,5 +1,6 @@
 {
   imports = [
+    ./dropbox
     ./ssh
   ];
 }
