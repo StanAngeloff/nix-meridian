@@ -26,7 +26,7 @@
       NERDTreeShowHidden = 1;
       NERDTreeQuitOnOpen = 1;
       # Free up "?" for reverse search.
-      NERDTreeMapHelp  =  "H";
+      NERDTreeMapHelp = "H";
       # Don't ask if buffers should be deleted on rename.
       NERDTreeAutoDeleteBuffer = 1;
       NERDTreeNaturalSort = 1;

@@ -4,10 +4,12 @@
 
 { config, lib, ... }:
 let
-  nixvim = import (builtins.fetchGit {
-    url = "https://github.com/nix-community/nixvim";
-    ref = "nixos-24.11";
-  });
+  nixvim = import (
+    builtins.fetchGit {
+      url = "https://github.com/nix-community/nixvim";
+      ref = "nixos-24.11";
+    }
+  );
 in
 {
   imports = [
@@ -39,8 +41,9 @@ in
     isNormalUser = true;
     createHome = true;
     description = "Stan Angeloff";
-    extraGroups = [ "wheel" ]
-      ++ lib.lists.optional config.networking.networkmanager.enable "networkmanager";
+    extraGroups = [
+      "wheel"
+    ] ++ lib.lists.optional config.networking.networkmanager.enable "networkmanager";
     packages = [
       # See home/ for user-specific packages.
     ];
@@ -56,12 +59,14 @@ in
   systemd.services."getty@tty1".enable = false;
   systemd.services."autovt@tty1".enable = false;
 
-  home-manager.users.stan = { ... }: {
-    imports = [
-      nixvim.homeManagerModules.nixvim
-      ./home
-    ];
-  };
+  home-manager.users.stan =
+    { ... }:
+    {
+      imports = [
+        nixvim.homeManagerModules.nixvim
+        ./home
+      ];
+    };
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions

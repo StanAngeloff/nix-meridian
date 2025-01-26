@@ -19,7 +19,9 @@
   # };
 
   # Make Zsh the default on a system level.
-  programs.zsh = { enable = true; };
+  programs.zsh = {
+    enable = true;
+  };
   users.defaultUserShell = pkgs.zsh;
-  environment.shells = [pkgs.zsh];
+  environment.shells = [ pkgs.zsh ];
 }

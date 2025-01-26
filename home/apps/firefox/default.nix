@@ -18,7 +18,7 @@
           #
           "middlemouse.paste" = false; # This is just stOOpid.
           "browser.urlbar.update1" = false; # Don't use the new URL bar which looks like an annoying pop up (Firefox 75+).
-          "browser.urlbar.update1.interventions" = false; #  If true, Firefox shows actionable tips in the URL bar when the user is searching for those actions.
+          "browser.urlbar.update1.interventions" = false; # If true, Firefox shows actionable tips in the URL bar when the user is searching for those actions.
           "browser.urlbar.update1.searchTips" = false; # If true, Firefox shows new users and those about to start an organic search a tip encouraging them to use the URL bar.
           "browser.urlbar.update1.view.stripHttps" = false; # Don't strip https:// from URL suggestions (Firefox 75+).
           "browser.urlbar.openViewOnFocus" = false; # Don't open the URL bar drop-down immediately on focus (Firefox 75+).

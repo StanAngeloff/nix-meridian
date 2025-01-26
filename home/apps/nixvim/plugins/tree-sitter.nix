@@ -3,8 +3,12 @@
     enable = true;
 
     settings = {
-      highlight = { enable = true; };
-      indent = { enable = true; };
+      highlight = {
+        enable = true;
+      };
+      indent = {
+        enable = true;
+      };
     };
 
     # NOTE: By default, **all** available grammars packaged in the `nvim-treesitter` package are installed.

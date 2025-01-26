@@ -32,7 +32,9 @@
       is_posix = 1;
     };
 
-    autoGroups.views = { clear = true; };
+    autoGroups.views = {
+      clear = true;
+    };
 
     autoCmd = [
       {
