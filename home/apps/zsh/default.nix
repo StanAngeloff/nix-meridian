@@ -12,5 +12,13 @@
 
       eval "$(mise activate zsh)"
     '';
+
+    oh-my-zsh = {
+      enable = true;
+      plugins = [
+        "fancy-ctrl-z"
+        "git-prompt"
+      ];
+    };
   };
 }

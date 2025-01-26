@@ -9,6 +9,7 @@
     ./nixvim
     ./ripgrep
     ./tig
+    ./tmux
     ./zsh
   ];
 

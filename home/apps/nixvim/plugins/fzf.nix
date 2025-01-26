@@ -6,7 +6,7 @@
       "<leader>o" = {
         action = "git_files";
         settings = {
-          cmd = "git ls-files --modified --others";
+          cmd = "git ls-files --cached --others";
         };
       };
     };

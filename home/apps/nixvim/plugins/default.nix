@@ -14,6 +14,7 @@ in
   imports = [
     ./copilot.nix
     ./fzf.nix
+    ./gitgutter.nix
     ./lsp.nix
     ./nerdtree.nix
     ./ripgrep.nix
