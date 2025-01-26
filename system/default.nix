@@ -7,9 +7,6 @@
 
   programs.nix-ld.enable = true;
 
-  # Install firefox.
-  programs.firefox.enable = true;
-
   # Electron and Chromium
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
