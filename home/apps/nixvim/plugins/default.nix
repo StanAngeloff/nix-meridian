@@ -18,6 +18,7 @@ in
     ./lsp.nix
     ./nerdtree.nix
     ./ripgrep.nix
+    ./surround.nix
     ./tree-sitter.nix
   ];
 

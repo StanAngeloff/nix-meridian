@@ -78,7 +78,9 @@
     # Strip trailing whitespace.
     { key = "<leader>W"; mode = [ "n" ]; action.__raw = ''
       function()
+        local line = vim.fn.line(".")
         vim.cmd "silent! keeppatterns %s/\\s\\+$//e"
+        vim.cmd("silent! keepjumps normal! " .. line .. "G")
       end
     ''; }
   ];
