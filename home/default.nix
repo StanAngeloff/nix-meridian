@@ -50,7 +50,7 @@
   #  /etc/profiles/per-user/stan/etc/profile.d/hm-session-vars.sh
   #
   home.sessionVariables = {
-    # EDITOR="nvim";
+    GREP_COLORS = "mt=1;32";
   };
 
   # Let Home Manager install and manage itself.

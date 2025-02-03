@@ -6,11 +6,6 @@
     ./options.nix
   ];
 
-  home.sessionVariables = {
-    # NOTE: using programs.nixvim.defaultEditor should suffice, however it doesn't appear to be working.
-    EDITOR = "nvim";
-  };
-
   programs.neovim = {
     # All options are mirrored by nixvim.
   };

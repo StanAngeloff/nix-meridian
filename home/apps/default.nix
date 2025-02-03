@@ -6,6 +6,8 @@
     ./firefox
     ./fzf
     ./git
+    ./jump
+    ./less
     ./nixvim
     ./ripgrep
     ./thunderbird
