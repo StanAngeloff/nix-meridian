@@ -7,13 +7,17 @@
       nerdtree-git-plugin
     ];
 
-    extraConfigLua = ''
-      vim.cmd([[
-        function! NERDTreeReveal()
-          wincmd p
-          execute "silent! NERDTreeFind"
-        endfunction
-      ]])
+    extraConfigVim = ''
+      " TODO: Legacy NERDTree utility functions, to be migrated to Lua.
+      function! NERDTreeReveal()
+        wincmd p
+        execute "silent! NERDTreeFind"
+      endfunction
+
+      function! NERDTreeTrashNode()
+        let selected = g:NERDTreeFileNode.GetSelected()
+        call timer_start(1, {-> feedkeys(":Trash " . fnameescape(selected.path.str()), "n")})
+      endfunction
     '';
 
     globals = {
@@ -79,6 +83,7 @@
         callback.__raw = ''
           function()
             vim.fn.NERDTreeAddKeyMap({ key="a", callback="NERDTreeReveal", quickhelpText="reveal the node for the open file" })
+            vim.fn.NERDTreeAddMenuItem({ shortcut="t", callback="NERDTreeTrashNode", text="(t)rash the current node" })
           end
         '';
       }

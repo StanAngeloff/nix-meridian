@@ -32,6 +32,8 @@
       is_posix = 1;
     };
 
+    editorconfig.enable = true;
+
     autoGroups.views = {
       clear = true;
     };

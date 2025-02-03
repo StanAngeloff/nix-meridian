@@ -65,6 +65,19 @@
     # Searching like a pro!
     { key = "<leader>S"; mode = [ "n" "v" ]; action.__raw = ''function() vim.cmd.FzfLua("grep_project") end''; }
     { key = "<leader>ha"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.Git("add %") end''; }
+    # vim-gitgutter
+    { key = "<leader>hp"; mode = [ "n" ]; action = "<Plug>(GitGutterPreviewHunk)"; }
+    { key = "<leader>hs"; mode = [ "n" "v" ]; action = "<Plug>(GitGutterStageHunk)"; }
+    { key = "<leader>hu"; mode = [ "n" ]; action = "<Plug>(GitGutterUndoHunk)"; }
+    { key = "[c"; mode = [ "n" ]; action = "<Plug>(GitGutterPrevHunk)"; }
+    { key = "]c"; mode = [ "n" ]; action = "<Plug>(GitGutterNextHunk)"; }
+    { key = "ic"; mode = [ "o" ]; action = "<Plug>(GitGutterTextObjectInnerPending)"; }
+    { key = "ac"; mode = [ "o" ]; action = "<Plug>(GitGutterTextObjectOuterPending)"; }
+    { key = "ic"; mode = [ "x" ]; action = "<Plug>(GitGutterTextObjectInnerVisual)"; }
+    { key = "ac"; mode = [ "x" ]; action = "<Plug>(GitGutterTextObjectOuterVisual)"; }
+    # vim-base64
+    { key = "[b"; mode = [ "v" ]; action = ":<C-U>call base64#v_atob()<CR>"; options.silent = true; }
+    { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
 
     # Jump to the first non-whitespace character on the line or the beginning of the line.
     { key = "0"; mode = [ "n" "v" ]; options.expr = true; action.__raw = ''
