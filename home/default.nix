@@ -1,6 +1,7 @@
 {
   imports = [
     ./apps
+    ./essentials
     ./gnome-shell
     ./services
   ];

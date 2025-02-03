@@ -4,6 +4,7 @@
     extraPlugins = with pkgs.vimPlugins; [
       nerdtree
       vim-nerdtree-tabs
+      nerdtree-git-plugin
     ];
 
     extraConfigLua = ''
@@ -37,6 +38,22 @@
 
       nerdtree_tabs_open_on_new_tab = 0;
       nerdtree_tabs_focus_on_files = 1;
+
+      NERDTreeGitStatusShowClean = 1;
+      NERDTreeGitStatusConcealBrackets = 1;
+
+      NERDTreeGitStatusIndicatorMapCustom = {
+        "Untracked" ="⁇";
+        "Staged"    ="⊕";
+        "Dirty"     ="•";
+        "Modified"  ="•";
+        "Unmerged"  ="⊜";
+        "Renamed"   ="⎊";
+        "Deleted"   ="⊗";
+        "Clean"     ="·";
+        "Ignored"   ="☒";
+        "Unknown"   ="U";
+      };
     };
 
     autoCmd = [
@@ -61,11 +78,7 @@
         pattern = "*";
         callback.__raw = ''
           function()
-            vim.fn.NERDTreeAddKeyMap({
-              key="a",
-              callback="NERDTreeReveal",
-              quickhelpText="reveal the node for the open file"
-            })
+            vim.fn.NERDTreeAddKeyMap({ key="a", callback="NERDTreeReveal", quickhelpText="reveal the node for the open file" })
           end
         '';
       }

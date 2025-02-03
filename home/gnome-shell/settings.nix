@@ -102,6 +102,15 @@ with lib.hm.gvariant;
       window-screenshot-clip = [ "<Shift><Alt>Print" ];
       www = [];
     };
+    "org/gnome/shell" = {
+      favorite-apps = [
+        "google-chrome.desktop"
+        "firefox.desktop"
+        "code.desktop"
+        "slack.desktop"
+        "org.gnome.Nautilus.desktop"
+      ];
+    };
     "org/gnome/shell/app-switcher" = {
       current-workspace-only = true;
     };

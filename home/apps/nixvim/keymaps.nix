@@ -11,7 +11,7 @@
     # Make $ behave consistently in visual mode.
     { key = "$"; mode = [ "v" ]; action = "g_"; }
     # NERDTree project navigation.
-    { key = "<Tab>"; mode = "n"; action.__raw = ''function() vim.cmd.NERDTreeMirrorToggle() end''; }
+    { key = "<Tab>"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.NERDTreeMirrorToggle() end''; }
     # Q for 'Q'uit, 'Ex' mode has received zero use.
     { key = "Q"; mode = [ "n" ]; action = ":windo normal ZZ<CR>"; options.silent = true; }
     { key = "Q"; mode = [ "v" ]; action = "<Esc>:windo normal ZZ<CR>"; options.silent = true; }
@@ -25,6 +25,7 @@
     { key = "<F2>"; mode = [ "n" ]; action = ":setlocal invpaste paste?<CR>"; options.silent = true; }
     { key = "<F3>"; mode = [ "n" ]; action = ":setlocal wrap! wrap?<CR>"; options.silent = true; }
     { key = "<F4>"; mode = [ "n" ]; action = ":setlocal list! list?<CR>"; options.silent = true; }
+    { key = "<F6>"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.UndotreeToggle() end''; }
     # Show the stack of syntax highlighting classes affecting whatever is under the cursor.
     { key = "<F7>"; mode = [ "n" ]; action = ":TSHighlightCapturesUnderCursor<CR>"; options.silent = true; }
     # Quick tab creation and navigation.
@@ -63,6 +64,8 @@
     { key = "<leader>s"; mode = [ "v" ]; action = ":sort u<CR>gv"; options.silent = true; }
     # Searching like a pro!
     { key = "<leader>S"; mode = [ "n" "v" ]; action.__raw = ''function() vim.cmd.FzfLua("grep_project") end''; }
+    { key = "<leader>ha"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.Git("add %") end''; }
+
     # Jump to the first non-whitespace character on the line or the beginning of the line.
     { key = "0"; mode = [ "n" "v" ]; options.expr = true; action.__raw = ''
       function()
@@ -75,6 +78,7 @@
         return "^"
       end
     ''; }
+
     # Strip trailing whitespace.
     { key = "<leader>W"; mode = [ "n" ]; action.__raw = ''
       function()

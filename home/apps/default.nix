@@ -11,6 +11,7 @@
     ./thunderbird
     ./tig
     ./tmux
+    ./vscode
     ./zsh
   ];
 

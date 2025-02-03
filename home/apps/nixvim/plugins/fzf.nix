@@ -2,6 +2,10 @@
   programs.nixvim.plugins.fzf-lua = {
     enable = true;
 
+    luaConfig.pre = ''
+      local fzf_lua_actions = require'fzf-lua.actions'
+    '';
+
     settings = {
       fzf_opts = {
         "--history".__raw = "vim.fn.stdpath('data') .. '/fzf-lua-history'";
@@ -12,9 +16,9 @@
         border = "none";
       };
       actions = {
-        git_files = {
-          "enter" = "tabedit";
-          "ctrl-t" = "tab split";
+        files = {
+          "enter".__raw = "fzf_lua_actions.file_tabedit";
+          "ctrl-t".__raw = "fzf_lua_actions.file_tabedit";
         };
       };
     };
