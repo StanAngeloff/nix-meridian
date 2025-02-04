@@ -7,16 +7,40 @@
       nerdtree-git-plugin
     ];
 
+    extraConfigLua = ''
+      function _G.NERDTreeReveal()
+        vim.cmd("wincmd p")
+        vim.cmd("silent! NERDTreeFind")
+      end
+
+      function _G.NERDTreeTrashNode()
+        local selected = vim.fn.eval('g:NERDTreeFileNode.GetSelected().path.str()')
+        vim.fn.timer_start(1, function()
+          vim.api.nvim_feedkeys(":Trash " .. vim.fn.fnameescape(selected), "n", true)
+        end)
+      end
+
+      function _G.NERDTreeSearchInCurrentNode()
+        local selected = vim.fn.eval('g:NERDTreeFileNode.GetSelected().path.str()')
+        if vim.fn.isdirectory(selected) then
+          vim.fn.timer_start(1, function()
+            require("fzf-lua").live_grep({ cwd = selected })
+          end)
+        end
+      end
+    '';
+
     extraConfigVim = ''
-      " TODO: Legacy NERDTree utility functions, to be migrated to Lua.
-      function! NERDTreeReveal()
-        wincmd p
-        execute "silent! NERDTreeFind"
+      function! NERDTreeRevealBridge()
+        lua NERDTreeReveal()
       endfunction
 
-      function! NERDTreeTrashNode()
-        let selected = g:NERDTreeFileNode.GetSelected()
-        call timer_start(1, {-> feedkeys(":Trash " . fnameescape(selected.path.str()), "n")})
+      function NERDTreeTrashNodeBridge()
+        lua NERDTreeTrashNode()
+      endfunction
+
+      function NERDTreeSearchInCurrentNodeBridge()
+        lua NERDTreeSearchInCurrentNode()
       endfunction
     '';
 
@@ -82,8 +106,9 @@
         pattern = "*";
         callback.__raw = ''
           function()
-            vim.fn.NERDTreeAddKeyMap({ key="a", callback="NERDTreeReveal", quickhelpText="reveal the node for the open file" })
-            vim.fn.NERDTreeAddMenuItem({ shortcut="t", callback="NERDTreeTrashNode", text="(t)rash the current node" })
+            vim.fn.NERDTreeAddKeyMap({ key="a", callback="NERDTreeRevealBridge", quickhelpText="reveal the node for the open file" })
+            vim.fn.NERDTreeAddMenuItem({ shortcut="t", callback="NERDTreeTrashNodeBridge", text="(t)rash the current node" })
+            vim.fn.NERDTreeAddKeyMap({ key="S", callback="NERDTreeSearchInCurrentNodeBridge", quickhelpText="search for a string (recursively) in the current node" })
           end
         '';
       }

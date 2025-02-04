@@ -1,4 +1,8 @@
 {
+  imports = [
+    ./desktop.nix
+  ];
+
   programs.alacritty = {
     enable = true;
 
@@ -50,13 +54,6 @@
         opacity = 0.9875;
         startup_mode = "Maximized";
       };
-    };
-  };
-
-  dconf.settings = {
-    "org/gnome/desktop/default-applications/terminal" = {
-      exec = "alacritty";
-      exec-arg = "--command";
     };
   };
 }

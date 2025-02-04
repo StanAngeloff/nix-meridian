@@ -1,6 +1,7 @@
 {
   imports = [
     ./base64.nix
+    ./cmp.nix
     ./comment.nix
     ./committia.nix
     ./copilot.nix

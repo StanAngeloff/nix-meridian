@@ -30,6 +30,7 @@
 
     oh-my-zsh = {
       enable = true;
+      theme = "macovsky";
       plugins = [
         "fancy-ctrl-z"
         "git-prompt"

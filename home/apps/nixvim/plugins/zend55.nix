@@ -7,8 +7,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "StanAngeloff";
           repo = "vim-zend55";
-          rev = "d1b6c5206762f3aacf044c6210374c5c300a6ece";
-          hash = "sha256-hbiNcxwa9zQlmPWq1fclgIN4p0i03xpCbB1r8vwgpYA=";
+          rev = "3c1656c747900cafe781d30714fb7782111ca3ba";
+          hash = "sha256-oA+LNgm5ggOMn8SclXN+kgqdnXA508oIbC/8zCuc2uc=";
         };
       }
     );

@@ -6,7 +6,7 @@
       backupcopy = "yes";
       backupdir = "${config.home.homeDirectory}/.local/state/nvim/backup/";
       colorcolumn = "+0";
-      completeopt = "menuone,noselect";
+      completeopt = "menuone,popup";
       cursorline = true;
       diffopt = "internal,filler,closeoff,linematch:60";
       display = "uhex,lastline";
