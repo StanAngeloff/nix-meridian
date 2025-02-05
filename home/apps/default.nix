@@ -2,12 +2,14 @@
 {
   imports = [
     ./alacritty
+    ./direnv
     ./eza
     ./firefox
     ./fzf
     ./git
     ./jump
     ./less
+    ./mise
     ./nixvim
     ./ripgrep
     ./thunderbird
@@ -28,7 +30,6 @@
 
     # CLI
     dconf2nix
-    mise
     trash-cli
     wl-clipboard
 

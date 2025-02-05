@@ -24,8 +24,6 @@
       setopt hist_save_no_dups
       setopt inc_append_history
       setopt no_hist_beep
-
-      eval "$(mise activate zsh)"
     '';
 
     oh-my-zsh = {
