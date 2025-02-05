@@ -3,9 +3,27 @@ with lib.hm.gvariant;
 {
   dconf.settings = {
     "org/gnome/desktop/input-sources" = {
-      per-window = true;  # Use different input sources for each window.
-      mru-sources = [ (mkTuple [ "xkb" "us+euro" ]) (mkTuple [ "xkb" "bg+phonetic" ]) ];
-      sources = [ (mkTuple [ "xkb" "us+euro" ]) (mkTuple [ "xkb" "bg+phonetic" ]) ];
+      per-window = true; # Use different input sources for each window.
+      mru-sources = [
+        (mkTuple [
+          "xkb"
+          "us+euro"
+        ])
+        (mkTuple [
+          "xkb"
+          "bg+phonetic"
+        ])
+      ];
+      sources = [
+        (mkTuple [
+          "xkb"
+          "us+euro"
+        ])
+        (mkTuple [
+          "xkb"
+          "bg+phonetic"
+        ])
+      ];
       xkb-options = [
         # List of XKB options:
         #

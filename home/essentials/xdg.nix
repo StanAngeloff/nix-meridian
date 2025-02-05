@@ -1,6 +1,8 @@
-{ config, ... }: let
+{ config, ... }:
+let
   binHome = "${config.home.homeDirectory}/.local/bin";
-in {
+in
+{
   # Enable management of XDG base directories.
   xdg.enable = true;
 

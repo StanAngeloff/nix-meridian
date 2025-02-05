@@ -6,12 +6,12 @@
     defaultMaps = false;
 
     signs = {
-      added                = "│";
-      modified             = "│";
-      removed              = "_";
-      removedFirstLine     = "‾";
+      added = "│";
+      modified = "│";
+      removed = "_";
+      removedFirstLine = "‾";
       removedAboveAndBelow = "-";
-      modifiedRemoved      = "-";
+      modifiedRemoved = "-";
     };
   };
 }

@@ -39,12 +39,23 @@
       };
       font = {
         size = 14.0;
-        offset = { x = -1; y = 0; };
+        offset = {
+          x = -1;
+          y = 0;
+        };
         builtin_box_drawing = true;
-        normal      = { family = "Berkeley Mono"; };
-        bold        = { family = "Berkeley Mono ExtraBold"; };
-        italic      = { family = "Berkeley Mono Oblique"; };
-        bold_italic = { family = "Berkeley Mono ExtraBold Oblique"; };
+        normal = {
+          family = "Berkeley Mono";
+        };
+        bold = {
+          family = "Berkeley Mono ExtraBold";
+        };
+        italic = {
+          family = "Berkeley Mono Oblique";
+        };
+        bold_italic = {
+          family = "Berkeley Mono ExtraBold Oblique";
+        };
       };
       mouse = {
         hide_when_typing = true;

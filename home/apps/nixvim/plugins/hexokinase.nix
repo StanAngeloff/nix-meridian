@@ -6,7 +6,7 @@
     ];
 
     globals = {
-      Hexokinase_highlighters = ["backgroundfull"];
+      Hexokinase_highlighters = [ "backgroundfull" ];
     };
   };
 }

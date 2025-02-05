@@ -49,7 +49,11 @@
       NERDTreeChDirMode = 1;
       NERDTreeMinimalUI = 1;
       NERDTreeWinSize = 48;
-      NERDTreeIgnore = ["\\~$" "\\.pyc$" "^node_modules$"];
+      NERDTreeIgnore = [
+        "\\~$"
+        "\\.pyc$"
+        "^node_modules$"
+      ];
       NERDTreeMapJumpNextSibling = "";
       NERDTreeMapJumpPrevSibling = "";
       NERDTreeShowHidden = 1;
@@ -71,16 +75,16 @@
       NERDTreeGitStatusConcealBrackets = 1;
 
       NERDTreeGitStatusIndicatorMapCustom = {
-        "Untracked" ="⁇";
-        "Staged"    ="⊕";
-        "Dirty"     ="•";
-        "Modified"  ="•";
-        "Unmerged"  ="⊜";
-        "Renamed"   ="⎊";
-        "Deleted"   ="⊗";
-        "Clean"     ="·";
-        "Ignored"   ="☒";
-        "Unknown"   ="U";
+        "Untracked" = "⁇";
+        "Staged" = "⊕";
+        "Dirty" = "•";
+        "Modified" = "•";
+        "Unmerged" = "⊜";
+        "Renamed" = "⎊";
+        "Deleted" = "⊗";
+        "Clean" = "·";
+        "Ignored" = "☒";
+        "Unknown" = "U";
       };
     };
 

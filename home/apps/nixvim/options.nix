@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 {
   programs.nixvim = {
     opts = {
@@ -41,7 +46,10 @@
       smartcase = true;
       softtabstop = 2;
       spell = true;
-      spelllang = [ "en" "bg" ];
+      spelllang = [
+        "en"
+        "bg"
+      ];
       switchbuf = "usetab,newtab";
       tabstop = 2;
       termguicolors = true;
@@ -55,7 +63,10 @@
       updatetime = 100;
       viewoptions = "cursor,folds,slash,unix";
       virtualedit = "block";
-      wildignore = [ "*/.git/*" "**/node_modules/*" ];
+      wildignore = [
+        "*/.git/*"
+        "**/node_modules/*"
+      ];
       wildignorecase = true;
       wildmode = "list:longest,full";
       wrap = true;
