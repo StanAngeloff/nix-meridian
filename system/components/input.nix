@@ -6,7 +6,7 @@
     variant = "";
   };
 
-  # Enable Ctrl+Shift+U to input unicode characters in X11.
+  # Enable Ctrl+Shift+U to input Unicode characters in X11.
   i18n.inputMethod = {
     enable = true;
     type = "ibus";

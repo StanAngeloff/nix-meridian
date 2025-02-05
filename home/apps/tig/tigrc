@@ -9,4 +9,4 @@ set refresh-interval = 2
 set refresh-mode = periodic
 set truncation-delimiter = utf-8
 
-source ~/.tigrc.vim
+source ~/.config/tig/vim.tigrc

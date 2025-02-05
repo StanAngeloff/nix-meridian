@@ -12,5 +12,6 @@
     LESS_TERMCAP_md = "$(printf '\\e[1;34m')";
     LESS_TERMCAP_us = "$(printf '\\e[1;32m')";
     LESS_TERMCAP_so = "$(printf '\\e[1;44;1m')";
+    GREP_COLORS = "mt=1;32";
   };
 }

@@ -41,8 +41,8 @@
     { key = "<C-C>"; mode = [ "n" "i" "v" ]; action = "<Esc><Esc>"; options.desc = "Escape, escape!"; }
     { key = "<C-W>"; mode = [ "i" ]; action = "<C-G>u<C-W>"; } # Start a new Undo group before making changes in INSERT mode.
     { key = "<C-R>"; mode = [ "i" ]; action = "<C-G>u<C-R>"; }
-    { key = "<C-J>"; mode = [ "i" ]; options.expr = true; action.__raw = ''function() return require("cmp").visible() and "<C-N>" or "<C-O>o" end''; }
-    { key = "<C-K>"; mode = [ "i" ]; options.expr = true; action.__raw = ''function() return require("cmp").visible() and "<C-P>" or "<C-O>O" end''; }
+    { key = "<C-J>"; mode = [ "i" ]; options.expr = true; options.remap = true; action.__raw = ''function() return require("cmp").visible() and "<C-N>" or "<C-O>o" end''; }
+    { key = "<C-K>"; mode = [ "i" ]; options.expr = true; options.remap = true; action.__raw = ''function() return require("cmp").visible() and "<C-P>" or "<C-O>O" end''; }
     { key = "<leader>sip"; mode = [ "n" ]; action = "mZvip:sort u<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:sort u<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si["; mode = [ "n" ]; action = "mZvi[:sort u<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }

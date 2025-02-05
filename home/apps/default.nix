@@ -17,24 +17,25 @@
     ./zsh
   ];
 
-  # The home.packages option allows you to install Nix packages into your environment.
+  # List packages installed in your user profile. To search, run:
+  # $ nix search wget
   home.packages = with pkgs; [
+    # Essentials
+    gcc14
+    gnumake
+    nodejs_22
+    python313
+
+    # CLI
     dconf2nix
     mise
     trash-cli
     wl-clipboard
 
-    # # It is sometimes useful to fine-tune packages, for example, by applying
-    # # overrides. You can do that directly here, just don't forget the
-    # # parentheses. Maybe you want to install Nerd Fonts with a limited number of
-    # # fonts?
-    # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
-
-    # # You can also create simple shell scripts directly inside your
-    # # configuration. For example, this adds a command 'my-hello' to your
-    # # environment:
-    # (pkgs.writeShellScriptBin "my-hello" ''
-    #   echo "Hello, ${config.home.username}!"
-    # '')
+    # GUI
+    emote
+    gnome-tweaks
+    google-chrome
+    slack
   ];
 }

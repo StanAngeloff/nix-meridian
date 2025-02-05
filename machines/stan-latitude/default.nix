@@ -1,7 +1,6 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ./networking.nix
   ];
-
-  networking.hostName = "stan-latitude";
 }

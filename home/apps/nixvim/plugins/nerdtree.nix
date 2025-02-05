@@ -49,7 +49,7 @@
       NERDTreeChDirMode = 1;
       NERDTreeMinimalUI = 1;
       NERDTreeWinSize = 48;
-      NERDTreeIgnore = ["\~$" "\.pyc$" "^node_modules$"];
+      NERDTreeIgnore = ["\\~$" "\\.pyc$" "^node_modules$"];
       NERDTreeMapJumpNextSibling = "";
       NERDTreeMapJumpPrevSibling = "";
       NERDTreeShowHidden = 1;

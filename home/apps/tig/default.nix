@@ -1,7 +1,7 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 {
   home.packages = with pkgs; [ tig ];
 
-  home.file.".tigrc".source = ./tigrc;
-  home.file.".tigrc.vim".source = ./vim.tigrc;
+  home.file."${config.home.homeDirectory}/.config/tig/config".source = ./tigrc;
+  home.file."${config.home.homeDirectory}/.config/tig/vim.tigrc".source = ./vim.tigrc;
 }
