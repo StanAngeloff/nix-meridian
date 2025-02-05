@@ -15,9 +15,14 @@
         split = "botright new";
         border = "none";
       };
+      keymap = {
+        fzf = {
+          "ctrl-a" = "select-all";
+        };
+      };
       actions = {
         files = {
-          "enter".__raw = "fzf_lua_actions.file_tabedit";
+          "enter".__raw = "fzf_lua_actions.file_edit_or_qf";
           "ctrl-t".__raw = "fzf_lua_actions.file_tabedit";
         };
       };

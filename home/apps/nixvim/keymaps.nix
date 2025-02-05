@@ -85,4 +85,30 @@
       end
     ''; }
   ];
+
+  programs.nixvim.autoCmd = [
+    # Open help windows on the right in a vertical split, credits @EvanPurkhiser.
+    {
+      event = [ "FileType" ];
+      pattern = "help";
+      callback.__raw = ''
+        function()
+          vim.cmd "wincmd L"
+          vim.cmd "vertical resize 78"
+          vim.keymap.set("n", "q", ":bwipeout<CR>", { buffer = true, silent = true })
+        end
+      '';
+    }
+    {
+      event = [ "FileType" ];
+      pattern = "qf";
+      callback.__raw = ''
+        function()
+          vim.keymap.set("n", "q", ":cclose<CR>:lclose<CR>", { buffer = true, silent = true })
+          vim.keymap.set("n", "<C-T>", "^<C-W>gF", { buffer = true })
+          vim.keymap.set("n", "t", "^<C-W>gF", { buffer = true })
+        end
+      '';
+    }
+  ];
 }

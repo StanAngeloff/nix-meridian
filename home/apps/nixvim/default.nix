@@ -58,17 +58,6 @@
           end
         '';
       }
-      # Open help windows on the right in a vertical split, credits @EvanPurkhiser.
-      {
-        event = [ "FileType" ];
-        pattern = "help";
-        callback.__raw = ''
-          function()
-            vim.cmd "wincmd L"
-            vim.keymap.set("n", "q", ":bwipeout<CR>", { buffer = true, silent = true })
-          end
-        '';
-      }
       # Highlight trailing whitespace after the colour scheme has loaded.
       {
         event = [ "BufEnter" ];
