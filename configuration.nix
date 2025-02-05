@@ -1,17 +1,14 @@
 { config, lib, ... }:
-let
-  nixvim = import (
-    builtins.fetchGit {
-      url = "https://github.com/nix-community/nixvim";
-      ref = "nixos-24.11";
-    }
-  );
-in
 {
   imports = [
     ./machines/stan-latitude
     ./system
-    <home-manager/nixos>
+  ];
+
+  # Enable the Flakes feature and the accompanying new nix command-line tool.
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
   ];
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
@@ -23,15 +20,6 @@ in
       "wheel"
     ] ++ lib.lists.optional config.networking.networkmanager.enable "networkmanager";
   };
-
-  home-manager.users.stan =
-    { ... }:
-    {
-      imports = [
-        nixvim.homeManagerModules.nixvim
-        ./home
-      ];
-    };
 
   # This value determines the NixOS release from which the default settings for stateful data,
   # like file locations and database versions on your system were taken.
