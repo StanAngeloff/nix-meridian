@@ -1,6 +1,8 @@
 { pkgs, ... }:
 {
-  programs.gnome-shell.extensions = with pkgs.gnomeExtensions; [ { package = clipboard-indicator; } ];
+  programs.gnome-shell.extensions = with pkgs.gnomeExtensions; [
+    { package = clipboard-indicator; }
+  ];
 
   dconf.settings."org/gnome/shell/extensions/clipboard-indicator" = {
     cache-size = 10;

@@ -14,6 +14,7 @@
       font-antialiasing = "rgba";
       font-name = "IBM Plex Sans 11";
       document-font-name = "IBM Plex Sans 11";
+      monospace-font-name = "Berkeley Mono 11";
     };
     "org/gnome/desktop/wm/preferences" = {
       titlebar-uses-system-font = true;

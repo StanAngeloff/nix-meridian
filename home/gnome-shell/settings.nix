@@ -45,11 +45,17 @@ with lib.hm.gvariant;
       cursor-theme = "DMZ-White";
       cursor-size = 32;
       enable-hot-corners = false;
+      show-battery-percentage = true;
+      clock-show-date = false;
+      clock-show-weekday = false;
       text-scaling-factor = 1.25;
     };
     "org/gnome/desktop/peripherals/keyboard" = {
       delay = lib.hm.gvariant.mkUint32 200;
       repeat-interval = lib.hm.gvariant.mkUint32 18;
+    };
+    "org/gnome/nautilus/list-view" = {
+      use-tree-view = true;
     };
     "org/gnome/shell" = {
       favorite-apps = [

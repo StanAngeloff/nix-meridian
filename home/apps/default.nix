@@ -8,6 +8,7 @@
     ./fzf
     ./git
     ./jump
+    ./keepassxc
     ./less
     ./mise
     ./nixvim

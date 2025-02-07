@@ -21,6 +21,7 @@
     ./treesitter-context.nix
     ./treesitter-textobjects.nix
     ./undotree.nix
+    ./unimpaired.nix
     ./zend55.nix
   ];
 }
