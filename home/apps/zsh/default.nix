@@ -30,6 +30,7 @@
       enable = true;
       theme = "macovsky";
       plugins = [
+        "docker"
         "fancy-ctrl-z"
         "git-prompt"
       ];

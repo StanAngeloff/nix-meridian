@@ -3,6 +3,7 @@
   imports = [
     ./alacritty
     ./direnv
+    ./dropbox
     ./eza
     ./firefox
     ./fzf
@@ -12,6 +13,7 @@
     ./less
     ./mise
     ./nixvim
+    ./proton
     ./ripgrep
     ./thunderbird
     ./tig
@@ -24,15 +26,21 @@
   # $ nix search wget
   home.packages = with pkgs; [
     # Essentials
+    deno
     gcc14
     gnumake
     nodejs_22
+    pnpm_10
     python313
 
     # CLI
     dconf2nix
+    envchain
+    httpie
+    imagemagick
     trash-cli
     wl-clipboard
+    yt-dlp
 
     # GUI
     emote

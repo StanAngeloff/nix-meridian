@@ -1,7 +1,6 @@
 {
   imports = [
     ./bluetooth
-    ./dropbox
     ./ssh
   ];
 }
