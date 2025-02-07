@@ -9,7 +9,7 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     killall
-    libappindicator-gtk2  # Library to allow applications to export a menu into the Unity Menu bar.
-    libappindicator-gtk3  # Library to allow applications to export a menu into the Unity Menu bar.
+    libappindicator-gtk2 # Library to allow applications to export a menu into the Unity Menu bar.
+    libappindicator-gtk3 # Library to allow applications to export a menu into the Unity Menu bar.
   ];
 }

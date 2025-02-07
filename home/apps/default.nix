@@ -18,6 +18,7 @@
     ./thunderbird
     ./tig
     ./tmux
+    ./unicode-tussle
     ./vscode
     ./zsh
   ];
@@ -47,5 +48,16 @@
     gnome-tweaks
     google-chrome
     slack
+
+    (viber.overrideAttrs (
+      finalAttrs: previousAttrs: {
+        installPhase = ''
+          ${previousAttrs.installPhase or ""}
+
+          substituteInPlace $out/share/applications/viber.desktop \
+            --replace Path=/opt/viber/ Path=$out/opt/viber/
+        '';
+      }
+    ))
   ];
 }

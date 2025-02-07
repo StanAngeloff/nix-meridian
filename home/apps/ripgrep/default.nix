@@ -1,6 +1,8 @@
-{ config, ... }: let
+{ config, ... }:
+let
   configPath = "${config.home.homeDirectory}/.config/ripgrep/config";
-in {
+in
+{
   programs.ripgrep = {
     enable = true;
   };
