@@ -2,6 +2,7 @@
   programs.git = {
     enable = true;
     lfs.enable = true;
+    diff-so-fancy.enable = true;
 
     userName = "Stan Angeloff";
     userEmail = "stanimir@angeloff.name";

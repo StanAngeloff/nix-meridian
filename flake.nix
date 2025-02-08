@@ -15,6 +15,11 @@
       url = "github:nix-community/nixvim/nixos-24.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    solaar = {
+      url = "https://flakehub.com/f/Svenum/Solaar-Flake/*.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -22,6 +27,7 @@
       nixpkgs,
       home-manager,
       nixvim,
+      solaar,
       ...
     }@inputs:
     {
@@ -29,6 +35,7 @@
         system = "x86_64-linux";
         modules = [
           ./configuration.nix
+          solaar.nixosModules.default
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

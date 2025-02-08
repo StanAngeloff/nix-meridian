@@ -7,6 +7,7 @@
 {
   programs.nixvim = {
     opts = {
+      autoread = false;
       backup = true;
       backupcopy = "yes";
       backupdir = "${config.home.homeDirectory}/.local/state/nvim/backup/";

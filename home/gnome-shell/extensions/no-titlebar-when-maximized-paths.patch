@@ -1,0 +1,20 @@
+--- a/extension.js	2025-02-08 23:28:35.580450139 +0200
++++ b/extension.js	2025-02-08 23:29:00.082486143 +0200
+@@ -155,7 +155,7 @@
+ 
+ function getMotifHints(xId) {
+   const command = [
+-    "xprop",
++    "@xprop@",
+     "-id",
+     xId,
+     ...MOTIF_HINTS_FORMAT_ARGS,
+@@ -194,7 +194,7 @@
+ 
+ function setMotifHints(xId, motifHints) {
+   const command = [
+-    "xprop",
++    "@xprop@",
+     "-id",
+     xId,
+     ...MOTIF_HINTS_FORMAT_ARGS,

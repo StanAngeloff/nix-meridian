@@ -4,6 +4,7 @@
     ./appindicator.nix
     ./clipboard-indicator.nix
     ./hide-universal-access.nix
+    ./no-titlebar-when-maximized.nix
     ./tiling-assistant.nix
     ./window-title-is-back.nix
   ];

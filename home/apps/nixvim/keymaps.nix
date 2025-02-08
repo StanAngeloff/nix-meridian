@@ -64,26 +64,38 @@
     { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
 
     # Jump to the first non-whitespace character on the line or the beginning of the line.
-    { key = "0"; mode = [ "n" "v" ]; options.expr = true; action.__raw = ''
-      function()
-        local line = vim.fn.getline(".")
-        local col = vim.fn.col(".")
-        local before = line:sub(1, col)
-        if before:match("^%s+%S$") then
-          return "0"
+    {
+      key = "0";
+      mode = [
+        "n"
+        "v"
+      ];
+      options.expr = true;
+      action.__raw = ''
+        function()
+          local line = vim.fn.getline(".")
+          local col = vim.fn.col(".")
+          local before = line:sub(1, col)
+          if before:match("^%s+%S$") then
+            return "0"
+          end
+          return "^"
         end
-        return "^"
-      end
-    ''; }
+      '';
+    }
 
     # Strip trailing whitespace.
-    { key = "<leader>W"; mode = [ "n" ]; action.__raw = ''
-      function()
-        local line = vim.fn.line(".")
-        vim.cmd "silent! keeppatterns %s/\\s\\+$//e"
-        vim.cmd("silent! keepjumps normal! " .. line .. "G")
-      end
-    ''; }
+    {
+      key = "<leader>W";
+      mode = [ "n" ];
+      action.__raw = ''
+        function()
+          local line = vim.fn.line(".")
+          vim.cmd "silent! keeppatterns %s/\\s\\+$//e"
+          vim.cmd("silent! keepjumps normal! " .. line .. "G")
+        end
+      '';
+    }
   ];
 
   programs.nixvim.autoCmd = [

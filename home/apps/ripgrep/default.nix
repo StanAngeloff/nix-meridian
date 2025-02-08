@@ -13,6 +13,7 @@ in
     --hidden
     --ignore-vcs
     --smart-case
+    --glob=!.git/*
     # See https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#silver-searcher-output
     #
     --colors=line:fg:yellow

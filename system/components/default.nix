@@ -7,6 +7,7 @@
     ./networking.nix
     ./podman.nix
     ./regional.nix
+    ./security.nix
     ./shell.nix
     ./udev.nix
   ];
