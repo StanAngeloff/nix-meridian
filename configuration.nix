@@ -1,7 +1,7 @@
 { config, lib, ... }:
 {
   imports = [
-    ./machines/stan-latitude
+    ./machines/stan-latitude/hardware-configuration.nix
     ./system
   ];
 

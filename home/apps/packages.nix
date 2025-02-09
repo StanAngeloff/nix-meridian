@@ -1,6 +1,7 @@
 { pkgs, ... }:
 let
   viber = import ./viber { inherit pkgs; };
+  clipboard2markdown = import ./clipboard2markdown { inherit pkgs; };
 in
 {
   # List packages installed in your user profile. To search, run:
@@ -15,6 +16,7 @@ in
     python313
 
     # CLI
+    clipboard2markdown.package
     dconf2nix
     envchain
     httpie

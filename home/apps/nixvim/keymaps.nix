@@ -13,6 +13,7 @@
     { key = "Q"; mode = [ "v" ]; action = "<Esc>:windo normal ZZ<CR>"; options.silent = true; }
     { key = "<Return>"; mode = [ "n" ]; action = ":w<CR>"; options.desc = "Frantic <C-S> are now hectic <Return>s"; }
     { key = "<Return>"; mode = [ "v" ]; action = ":<C-U>w<CR>gv"; }
+    { key = "<Return>"; mode = [ "i" ]; options.expr = true; options.noremap = true; action.__raw = ''function() return require("cmp").visible() and "<C-Y>" or "<C-G>u<CR>" end''; }
     { key = "<leader><Space>"; mode = [ "n" ]; action = ":noh<CR>:sign unplace *<CR>:call clearmatches()<CR>:GitGutter<CR>"; options.silent = true; options.desc = "Turn off active highlighting, reset signs and plug-ins"; }
     { key = "<F1>"; mode = [ "n" ]; action = ":setlocal nospell! nospell?<CR>"; options.silent = true; options.desc = "Toggle spell-checking"; }
     { key = "<F2>"; mode = [ "n" ]; action = ":setlocal invpaste paste?<CR>"; options.silent = true; options.desc = "Toggle paste-mode"; }
@@ -62,6 +63,7 @@
     { key = "ac"; mode = [ "x" ]; action = "<Plug>(GitGutterTextObjectOuterVisual)"; }
     { key = "[b"; mode = [ "v" ]; action = ":<C-U>call base64#v_atob()<CR>"; options.silent = true; } # vim-base64
     { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
+    { key = "*"; mode = [ "n" ]; action = ":keepjumps normal! mi*`i<CR>"; options.silent = true; }
 
     # Jump to the first non-whitespace character on the line or the beginning of the line.
     {

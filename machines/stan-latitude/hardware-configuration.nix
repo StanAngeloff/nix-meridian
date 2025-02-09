@@ -11,6 +11,8 @@
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 
+  networking.hostName = "stan-latitude";
+
   # Use the systemd-boot EFI boot loader.
   boot.loader = {
     systemd-boot.enable = true;
@@ -58,6 +60,5 @@
     { device = "/dev/disk/by-label/NIXOS_SWAP"; }
   ];
 
-  hardware.enableAllFirmware = true;
-  hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+  hardware.cpu.intel.updateMicrocode = config.hardware.enableRedistributableFirmware;
 }

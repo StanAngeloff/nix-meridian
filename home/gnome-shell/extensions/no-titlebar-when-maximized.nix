@@ -9,7 +9,7 @@ let
       owner = "alecdotninja";
       repo = "no-titlebar-when-maximized";
       rev = "v${version}";
-      sha256 = "sha256-NlQKRt3lnn6fjP5JCyjF7QAIC5egltOIOICRPNixymk=";
+      hash = "sha256-NlQKRt3lnn6fjP5JCyjF7QAIC5egltOIOICRPNixymk=";
     };
 
     passthru = {

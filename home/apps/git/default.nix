@@ -29,5 +29,51 @@
 
       ro = "!sh -c 'git rebase -i --autostash --autosquash origin/\"$( git symbolic-ref --short HEAD )\"'";
     };
+
+    # Git configuration https://git-scm.com/docs/git-config
+    extraConfig = {
+      github = {
+        user = "StanAngeloff";
+      };
+
+      color = {
+        diff-highlight = {
+          oldnormal = "1 0";
+          oldhighlight = "210 52";
+          newnormal = "2 0";
+          newhighlight = "120 22";
+        };
+        diff = {
+          oldMoved = "251 0";
+          newMoved = "251 0";
+        };
+      };
+
+      diff = {
+        colorMoved = "default";
+      };
+
+      branch = {
+        autoSetupRebase = "always";
+      };
+
+      push = {
+        default = "upstream";
+        gpgSign = "if-asked";
+      };
+
+      rerere = {
+        enabled = true;
+      };
+
+      rebase = {
+        autoSquash = true;
+        autoStash = true;
+      };
+
+      stash = {
+        showPatch = true;
+      };
+    };
   };
 }
