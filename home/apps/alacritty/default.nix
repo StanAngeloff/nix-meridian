@@ -40,21 +40,25 @@
       font = {
         size = 14.0;
         offset = {
-          x = -1;
+          x = -2;
           y = 0;
         };
         builtin_box_drawing = true;
         normal = {
-          family = "Berkeley Mono";
+          family = "BerkeleyMono Nerd Font Mono";
+          style = "Regular";
         };
         bold = {
-          family = "Berkeley Mono ExtraBold";
+          family = "BerkeleyMono Nerd Font Mono";
+          style = "ExtraBold";
         };
         italic = {
-          family = "Berkeley Mono Oblique";
+          family = "BerkeleyMono Nerd Font Mono";
+          style = "Oblique";
         };
         bold_italic = {
-          family = "Berkeley Mono ExtraBold Oblique";
+          family = "BerkeleyMono Nerd Font Mono";
+          style = "ExtraBold Oblique";
         };
       };
       mouse = {

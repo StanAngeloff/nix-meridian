@@ -9,17 +9,82 @@
       lsp = {
         enable = true;
 
+        onAttach = ''
+          -- Enable completion triggered by <C-X><C-O>
+          vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+
+          -- Mappings
+          --
+          -- See `:help vim.lsp.*` for documentation on any of the below functions
+          local bufopts = { noremap = true, silent = true, buffer = bufnr }
+
+          vim.keymap.set('n', 'H', '<cmd>Lspsaga hover_doc<CR>', bufopts)
+          vim.keymap.set('n', 'K', '<cmd>Lspsaga peek_type_definition<CR>', bufopts)
+          vim.keymap.set('n', 'L', '<cmd>Lspsaga peek_definition<CR>', bufopts)
+          vim.keymap.set('n', '<Space>', '<cmd>Lspsaga code_action<CR>', bufopts)
+
+          vim.keymap.set('n', '[e', '<cmd>Lspsaga diagnostic_jump_prev<CR>', bufopts)
+          vim.keymap.set('n', ']e', '<cmd>Lspsaga diagnostic_jump_next<CR>', bufopts)
+        '';
+
         servers = {
-          nixd = {
+          astro = {
             enable = true;
           };
-
+          bashls = {
+            enable = true;
+          };
+          cssls = {
+            enable = true;
+          };
+          graphql = {
+            enable = true;
+          };
+          html = {
+            enable = true;
+          };
           jsonls = {
             enable = true;
           };
-
+          lua_ls = {
+            enable = true;
+          };
+          nixd = {
+            enable = true;
+          };
+          tailwindcss = {
+            enable = true;
+          };
+          theme_check = {
+            enable = true;
+            package = null;
+          };
+          vimls = {
+            enable = true;
+          };
           yamlls = {
             enable = true;
+          };
+
+          # Deno vs. TypeScript
+          denols = {
+            enable = true;
+            rootDir = ''
+              require('lspconfig').util.root_pattern('deno.json', 'deno.jsonc')
+            '';
+          };
+          ts_ls = {
+            enable = true;
+            rootDir = ''
+              function (filename)
+                local lspconfig = require('lspconfig');
+                local denolsFiles = lspconfig.util.root_pattern('deno.json', 'deno.jsonc')(filename);
+                if denolsFiles then
+                  return nil;
+                end
+                return lspconfig.util.root_pattern('package.json')(filename);
+              end
+            '';
           };
         };
       };

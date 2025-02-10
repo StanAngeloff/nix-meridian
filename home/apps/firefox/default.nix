@@ -2,6 +2,11 @@
   programs.firefox = {
     enable = true;
 
+    languagePacks = [
+      "en-GB"
+      "bg"
+    ];
+
     policies = {
       DisableFirefoxStudies = true;
       DisablePocket = true;

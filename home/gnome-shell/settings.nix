@@ -1,7 +1,7 @@
 { lib, ... }:
 with lib.hm.gvariant;
 {
-  dconf.settings = {
+  dconf.settings = with lib.hm.gvariant; {
     "org/gnome/desktop/input-sources" = {
       per-window = true; # Use different input sources for each window.
       mru-sources = [
@@ -41,18 +41,31 @@ with lib.hm.gvariant;
       ];
     };
     "org/gnome/desktop/interface" = {
-      color-scheme = "prefer-dark";
-      cursor-theme = "DMZ-White";
-      cursor-size = 32;
-      enable-hot-corners = false;
-      show-battery-percentage = true;
       clock-show-date = false;
       clock-show-weekday = false;
-      text-scaling-factor = 1.25;
+      color-scheme = "prefer-dark";
+      cursor-size = 32;
+      cursor-theme = "DMZ-White";
+      enable-hot-corners = false;
+      gtk-enable-primary-paste = false;
+      show-battery-percentage = true;
+      text-scaling-factor = 1.00;
     };
     "org/gnome/desktop/peripherals/keyboard" = {
-      delay = lib.hm.gvariant.mkUint32 200;
-      repeat-interval = lib.hm.gvariant.mkUint32 18;
+      delay = mkUint32 200;
+      repeat-interval = mkUint32 18;
+    };
+    "org/gnome/desktop/session" = {
+      idle-delay = mkUint32 0;
+    };
+    "org/gnome/desktop/wm/preferences" = {
+      num-workspaces = 4;
+    };
+    "org/gnome/mutter" = {
+      attach-modal-dialogs = true;
+      dynamic-workspaces = false;
+      edge-tiling = false;
+      workspaces-only-on-primary = true;
     };
     "org/gnome/nautilus/list-view" = {
       use-tree-view = true;
@@ -69,10 +82,12 @@ with lib.hm.gvariant;
     "org/gnome/shell/app-switcher" = {
       current-workspace-only = true;
     };
-    "org/gnome/shell/overrides" = {
-      attach-modal-dialogs = true;
-      edge-tiling = false;
-      workspaces-only-on-primary = true;
+    "org/gnome/settings-daemon/plugins/color" = {
+      night-light-enabled = true;
+      night-light-schedule-automatic = true;
+    };
+    "org/gnome/settings-daemon/plugins/power" = {
+      idle-dim = false;
     };
   };
 }

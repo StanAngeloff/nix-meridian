@@ -2,6 +2,7 @@
   imports = [
     ./activate-window-by-title.nix
     ./appindicator.nix
+    ./bing-wallpaper-changer.nix
     ./clipboard-indicator.nix
     ./hide-universal-access.nix
     ./no-titlebar-when-maximized.nix

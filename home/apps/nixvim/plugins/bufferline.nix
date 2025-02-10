@@ -1,5 +1,84 @@
 {
   programs.nixvim.plugins.bufferline = {
     enable = true;
+
+    settings = {
+      options = {
+        mode = "tabs";
+        numbers = "none";
+        style_preset.__raw = ''
+          {
+            require("bufferline").style_preset.minimal;
+            require("bufferline").style_preset.no_italic;
+          }
+        '';
+        indicator = {
+          style = "none";
+        };
+        tab_size = 1;
+        max_name_length = 32;
+        max_prefix_length = 24;
+        modified_icon = "∗";
+        diagnostics = false;
+        color_icons = false;
+        show_buffer_icons = true;
+        show_buffer_close_icons = false;
+        show_close_icon = false;
+        show_tab_indicators = false;
+        separator_style = [
+          ""
+          ""
+        ];
+        always_show_bufferline = true;
+        left_trunc_marker = "←";
+        right_trunc_marker = "→";
+      };
+
+      highlights = {
+        fill = {
+          bg = "#262626";
+        };
+        background = {
+          fg = "#666666";
+          bg = "#262626";
+        };
+        tab = {
+          fg = "#666666";
+          bg = "#262626";
+        };
+        modified = {
+          fg = "#666666";
+          bg = "#262626";
+        };
+        duplicate = {
+          fg = "#464646";
+          bg = "#262626";
+        };
+        buffer_selected = {
+          fg = "#e4e4e4";
+          bg = "#3a3a3a";
+          bold = false;
+          italic = false;
+        };
+        modified_selected = {
+          fg = "#e4e4e4";
+          bg = "#3a3a3a";
+          bold = false;
+          italic = false;
+        };
+        duplicate_selected = {
+          fg = "#848484";
+          bg = "#3a3a3a";
+        };
+        indicator_selected = {
+          fg = "#e4e4e4";
+          bg = "#3a3a3a";
+        };
+        trunc_marker = {
+          fg = "#888888";
+          bg = "#262626";
+        };
+      };
+    };
   };
 }
