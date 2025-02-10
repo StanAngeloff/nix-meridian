@@ -6,6 +6,7 @@
     ./clipboard-indicator.nix
     ./hide-universal-access.nix
     ./no-titlebar-when-maximized.nix
+    ./soft-brightness-plus.nix
     ./tiling-assistant.nix
     ./window-title-is-back.nix
   ];

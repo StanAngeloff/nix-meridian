@@ -1,3 +1,11 @@
+{ config, ... }:
+let
+  monospaceFontFamily = "${
+    builtins.replaceStrings [ " " ] [ "" ] (
+      builtins.elemAt config.fonts.fontconfig.defaultFonts.monospace 0
+    )
+  } Nerd Font Mono";
+in
 {
   imports = [
     ./desktop.nix
@@ -45,19 +53,19 @@
         };
         builtin_box_drawing = true;
         normal = {
-          family = "BerkeleyMono Nerd Font Mono";
+          family = monospaceFontFamily;
           style = "Regular";
         };
         bold = {
-          family = "BerkeleyMono Nerd Font Mono";
+          family = monospaceFontFamily;
           style = "ExtraBold";
         };
         italic = {
-          family = "BerkeleyMono Nerd Font Mono";
+          family = monospaceFontFamily;
           style = "Oblique";
         };
         bold_italic = {
-          family = "BerkeleyMono Nerd Font Mono";
+          family = monospaceFontFamily;
           style = "ExtraBold Oblique";
         };
       };

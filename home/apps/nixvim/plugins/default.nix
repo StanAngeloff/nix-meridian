@@ -15,6 +15,7 @@
     ./lsp.nix
     ./lspsaga.nix
     ./lualine.nix
+    ./markdown-preview.nix
     ./nerdtree.nix
     ./nvim-autopairs.nix
     ./repeat.nix
@@ -29,9 +30,7 @@
     ./ts-error-translator.nix
     ./undotree.nix
     ./unimpaired.nix
+    ./web-devicons.nix
     ./zend55.nix
   ];
-
-  # Don't enable `plugins.web-devicons` automatically because other plugins are enabled.
-  programs.nixvim.plugins.web-devicons.enable = false;
 }

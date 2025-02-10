@@ -1,9 +1,12 @@
 {
   imports = [
+    ./adb.nix
     ./audio.nix
     ./bluetooth.nix
     ./desktop.nix
+    ./filesystem.nix
     ./firmware.nix
+    ./fonts.nix
     ./input.nix
     ./networking.nix
     ./podman.nix

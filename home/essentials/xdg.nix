@@ -19,6 +19,6 @@ in
 
   systemd.user.tmpfiles.rules = [
     # At some point I contemplated extracting "stan" into an option, but let's be real.
-    "d \"${binHome}\" 0755 stan users"
+    "d \"${binHome}\" 0755 stan users -"
   ];
 }

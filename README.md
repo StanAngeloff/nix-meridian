@@ -19,9 +19,15 @@ This repository is highly experimental and personal. I'm using it to explore Nix
 
 ### Hiccups
 
-#### TX-02 Berkeley Mono™ Typeface
+#### Berkeley Mono™ (TX-02) Typeface
 
-This has to be downloaded and installed manually.
+This font family has to be downloaded and installed manually. Patch with Nerd Fonts afterwards:
+
+```shellsession
+$ cd ~/.local/share/fonts
+$ nix-shell -p nerd-font-patcher
+$ for f in *.ttf; do nerd-font-patcher --progressbars --mono --adjust-line-height --complete $f ; done
+```
 
 #### `dropbox`
 

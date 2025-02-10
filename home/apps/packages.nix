@@ -21,6 +21,7 @@ in
     envchain
     httpie
     imagemagick
+    scrcpy
     trash-cli
     wl-clipboard
     yt-dlp

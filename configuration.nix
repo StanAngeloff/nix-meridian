@@ -12,13 +12,16 @@
   ];
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.stan = {
+  users.users.stan = with lib.lists; {
     isNormalUser = true;
     createHome = true;
     description = "Stan Angeloff";
-    extraGroups = [
-      "wheel"
-    ] ++ lib.lists.optional config.networking.networkmanager.enable "networkmanager";
+    extraGroups =
+      [
+        "wheel"
+      ]
+      ++ optional config.networking.networkmanager.enable "networkmanager"
+      ++ optional config.programs.adb.enable "adbusers";
   };
 
   # This value determines the NixOS release from which the default settings for stateful data,

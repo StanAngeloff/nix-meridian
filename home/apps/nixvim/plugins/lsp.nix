@@ -1,31 +1,28 @@
 { pkgs, ... }:
 {
   programs.nixvim = {
-    extraPackages = with pkgs; [
-      nixd
-    ];
-
     plugins = {
       lsp = {
         enable = true;
 
-        onAttach = ''
-          -- Enable completion triggered by <C-X><C-O>
-          vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+        onAttach = # lua
+          ''
+            -- Enable completion triggered by <C-X><C-O>
+            vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
 
-          -- Mappings
-          --
-          -- See `:help vim.lsp.*` for documentation on any of the below functions
-          local bufopts = { noremap = true, silent = true, buffer = bufnr }
+            -- Mappings
+            --
+            -- See `:help vim.lsp.*` for documentation on any of the below functions
+            local bufopts = { noremap = true, silent = true, buffer = bufnr }
 
-          vim.keymap.set('n', 'H', '<cmd>Lspsaga hover_doc<CR>', bufopts)
-          vim.keymap.set('n', 'K', '<cmd>Lspsaga peek_type_definition<CR>', bufopts)
-          vim.keymap.set('n', 'L', '<cmd>Lspsaga peek_definition<CR>', bufopts)
-          vim.keymap.set('n', '<Space>', '<cmd>Lspsaga code_action<CR>', bufopts)
+            vim.keymap.set('n', 'H', '<cmd>Lspsaga hover_doc<CR>', bufopts)
+            vim.keymap.set('n', 'K', '<cmd>Lspsaga peek_type_definition<CR>', bufopts)
+            vim.keymap.set('n', 'L', '<cmd>Lspsaga peek_definition<CR>', bufopts)
+            vim.keymap.set('n', '<Space>', '<cmd>Lspsaga code_action<CR>', bufopts)
 
-          vim.keymap.set('n', '[e', '<cmd>Lspsaga diagnostic_jump_prev<CR>', bufopts)
-          vim.keymap.set('n', ']e', '<cmd>Lspsaga diagnostic_jump_next<CR>', bufopts)
-        '';
+            vim.keymap.set('n', '[e', '<cmd>Lspsaga diagnostic_jump_prev<CR>', bufopts)
+            vim.keymap.set('n', ']e', '<cmd>Lspsaga diagnostic_jump_next<CR>', bufopts)
+          '';
 
         servers = {
           astro = {
@@ -51,6 +48,9 @@
           };
           nixd = {
             enable = true;
+            settings = {
+              formatting.command = [ "nixpkgs-fmt" ];
+            };
           };
           tailwindcss = {
             enable = true;
@@ -69,22 +69,26 @@
           # Deno vs. TypeScript
           denols = {
             enable = true;
-            rootDir = ''
-              require('lspconfig').util.root_pattern('deno.json', 'deno.jsonc')
-            '';
+            rootDir = # lua
+              ''
+                function (filename)
+                  return require("lspconfig").util.root_pattern("deno.json", "deno.jsonc")(filename);
+                end
+              '';
           };
           ts_ls = {
             enable = true;
-            rootDir = ''
-              function (filename)
-                local lspconfig = require('lspconfig');
-                local denolsFiles = lspconfig.util.root_pattern('deno.json', 'deno.jsonc')(filename);
-                if denolsFiles then
-                  return nil;
+            rootDir = # lua
+              ''
+                function (filename)
+                  local lspconfig = require("lspconfig");
+                  local denolsFiles = lspconfig.util.root_pattern("deno.json", "deno.jsonc")(filename);
+                  if denolsFiles then
+                    return nil;
+                  end
+                  return lspconfig.util.root_pattern("package.json", "tsconfig.json")(filename);
                 end
-                return lspconfig.util.root_pattern('package.json')(filename);
-              end
-            '';
+              '';
           };
         };
       };

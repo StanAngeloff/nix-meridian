@@ -12,12 +12,14 @@
       maximize = [ ];
       minimize = [ "<Super>Down" ];
       move-to-monitor-down = [ ];
+      move-to-monitor-left = [ "<Shift><Super>Left" ];
+      move-to-monitor-right = [ "<Shift><Super>Right" ];
       move-to-monitor-up = [ ];
       move-to-workspace-1 = [ ];
       move-to-workspace-down = [ "<Shift><Super>Down" ];
       move-to-workspace-last = [ ];
-      move-to-workspace-left = [ ];
-      move-to-workspace-right = [ ];
+      move-to-workspace-left = [ "<Shift><Control><Super>Left" ];
+      move-to-workspace-right = [ "<Shift><Control><Super>Right" ];
       move-to-workspace-up = [ "<Shift><Super>Up" ];
       panel-main-menu = [ "<Super>w" ];
       panel-run-dialog = [ "<Super>r" ];

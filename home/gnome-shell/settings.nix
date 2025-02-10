@@ -60,6 +60,7 @@ with lib.hm.gvariant;
     };
     "org/gnome/desktop/wm/preferences" = {
       num-workspaces = 4;
+      resize-with-right-button = true;
     };
     "org/gnome/mutter" = {
       attach-modal-dialogs = true;

@@ -2,9 +2,10 @@
   programs.nixvim.plugins.fzf-lua = {
     enable = true;
 
-    luaConfig.pre = ''
-      local fzf_lua_actions = require'fzf-lua.actions'
-    '';
+    luaConfig.pre = # lua
+      ''
+        local fzf_lua_actions = require("fzf-lua.actions")
+      '';
 
     settings = {
       fzf_opts = {

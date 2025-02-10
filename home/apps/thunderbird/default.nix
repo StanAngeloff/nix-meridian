@@ -1,4 +1,8 @@
 {
+  imports = [
+    ./gnome-theme.nix
+  ];
+
   programs.thunderbird = {
     enable = true;
 
