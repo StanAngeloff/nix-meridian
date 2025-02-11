@@ -60,7 +60,6 @@ with lib.hm.gvariant;
     };
     "org/gnome/desktop/wm/preferences" = {
       num-workspaces = 4;
-      resize-with-right-button = true;
     };
     "org/gnome/mutter" = {
       attach-modal-dialogs = true;
@@ -77,6 +76,7 @@ with lib.hm.gvariant;
         "firefox.desktop"
         "code.desktop"
         "slack.desktop"
+        "thunderbird.desktop"
         "org.gnome.Nautilus.desktop"
       ];
     };

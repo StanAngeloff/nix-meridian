@@ -1,7 +1,8 @@
 { pkgs, ... }:
 let
-  viber = import ./viber { inherit pkgs; };
   clipboard2markdown = import ./clipboard2markdown { inherit pkgs; };
+  proton-pass = import ./proton-pass { inherit pkgs; };
+  viber = import ./viber { inherit pkgs; };
 in
 {
   # List packages installed in your user profile. To search, run:
@@ -21,6 +22,7 @@ in
     envchain
     httpie
     imagemagick
+    rclone
     scrcpy
     trash-cli
     wl-clipboard
@@ -30,6 +32,9 @@ in
     emote
     gnome-tweaks
     google-chrome
+    onlyoffice-desktopeditors
+    proton-pass.package
+    protonvpn-gui
     slack
     viber.package
   ];

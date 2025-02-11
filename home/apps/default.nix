@@ -17,7 +17,6 @@ in
     ./less
     ./mise
     ./nixvim
-    ./proton
     ./ripgrep
     ./thunderbird
     ./tig
