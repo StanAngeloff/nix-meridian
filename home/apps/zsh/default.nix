@@ -24,15 +24,16 @@
       setopt hist_save_no_dups
       setopt inc_append_history
       setopt no_hist_beep
+
+      bindkey "^H" backward-delete-word
+
+      source ${./prompt.zsh}
     '';
 
     oh-my-zsh = {
       enable = true;
-      theme = "macovsky";
       plugins = [
-        "docker"
         "fancy-ctrl-z"
-        "git-prompt"
       ];
     };
   };
