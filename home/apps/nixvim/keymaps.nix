@@ -64,6 +64,7 @@
     { key = "[b"; mode = [ "v" ]; action = ":<C-U>call base64#v_atob()<CR>"; options.silent = true; } # vim-base64
     { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
     { key = "*"; mode = [ "n" ]; action = ":keepjumps normal! mi*`i<CR>"; options.silent = true; }
+    { key = "X"; mode = [ "x" ]; action = "<Plug>(Exchange)"; }
 
     # Jump to the first non-whitespace character on the line or the beginning of the line.
     {

@@ -1,36 +1,37 @@
 {
   imports = [
-    ./base64.nix
     ./bufferline.nix
-    ./caser.nix
     ./cmp.nix
     ./comment.nix
     ./committia.nix
-    ./copilot.nix
-    ./eunuch.nix
+    ./copilot-vim.nix
     ./fugitive.nix
-    ./fzf.nix
+    ./fzf-lua.nix
     ./gitgutter.nix
-    ./hexokinase.nix
     ./lsp.nix
     ./lspsaga.nix
     ./lualine.nix
-    ./markdown-preview.nix
+    ./markdown-preview-nvim.nix
     ./nerdtree.nix
     ./nvim-autopairs.nix
     ./repeat.nix
     ./ripgrep.nix
     ./schemastore.nix
     ./sleuth.nix
-    ./surround.nix
-    ./targets.nix
-    ./treesitter.nix
+    ./targets-vim.nix
     ./treesitter-context.nix
     ./treesitter-textobjects.nix
-    ./ts-error-translator.nix
+    ./treesitter.nix
+    ./ts-error-translator-nvim.nix
     ./undotree.nix
-    ./unimpaired.nix
+    ./vim-base64.nix
+    ./vim-caser.nix
+    ./vim-eunuch.nix
+    ./vim-exchange.nix
+    ./vim-hexokinase.nix
+    ./vim-surround.nix
+    ./vim-unimpaired.nix
+    ./vim-zend55.nix
     ./web-devicons.nix
-    ./zend55.nix
   ];
 }
