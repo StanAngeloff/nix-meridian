@@ -1,7 +1,8 @@
 {
   imports = [
+    ./avante.nix
+    ./blink-cmp.nix
     ./bufferline.nix
-    ./cmp.nix
     ./comment.nix
     ./committia.nix
     ./copilot-vim.nix
@@ -19,9 +20,9 @@
     ./schemastore.nix
     ./sleuth.nix
     ./targets-vim.nix
+    ./treesitter.nix
     ./treesitter-context.nix
     ./treesitter-textobjects.nix
-    ./treesitter.nix
     ./ts-error-translator-nvim.nix
     ./undotree.nix
     ./vim-base64.nix

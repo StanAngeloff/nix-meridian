@@ -13,7 +13,6 @@
     { key = "Q"; mode = [ "v" ]; action = "<Esc>:windo normal ZZ<CR>"; options.silent = true; }
     { key = "<Return>"; mode = [ "n" ]; action = ":w<CR>"; options.desc = "Frantic <C-S> are now hectic <Return>s"; }
     { key = "<Return>"; mode = [ "v" ]; action = ":<C-U>w<CR>gv"; }
-    { key = "<Return>"; mode = [ "i" ]; options.expr = true; options.noremap = true; action.__raw = ''function() return require("cmp").visible() and "<C-Y>" or "<C-G>u<CR>" end''; }
     { key = "<leader><Space>"; mode = [ "n" ]; action = ":noh<CR>:sign unplace *<CR>:call clearmatches()<CR>:GitGutter<CR>"; options.silent = true; options.desc = "Turn off active highlighting, reset signs and plug-ins"; }
     { key = "<F1>"; mode = [ "n" ]; action = ":setlocal nospell! nospell?<CR>"; options.silent = true; options.desc = "Toggle spell-checking"; }
     { key = "<F2>"; mode = [ "n" ]; action = ":setlocal invpaste paste?<CR>"; options.silent = true; options.desc = "Toggle paste-mode"; }
@@ -42,11 +41,9 @@
     { key = "<C-C>"; mode = [ "n" "i" "v" ]; action = "<Esc><Esc>"; options.desc = "Escape, escape!"; }
     { key = "<C-W>"; mode = [ "i" ]; action = "<C-G>u<C-W>"; } # Start a new Undo group before making changes in INSERT mode.
     { key = "<C-R>"; mode = [ "i" ]; action = "<C-G>u<C-R>"; }
-    { key = "<C-J>"; mode = [ "i" ]; options.expr = true; options.remap = true; action.__raw = ''function() return require("cmp").visible() and "<C-N>" or "<C-O>o" end''; }
-    { key = "<C-K>"; mode = [ "i" ]; options.expr = true; options.remap = true; action.__raw = ''function() return require("cmp").visible() and "<C-P>" or "<C-O>O" end''; }
-    { key = "<leader>sip"; mode = [ "n" ]; action = "mZvip:sort u<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
-    { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:sort u<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
-    { key = "<leader>si["; mode = [ "n" ]; action = "mZvi[:sort u<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
+    { key = "<leader>sip"; mode = [ "n" ]; action = "mZvip:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
+    { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
+    { key = "<leader>si["; mode = [ "n" ]; action = "mZvi[:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>s"; mode = [ "v" ]; action = ":sort u<CR>gv"; options.silent = true; }
     { key = "<leader>0"; mode = [ "n" "v" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = vim.fn.expand("<cword>") }) end''; } # Searching like a pro!
     { key = "<leader>S"; mode = [ "n" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = "" }) end''; }

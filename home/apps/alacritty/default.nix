@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 let
   monospaceFontFamily = "${
     builtins.replaceStrings [ " " ] [ "" ] (
@@ -7,10 +7,6 @@ let
   } Nerd Font Mono";
 in
 {
-  imports = [
-    ./desktop.nix
-  ];
-
   programs.alacritty = {
     enable = true;
 
@@ -77,6 +73,13 @@ in
         opacity = 0.9875;
         startup_mode = "Maximized";
       };
+    };
+  };
+
+  dconf.settings = {
+    "org/gnome/desktop/default-applications/terminal" = {
+      exec = "${pkgs.alacritty}/bin/alacritty";
+      exec-arg = "--command";
     };
   };
 }

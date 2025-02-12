@@ -1,4 +1,4 @@
-{ config, ... }:
+{ pkgs, ... }:
 {
   dconf.settings = {
     "org/gnome/desktop/wm/keybindings" = {
@@ -82,7 +82,7 @@
     };
     "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
       binding = "<Super>t";
-      command = "${config.home.homeDirectory}/.local/bin/launch-alacritty";
+      command = "${pkgs.callPackage ../apps/alacritty/launch.nix { name = "launch-alacritty"; }}";
       name = "Alacritty";
     };
     "org/gnome/shell/keybindings" = {
