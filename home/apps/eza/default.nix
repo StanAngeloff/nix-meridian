@@ -3,6 +3,6 @@
     enable = true;
     enableZshIntegration = true;
     git = true;
-    icons = "never";
+    icons = "auto";
   };
 }

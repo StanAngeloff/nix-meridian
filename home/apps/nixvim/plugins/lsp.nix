@@ -4,6 +4,7 @@
     plugins = {
       lsp = {
         enable = true;
+        inlayHints = true;
 
         onAttach = # lua
           ''

@@ -5,7 +5,7 @@
     ./bufferline.nix
     ./comment.nix
     ./committia.nix
-    ./copilot-vim.nix
+    ./copilot.nix
     ./fugitive.nix
     ./fzf-lua.nix
     ./gitgutter.nix
