@@ -11,6 +11,14 @@
       fzf_opts = {
         "--history".__raw = "vim.fn.stdpath('data') .. '/fzf-lua-history'";
       };
+      grep = {
+        rg_opts = builtins.concatStringsSep " " [
+          "--column --line-number --no-heading --max-columns=4096 --color=always"
+          # NOTE: See home/apps/ripgrep/default.nix - the default ripgrep configuration is not read by fzf.
+          "--hidden --ignore-vcs --smart-case --glob=\"!.git/*\" --glob=\"!node_modules/*\" --colors=line:fg:yellow --colors=line:style:bold --colors=path:fg:green --colors=path:style:bold --colors=match:fg:black --colors=match:bg:yellow --colors=match:style:nobold"
+          "-e"
+        ];
+      };
       winopts = {
         treesitter = true;
         split = "botright new";
@@ -33,7 +41,7 @@
       "<leader>o" = {
         action = "git_files";
         settings = {
-          cmd = "git ls-files --cached --others";
+          cmd = "git ls-files --cached --others --exclude-standard";
         };
       };
     };

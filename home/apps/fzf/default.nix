@@ -3,10 +3,26 @@
     enable = true;
     enableZshIntegration = true;
 
+    # NOTE: See home/apps/ripgrep/default.nix - additional configuration including ripgrep colors under fzf.
+    # NOTE: See home/apps/nixvim/plugins/fzf-lua.nix - additional configuration including ripgrep colors under fzf.
     colors = {
-      prompt = "244";
-      pointer = "244";
-      marker = "201";
+      "fg" = "#f6f6f8";
+      "fg+" = "#ffffff";
+      "bg" = "#000000";
+      "bg+" = "#303030";
+      "hl" = "#aaaa00:reverse";
+      "hl+" = "#aaaa00:reverse";
+      "info" = "#666666";
+      "marker" = "#74ff74";
+      "prompt" = "#00c4ff";
+      "spinner" = "#c400c4";
+      "pointer" = "#c400c4";
+      "header" = "#666666";
+      "gutter" = "#000000";
+      "border" = "#262626";
+      "scrollbar" = "#666666";
+      "label" = "#008888";
+      "query" = "#f7f7f7";
     };
 
     defaultOptions =
@@ -22,14 +38,17 @@
         );
       in
       [
-        "--color=bw"
-        "--layout=reverse"
-        "--info=inline"
-        "--no-separator"
-        "--prompt='→ '"
-        "--marker='×'"
-        "--pointer='▶'"
         "--ellipsis='…'"
+        "--marker='▎'"
+        "--pointer='▶'"
+        "--prompt='→ '"
+        "--scrollbar='│'"
+        "--separator='─'"
+
+        "--info='right'"
+        "--layout=reverse"
+        "--preview-window='border-sharp'"
+
         "--bind '${bindOptionsAsString}'"
       ];
   };

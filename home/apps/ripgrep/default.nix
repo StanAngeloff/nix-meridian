@@ -9,13 +9,13 @@ in
 
   home.sessionVariables.RIPGREP_CONFIG_PATH = configPath;
 
+  # NOTE: See home/apps/nixvim/plugins/fzf-lua.nix - the default ripgrep configuration is duplicated for fzf.
   home.file."${configPath}".text = ''
     --hidden
     --ignore-vcs
     --smart-case
     --glob=!.git/*
-    # See https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#silver-searcher-output
-    #
+    --glob=!node_modules/*
     --colors=line:fg:yellow
     --colors=line:style:bold
     --colors=path:fg:green

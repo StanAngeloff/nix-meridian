@@ -2,11 +2,7 @@
 {
   programs.nixvim = {
     extraPlugins = with pkgs.vimPlugins; [
-      vim-eunuch
+      vim-abolish
     ];
-
-    globals = {
-      eunuch_no_maps = true;
-    };
   };
 }

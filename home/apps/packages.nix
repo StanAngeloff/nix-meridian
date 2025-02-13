@@ -12,8 +12,9 @@ in
     deno
     gcc14
     gnumake
+    moreutils
     nodejs_22
-    pnpm_10
+    nodejs_22.pkgs.pnpm
     python313
 
     # CLI

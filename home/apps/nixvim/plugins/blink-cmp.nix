@@ -10,9 +10,8 @@
         end
       '';
 
+    # See https://github.com/Saghen/blink.cmp/blob/v0.5.1/lua/blink/cmp/config.lua
     settings = {
-      signature.enabled = true;
-
       sources = {
         default = [
           "lsp"
@@ -21,10 +20,29 @@
         ];
       };
 
+      windows = {
+        documentation = {
+          auto_show = true;
+        };
+        autocomplete = {
+          selection = "auto_insert";
+        };
+      };
+      accept = {
+        auto_brackets = {
+          enabled = true;
+        };
+      };
+      trigger = {
+        signature_help = {
+          enabled = true;
+        };
+      };
+
       keymap = {
         preset = "none";
         "<CR>" = [
-          "select_and_accept"
+          "accept"
           "fallback"
         ];
         "<Tab>".__raw = # lua

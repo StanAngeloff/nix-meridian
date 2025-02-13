@@ -23,8 +23,10 @@
     ./treesitter.nix
     ./treesitter-context.nix
     ./treesitter-textobjects.nix
+    ./ts-autotag.nix
     ./ts-error-translator-nvim.nix
     ./undotree.nix
+    ./vim-abolish.nix
     ./vim-base64.nix
     ./vim-caser.nix
     ./vim-eunuch.nix
