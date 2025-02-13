@@ -15,5 +15,6 @@
     ./security.nix
     ./shell.nix
     ./udev.nix
+    ./upgrades.nix
   ];
 }

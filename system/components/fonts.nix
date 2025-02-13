@@ -1,6 +1,18 @@
+{ lib, pkgs, ... }:
+let
+  segoe-ui-variable = import ./fonts/segoe-ui-variable.nix { inherit lib pkgs; };
+in
 {
   fonts = {
     enableDefaultPackages = true;
+
+    packages = with pkgs; [
+      ibm-plex
+
+      corefonts # Microsoft's TrueType core fonts for the Web
+      vistafonts # TrueType fonts from Microsoft Windows Vista (Calibri, Cambria, Candara, Consolas, Constantia, Corbel)
+      segoe-ui-variable.package
+    ];
 
     fontconfig = {
       enable = true;

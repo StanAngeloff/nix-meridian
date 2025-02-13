@@ -1,11 +1,4 @@
-{ lib, pkgs, ... }:
-let
-  segoe-ui-variable = import ./fonts/segoe-ui-variable.nix { inherit lib pkgs; };
-
-  sansSerifFontFamily = "IBM Plex Sans";
-  serifFontFamily = "IBM Plex Serif";
-  monospaceFontFamily = "Berkeley Mono";
-in
+{ config, ... }:
 {
   fonts.fontconfig = {
     # NOTE: This is the setting for Home Manager to allow fontconfig to discover fonts
@@ -13,27 +6,19 @@ in
     enable = true;
 
     defaultFonts = {
-      sansSerif = [ sansSerifFontFamily ];
-      serif = [ serifFontFamily ];
-      monospace = [ monospaceFontFamily ];
+      sansSerif = [ config.meridian.fonts.sansSerifFontFamily ];
+      serif = [ config.meridian.fonts.serifFontFamily ];
+      monospace = [ config.meridian.fonts.monospaceFontFamily ];
     };
   };
-
-  home.packages = with pkgs; [
-    ibm-plex
-
-    corefonts # Microsoft's TrueType core fonts for the Web
-    vistafonts # TrueType fonts from Microsoft Windows Vista (Calibri, Cambria, Candara, Consolas, Constantia, Corbel)
-    segoe-ui-variable.package
-  ];
 
   dconf.settings = {
     "org/gnome/desktop/interface" = {
       font-hinting = "full";
       font-antialiasing = "rgba";
-      font-name = "${sansSerifFontFamily} 11";
-      document-font-name = "${sansSerifFontFamily} 11";
-      monospace-font-name = "${monospaceFontFamily} 11";
+      font-name = "${config.meridian.fonts.sansSerifFontFamily} 11";
+      document-font-name = "${config.meridian.fonts.sansSerifFontFamily} 11";
+      monospace-font-name = "${config.meridian.fonts.monospaceFontFamily} 11";
     };
     "org/gnome/desktop/wm/preferences" = {
       titlebar-uses-system-font = true;

@@ -42,6 +42,7 @@
             home-manager.useUserPackages = true;
             home-manager.users.stan.imports = [
               nixvim.homeManagerModules.nixvim
+              ./modules
               ./home
             ];
           }

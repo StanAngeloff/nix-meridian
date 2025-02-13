@@ -1,6 +1,5 @@
 {
   imports = [
-    ../modules/ssh-github.nix
     ./apps
     ./essentials
     ./gnome-shell
