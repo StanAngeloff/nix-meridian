@@ -50,7 +50,7 @@
     { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si["; mode = [ "n" ]; action = "mZvi[:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>s"; mode = [ "v" ]; action = ":sort u<CR>gv"; options.silent = true; }
-    { key = "<leader>0"; mode = [ "n" "v" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = vim.fn.expand("<cword>") }) end''; } # Searching like a pro!
+    { key = "<leader>0"; mode = [ "n" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = vim.fn.expand("<cword>") }) end''; } # Searching like a pro!
     { key = "<leader>S"; mode = [ "n" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = "" }) end''; }
     { key = "<leader>S"; mode = [ "v" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = require("fzf-lua.utils").get_visual_selection() }) end''; }
     { key = "<leader>ha"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.Git("add %") end''; }
