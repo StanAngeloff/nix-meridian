@@ -15,7 +15,7 @@ in
     moreutils
     nodejs_22
     nodejs_22.pkgs.pnpm
-    python313
+    python312
 
     # CLI
     clipboard2markdown.package
@@ -23,8 +23,10 @@ in
     envchain
     httpie
     imagemagick
+    python312Packages.ocrmypdf
     rclone
     scrcpy
+    tesseract
     trash-cli
     wl-clipboard
     yt-dlp
