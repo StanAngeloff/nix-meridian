@@ -76,5 +76,10 @@
       exrc = true;
       secure = true;
     };
+
+    globals = {
+      tmux_target = ".2";
+      tmux_command = "r";
+    };
   };
 }
