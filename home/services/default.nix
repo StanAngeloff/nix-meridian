@@ -1,6 +1,7 @@
 {
   imports = [
     ./bluetooth
+    ./gpg
     ./ssh
   ];
 }

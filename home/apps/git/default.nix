@@ -7,6 +7,11 @@
     userName = "Stan Angeloff";
     userEmail = "stanimir@angeloff.name";
 
+    signing = {
+      key = "595EA753";
+      signByDefault = true;
+    };
+
     aliases = {
       a = "add";
       b = "branch";
