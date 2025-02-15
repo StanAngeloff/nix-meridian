@@ -21,9 +21,11 @@ in
     clipboard2markdown.package
     dconf2nix
     envchain
+    ffmpeg
     httpie
     imagemagick
     python312Packages.ocrmypdf
+    qemu
     rclone
     scrcpy
     tesseract
