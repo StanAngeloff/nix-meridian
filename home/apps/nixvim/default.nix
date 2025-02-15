@@ -1,6 +1,7 @@
 {
   imports = [
     ./plugins
+    ./abbreviations.nix
     ./commands.nix
     ./keymaps.nix
     ./options.nix
