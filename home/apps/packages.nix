@@ -30,6 +30,9 @@ in
     scrcpy
     tesseract
     trash-cli
+    unp
+    wget
+    wineWowPackages.stable
     wl-clipboard
     yt-dlp
 
