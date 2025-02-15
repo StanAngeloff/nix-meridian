@@ -15,17 +15,38 @@
 
       function _G.NERDTreeTrashNode()
         local selected = vim.fn.eval('g:NERDTreeFileNode.GetSelected().path.str()')
-        vim.fn.timer_start(1, function()
+        vim.defer_fn(function() -- wait for NERDTree menu to close
           vim.api.nvim_feedkeys(":Trash " .. vim.fn.fnameescape(selected), "n", true)
-        end)
+          vim.api.nvim_create_autocmd("CmdlineLeave", {
+            callback = function()
+              vim.defer_fn(function() -- wait for the file to be trashed
+                local buffers = vim.api.nvim_list_bufs()
+                for _, buf in ipairs(buffers) do
+                  if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_is_loaded(buf) then
+                    local ft = vim.api.nvim_buf_get_option(buf, 'filetype')
+                    if ft == 'nerdtree' then
+                      local win = vim.fn.bufwinid(buf)
+                      if win ~= -1 then
+                        vim.api.nvim_win_call(win, function()
+                          vim.cmd('normal R')
+                        end)
+                      end
+                    end
+                  end
+                end
+              end, 100)
+            end,
+            once = true
+          })
+        end, 1)
       end
 
       function _G.NERDTreeSearchInCurrentNode()
         local selected = vim.fn.eval('g:NERDTreeFileNode.GetSelected().path.str()')
         if vim.fn.isdirectory(selected) then
-          vim.fn.timer_start(1, function()
+          vim.defer_fn(function() -- wait for NERDTree menu to close
             require("fzf-lua").live_grep({ cwd = selected })
-          end)
+          end, 1)
         end
       end
     '';

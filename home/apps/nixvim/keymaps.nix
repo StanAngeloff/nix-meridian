@@ -41,6 +41,9 @@
     { key = "<C-C>"; mode = [ "n" "i" "v" ]; action = "<Esc><Esc>"; options.desc = "Escape, escape!"; }
     { key = "<C-W>"; mode = [ "i" ]; action = "<C-G>u<C-W>"; } # Start a new Undo group before making changes in INSERT mode.
     { key = "<C-R>"; mode = [ "i" ]; action = "<C-G>u<C-R>"; }
+    { key = "<C-J>"; mode = [ "i" ]; action = "<C-G>u<C-O>o"; }
+    { key = "<C-K>"; mode = [ "i" ]; action = "<C-G>u<C-O>O"; }
+    { key = "<Return>"; mode = [ "i" ]; action = "<C-G>u<CR>"; }
     { key = "<leader>sip"; mode = [ "n" ]; action = "mZvip:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si["; mode = [ "n" ]; action = "mZvi[:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }

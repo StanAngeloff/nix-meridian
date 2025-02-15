@@ -9,6 +9,7 @@
     ./fonts.nix
     ./input.nix
     ./networking.nix
+    ./nix.nix
     ./podman.nix
     ./printing.nix
     ./regional.nix
