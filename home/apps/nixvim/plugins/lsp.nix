@@ -70,6 +70,7 @@
           # Deno vs. TypeScript
           denols = {
             enable = true;
+            extraOptions.single_file_support = false;
             rootDir = # lua
               ''
                 function (filename)
@@ -79,6 +80,7 @@
           };
           ts_ls = {
             enable = true;
+            extraOptions.single_file_support = false;
             rootDir = # lua
               ''
                 function (filename)
