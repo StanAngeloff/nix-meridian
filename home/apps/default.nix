@@ -17,6 +17,7 @@ in
     ./less
     ./mise
     ./nixvim
+    ./nodejs+pnpm
     ./ripgrep
     ./thunderbird
     ./tig

@@ -13,8 +13,6 @@ in
     gcc14
     gnumake
     moreutils
-    nodejs_22
-    nodejs_22.pkgs.pnpm
     python312
 
     # CLI
