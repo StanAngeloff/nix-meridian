@@ -14,6 +14,7 @@ in
     gnumake
     moreutils
     python312
+    usbutils
 
     # CLI
     clipboard2markdown.package
@@ -36,6 +37,7 @@ in
 
     # GUI
     emote
+    gnome-firmware
     gnome-tweaks
     google-chrome
     onlyoffice-desktopeditors
