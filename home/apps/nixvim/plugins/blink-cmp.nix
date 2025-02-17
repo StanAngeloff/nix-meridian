@@ -21,11 +21,15 @@
       };
 
       windows = {
-        documentation = {
-          auto_show = true;
-        };
         autocomplete = {
           selection = "auto_insert";
+        };
+        documentation = {
+          auto_show = true;
+          border = "single";
+        };
+        signature_help = {
+          border = "single";
         };
       };
       accept = {
