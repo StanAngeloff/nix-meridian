@@ -59,13 +59,13 @@
           end
         '';
       }
-      # Highlight trailing whitespace after the colour scheme has loaded.
       {
         event = [ "BufEnter" ];
         pattern = "*";
         callback.__raw = ''
           function()
             if vim.bo.buftype:find("terminal") == nil then
+              -- Highlight trailing whitespace after the colour scheme has loaded.
               vim.cmd("syntax match BadWhitespace /\\s\\+$\\| \\+\\ze\\t/ containedin=ALL")
               vim.cmd("highlight BadWhitespace guibg=#ff0000")
             end

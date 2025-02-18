@@ -60,6 +60,12 @@
             enable = true;
             package = null;
           };
+          typos_lsp = {
+            enable = true;
+            settings = {
+              diagnosticSeverity = "Warning";
+            };
+          };
           vimls = {
             enable = true;
           };
