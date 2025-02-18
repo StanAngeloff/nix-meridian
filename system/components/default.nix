@@ -3,6 +3,7 @@
     ./adb.nix
     ./audio.nix
     ./bluetooth.nix
+    ./console.nix
     ./desktop.nix
     ./filesystem.nix
     ./firmware.nix
