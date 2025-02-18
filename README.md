@@ -1,42 +1,127 @@
 # nix-meridian
 
-Clean-slate NixOS and home configuration.
+A declarative NixOS system and home configuration, focused on reproducibility and maintainability.
 
-## About
+## Overview
 
-This is an experimental repository containing my NixOS and home configuration files. It represents a fresh start from my previous setup ([StanAngeloff/longitude](https://github.com/StanAngeloff/longitude)) which relied on traditional dotfiles management and Ansible for system bootstrapping.
+This repository contains my personal NixOS system configuration and home environment setup, managed through Nix flakes. It represents a transition from my previous Ansible-based setup ([StanAngeloff/longitude](https://github.com/StanAngeloff/longitude)) to a fully declarative system configuration.
 
-While that approach served me well through the 2020s, NixOS has rekindled my interest in truly reproducible systems. The promise of bringing up an entire system from declarative configuration files aligns perfectly with my infrastructure-as-code philosophy, but takes it to a whole new level.
+### Key Features
 
-## Status
+- **GNOME Shell** desktop environment with carefully chosen extensions
+- **Development Environment**:
+  - NeoVim with extensive plugin configuration via nixvim
+  - Git with advanced configuration
+  - Zsh as default shell
+  - Podman for containerization
+- **Terminal Setup**:
+  - Alacritty as the primary terminal
+  - tmux for session management
+  - Custom prompt and key bindings
+- **Applications**:
+  - Firefox with privacy-focused configuration
+  - Thunderbird
+  - Various GUI and CLI tools
+  - Key programming languages
 
-This repository is highly experimental and personal. I'm using it to explore NixOS on a new machine while deliberately leaving behind years of accumulated tooling and configurations. This means:
-
-- It's specifically tailored to my needs and preferences
-- Many of my usual tools and conveniences are intentionally missing
-- The repository history may be rewritten at any time
-- Configuration choices might be suboptimal as I learn
-
-### Hiccups
-
-#### Berkeley Mono™ (TX-02) Typeface
-
-This font family has to be downloaded and installed manually. Patch with Nerd Fonts afterwards:
-
-```shellsession
-$ cd ~/.local/share/fonts
-$ nix-shell -p nerd-font-patcher
-$ for f in *.ttf; do nerd-font-patcher --progressbars --mono --adjust-line-height --complete $f ; done
-```
-
-#### `dropbox`
-
-```shellsession
-$ DISPLAY= dropbox update
-```
+## Structure
 
 ```
-Dropbox is the easiest way to share and store your files online. Want to learn more? Head to https://www.dropbox.com/
+.
+├── home/              # Home Manager configuration
+│   ├── apps/          # Application-specific configurations
+│   ├── essentials/    # Core user environment settings
+│   ├── gnome-shell/   # GNOME Shell customization
+│   └── services/      # User services (GPG, SSH, etc.)
+├── machines/          # Machine-specific configurations
+├── modules/           # Custom Nix modules
+└── system/            # NixOS system configuration
+    ├── apps/          # System-wide applications
+    └── components/    # System components (audio, networking, etc.)
+```
+
+## Requirements
+
+- NixOS 24.11 or later
+- Private fonts:
+  - Berkeley Mono™ (TX-02) - primary monospace font
+
+### Post-Installation Steps
+
+1. Install Berkeley Mono™ and patch with Nerd Fonts:
+
+   ```bash
+   cd ~/.local/share/fonts
+   nix-shell -p nerd-font-patcher
+   for f in *.ttf; do
+     nerd-font-patcher --progressbars --mono --adjust-line-height --complete "$f"
+   done
+   ```
+
+2. Import GPG secret keys from a backup
+
+## Usage
+
+### Initial Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/StanAngeloff/nix-meridian.git
+cd nix-meridian
+
+# Build and switch to the configuration
+sudo nixos-rebuild switch --flake .
+```
+
+### Updating
+
+```bash
+# Pull latest changes
+git pull
+
+# Rebuild the system
+sudo nixos-rebuild switch --flake .
+```
+
+## Components
+
+### Desktop Environment
+
+- **Window Manager**: GNOME Shell with custom keybindings
+- **Theme**: Dark variant with custom font configuration
+- **Extensions**:
+  - Clipboard Indicator
+  - Window Title Is Back
+  - Bing Wallpaper Changer
+  - Various usability improvements
+
+### Development Tools
+
+- **Editor**: Neovim with extensive plugin configuration:
+  - LSP support
+  - Treesitter
+  - Git integration
+  - Custom keybindings
+  - Completion & snippets
+- **Version Control**: Git with advanced configuration
+- **Terminal Multiplexer**: tmux with custom bindings
+
+### Security
+
+- Full disk encryption
+- GPG & SSH agent configuration
+- Secure defaults
+
+## Known Issues
+
+- Dropbox installation requires manual intervention
+- Some applications may need additional configuration on first run
+
+### `dropbox`
+
+<details>
+<summary><code>$ DISPLAY= dropbox update</code></summary>
+<pre>Dropbox is the easiest way to share and store your files online. Want to learn more? Head to https://www.dropbox.com/
 In order to use Dropbox, you must download the proprietary daemon.
 Note: python3-gpg (python3-gpgme for Ubuntu 16.10 and lower) is not installed, we will not be able to verify binary signatures. [y/n] Traceback (most recent call last):
   File "[..]/urllib/request.py", line 1344, in do_open
@@ -103,9 +188,17 @@ Starting Dropbox...Traceback (most recent call last):
     self._execute_child(args, executable, preexec_fn, close_fds,
   File "[..]/subprocess.py", line 1955, in _execute_child
     raise child_exception_type(errno_num, err_msg, err_filename)
-FileNotFoundError: [Errno 2] No such file or directory: '/home/stan/.dropbox-hm'
-```
+FileNotFoundError: [Errno 2] No such file or directory: '/home/stan/.dropbox-hm'</pre>
+</details>
 
-## Future
+## Acknowledgments
 
-Should this experiment prove successful in meeting my daily computing needs, I plan to archive my previous dotfiles and Ansible configurations, fully embracing the Nix way. However, NixOS still needs to prove itself as a long-term solution for my workflow.
+This configuration draws inspiration from various sources and previous work:
+
+- My previous Ansible-based setup ([StanAngeloff/longitude](https://github.com/StanAngeloff/longitude))
+- The NixOS & Home Manager communities
+- Various dotfiles repositories and configurations from the community
+
+## License
+
+MIT. Feel free to use any parts of this configuration as inspiration for your own setup.
