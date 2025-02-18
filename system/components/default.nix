@@ -9,6 +9,7 @@
     ./firmware.nix
     ./fonts.nix
     ./input.nix
+    ./keyring.nix
     ./networking.nix
     ./nix.nix
     ./podman.nix
