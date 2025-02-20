@@ -23,6 +23,7 @@ in
     ffmpeg
     httpie
     imagemagick
+    libsecret
     python312Packages.ocrmypdf
     qemu
     rclone
