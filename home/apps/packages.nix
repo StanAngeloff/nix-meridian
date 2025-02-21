@@ -19,6 +19,7 @@ in
     # CLI
     clipboard2markdown.package
     dconf2nix
+    dig
     envchain
     ffmpeg
     httpie
