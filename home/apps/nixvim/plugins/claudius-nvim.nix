@@ -9,8 +9,8 @@
             src = pkgs.fetchFromGitHub {
               owner = "StanAngeloff";
               repo = "claudius.nvim";
-              rev = "2c8be4b08474007e8b25941eeb79532e2b2e636c";
-              hash = "sha256-2OeP35C7nffz0WK2dp26jBga8myZNXe+Sdmhplhf0XA=";
+              rev = "969b5832f7e14819bef78711532dca674e995cae";
+              hash = "sha256-E0tw4HmGLSmVGHlWVSHWy/whyLaSUIioDWkvuyUMf7s=";
             };
           }
         );
@@ -21,6 +21,12 @@
 
     extraConfigLua = ''
       require("claudius").setup({
+        parameters = {
+          max_tokens = 8000,
+        },
+        pricing = {
+          enabled = false,
+        },
         signs = {
           enabled = true,
         },
