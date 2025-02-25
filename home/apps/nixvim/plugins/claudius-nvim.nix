@@ -9,8 +9,8 @@
             src = pkgs.fetchFromGitHub {
               owner = "StanAngeloff";
               repo = "claudius.nvim";
-              rev = "969b5832f7e14819bef78711532dca674e995cae";
-              hash = "sha256-E0tw4HmGLSmVGHlWVSHWy/whyLaSUIioDWkvuyUMf7s=";
+              rev = "4c2883e467a6a19f45ebb90fb4bddfa75fdb5c6f";
+              hash = "sha256-jQ4bI7clOgUyOFLyFHHv/BePNTwN+njrPzaGo9vHgZQ=";
             };
           }
         );
@@ -24,8 +24,11 @@
         parameters = {
           max_tokens = 8000,
         },
+        editing = {
+          auto_write = true,
+        },
         pricing = {
-          enabled = false,
+          enabled = true,
         },
         signs = {
           enabled = true,
