@@ -46,6 +46,7 @@ in
     proton-pass.package
     protonvpn-gui
     slack
+    swappy
     viber.package
   ];
 }
