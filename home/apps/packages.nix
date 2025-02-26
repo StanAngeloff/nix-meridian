@@ -38,7 +38,7 @@ in
     yt-dlp
 
     # GUI
-    emote
+    bottles
     gnome-firmware
     gnome-tweaks
     google-chrome
