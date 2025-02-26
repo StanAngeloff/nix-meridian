@@ -1,6 +1,5 @@
 { lib, pkgs, ... }:
 with lib;
-with pkgs;
 {
   options.nix-meridian.fonts = {
     sansSerif = {
@@ -12,7 +11,7 @@ with pkgs;
       package = mkOption {
         type = types.nullOr types.package;
         example = literalExpression "pkgs.ibm-plex";
-        default = ibm-plex;
+        default = pkgs.ibm-plex;
       };
     };
 
@@ -25,7 +24,7 @@ with pkgs;
       package = mkOption {
         type = types.nullOr types.package;
         example = literalExpression "pkgs.ibm-plex";
-        default = ibm-plex;
+        default = pkgs.ibm-plex;
       };
     };
 

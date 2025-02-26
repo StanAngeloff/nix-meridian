@@ -1,4 +1,9 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   segoe-ui-variable = import ./fonts/segoe-ui-variable.nix { inherit lib pkgs; };
 in
@@ -6,14 +11,24 @@ in
   fonts = {
     enableDefaultPackages = true;
 
-    packages = with pkgs; [
-      # TODO: pull this from config.nix-meridian.fonts.*.package
-      ibm-plex
-
-      corefonts # Microsoft's TrueType core fonts for the Web
-      vistafonts # TrueType fonts from Microsoft Windows Vista (Calibri, Cambria, Candara, Consolas, Constantia, Corbel)
-      segoe-ui-variable.package
-    ];
+    packages =
+      with lib;
+      with pkgs;
+      let
+        optionalPackage = font: optional (font != null && font.package != null) font.package;
+      in
+      unique (
+        [
+          corefonts # Microsoft's TrueType core fonts for the Web
+          vistafonts # TrueType fonts from Microsoft Windows Vista (Calibri, Cambria, Candara, Consolas, Constantia, Corbel)
+          segoe-ui-variable.package
+        ]
+        ++ concatMap optionalPackage [
+          config.nix-meridian.fonts.sansSerif
+          config.nix-meridian.fonts.serif
+          config.nix-meridian.fonts.monospace
+        ]
+      );
 
     fontconfig = {
       enable = true;

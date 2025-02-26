@@ -39,6 +39,7 @@
         system = "x86_64-linux";
         specialArgs = { inherit inputs; };
         modules = [
+          ./modules/options
           ./configuration.nix
           solaar.nixosModules.default
           home-manager.nixosModules.home-manager
@@ -47,7 +48,8 @@
             home-manager.useUserPackages = true;
             home-manager.users.stan.imports = [
               nixvim.homeManagerModules.nixvim
-              ./modules
+              ./modules/options
+              ./modules/home-manager
               ./home
             ];
           }
