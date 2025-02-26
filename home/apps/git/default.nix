@@ -12,28 +12,30 @@
       signByDefault = true;
     };
 
-    aliases = {
-      a = "add";
-      b = "branch";
-      br = "branch -r";
-      c = "commit";
-      co = "checkout";
-      df = "diff -U5 --minimal --histogram --indent-heuristic --ignore-space-change --ignore-blank-lines --no-ext-diff --color-moved=zebra --color-moved-ws=ignore-space-change";
-      dfa = "diff -U5 --minimal --histogram --indent-heuristic --ignore-all-space    --ignore-blank-lines --no-ext-diff --color-moved=zebra --color-moved-ws=ignore-all-space    --color-words='[^ \\t\\n;,]+'";
-      f = "fetch       --prune --verbose";
-      fa = "fetch --all --prune --verbose";
-      l = "log       --graph        --abbrev-commit --date=human --pretty=format:'%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)%cr (%cd) %C(blue)%an%C(reset) ▸ %C(cyan)%cn%C(reset)'";
-      la = "log --all --graph --tags --abbrev-commit --date=human --pretty=format:'%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)%cr (%cd) %C(blue)%an%C(reset) ▸ %C(cyan)%cn%C(reset)'";
-      s = "status -sb";
-      su = "submodule update --init --recursive";
+    aliases =
+      let
+        gitLogFormat = "%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)%cr (%cd) %C(blue)%an%C(reset) ▸ %C(cyan)%cn%C(reset)";
+      in
+      {
+        a = "add";
+        b = "branch";
+        br = "branch -r";
+        c = "commit";
+        co = "checkout";
+        df = "diff --no-ext-diff --ignore-space-change --ignore-blank-lines --color-moved-ws=ignore-space-change";
+        f = "fetch --verbose";
+        fa = "fetch --all --verbose";
+        l = "log --graph --date=human --pretty=format:'${gitLogFormat}'";
+        la = "log --all --tags --graph --date=human --pretty=format:'${gitLogFormat}'";
+        s = "status --short --branch";
 
-      au = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; git add `f`";
-      eu = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; vim -p `f`";
+        au = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; git add `f`";
+        eu = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; nvim -p `f`";
 
-      ig = "!git ls-files -v | grep \"^[[:lower:]]\"";
+        ig = "!git ls-files -v | grep \"^[[:lower:]]\"";
 
-      ro = "!sh -c 'git rebase -i --autostash --autosquash origin/\"$( git symbolic-ref --short HEAD )\"'";
-    };
+        ro = "!sh -c 'git rebase --interactive origin/\"$( git symbolic-ref --short HEAD )\"'";
+      };
 
     # Git configuration https://git-scm.com/docs/git-config
     extraConfig = {
@@ -41,6 +43,7 @@
         user = "StanAngeloff";
       };
 
+      # Appearance
       color = {
         diff-highlight = {
           oldnormal = "1 0";
@@ -54,21 +57,51 @@
         };
       };
 
-      diff = {
-        colorMoved = "default";
+      column = {
+        ui = "never";
       };
 
+      diff = {
+        algorithm = "histogram";
+        colorMoved = "zebra";
+        context = 5;
+        indentHeuristic = true;
+        mnemonicPrefix = true;
+      };
+
+      # DX
       branch = {
         autoSetupRebase = "always";
+        sort = "-committerdate";
+      };
+
+      fetch = {
+        prune = true;
+        pruneTags = true;
+      };
+
+      init = {
+        defaultBranch = "main";
+      };
+
+      merge = {
+        conflictstyle = "zdiff3";
+      };
+
+      pull = {
+        rebase = true;
       };
 
       push = {
-        default = "upstream";
+        default = "simple";
+        autoSetupRemote = true;
+        followTags = true;
         gpgSign = "if-asked";
       };
 
       rerere = {
         enabled = true;
+        autoupdate = true;
       };
 
       rebase = {
@@ -78,6 +111,10 @@
 
       stash = {
         showPatch = true;
+      };
+
+      tag = {
+        sort = "version:refname";
       };
     };
   };
