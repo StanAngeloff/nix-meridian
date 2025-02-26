@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 let
   monospaceFontFamily = "${
-    builtins.replaceStrings [ " " ] [ "" ] config.meridian.fonts.monospaceFontFamily
+    builtins.replaceStrings [ " " ] [ "" ] config.nix-meridian.fonts.monospaceFontFamily
   } Nerd Font Mono";
 in
 {

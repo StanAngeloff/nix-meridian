@@ -1,7 +1,7 @@
 { lib, ... }:
 with lib;
 {
-  options.meridian.fonts = {
+  options.nix-meridian.fonts = {
     sansSerifFontFamily = mkOption {
       default = "IBM Plex Sans";
       description = "The system-wide default sans-serif font family.";

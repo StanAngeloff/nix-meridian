@@ -6,9 +6,9 @@
     enable = true;
 
     defaultFonts = {
-      sansSerif = [ config.meridian.fonts.sansSerifFontFamily ];
-      serif = [ config.meridian.fonts.serifFontFamily ];
-      monospace = [ config.meridian.fonts.monospaceFontFamily ];
+      sansSerif = [ config.nix-meridian.fonts.sansSerifFontFamily ];
+      serif = [ config.nix-meridian.fonts.serifFontFamily ];
+      monospace = [ config.nix-meridian.fonts.monospaceFontFamily ];
     };
   };
 
@@ -16,9 +16,9 @@
     "org/gnome/desktop/interface" = {
       font-hinting = "full";
       font-antialiasing = "rgba";
-      font-name = "${config.meridian.fonts.sansSerifFontFamily} 11";
-      document-font-name = "${config.meridian.fonts.sansSerifFontFamily} 11";
-      monospace-font-name = "${config.meridian.fonts.monospaceFontFamily} 11";
+      font-name = "${config.nix-meridian.fonts.sansSerifFontFamily} 11";
+      document-font-name = "${config.nix-meridian.fonts.sansSerifFontFamily} 11";
+      monospace-font-name = "${config.nix-meridian.fonts.monospaceFontFamily} 11";
     };
     "org/gnome/desktop/wm/preferences" = {
       titlebar-uses-system-font = true;
