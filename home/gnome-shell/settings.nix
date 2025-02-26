@@ -44,8 +44,6 @@ with lib.hm.gvariant;
       clock-show-date = false;
       clock-show-weekday = false;
       color-scheme = "prefer-dark";
-      cursor-size = 32;
-      cursor-theme = "DMZ-White";
       enable-hot-corners = false;
       gtk-enable-primary-paste = false;
       show-battery-percentage = true;

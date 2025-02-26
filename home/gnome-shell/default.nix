@@ -1,4 +1,3 @@
-{ pkgs, ... }:
 {
   imports = [
     ./extensions
@@ -7,7 +6,4 @@
   ];
 
   programs.gnome-shell.enable = true;
-
-  # See https://wiki.nixos.org/wiki/Cursor_Themes
-  home.file.".icons/default".source = "${pkgs.vanilla-dmz}/share/icons/Vanilla-DMZ";
 }

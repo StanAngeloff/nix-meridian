@@ -7,6 +7,7 @@ in
     enableDefaultPackages = true;
 
     packages = with pkgs; [
+      # TODO: pull this from config.nix-meridian.fonts.*.package
       ibm-plex
 
       corefonts # Microsoft's TrueType core fonts for the Web

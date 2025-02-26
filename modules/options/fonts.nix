@@ -1,23 +1,45 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 with lib;
+with pkgs;
 {
   options.nix-meridian.fonts = {
-    sansSerifFontFamily = mkOption {
-      default = "IBM Plex Sans";
-      description = "The system-wide default sans-serif font family.";
-      type = types.str;
+    sansSerif = {
+      name = mkOption {
+        default = "IBM Plex Sans";
+        description = "The system-wide default sans-serif font family.";
+        type = types.str;
+      };
+      package = mkOption {
+        type = types.nullOr types.package;
+        example = literalExpression "pkgs.ibm-plex";
+        default = ibm-plex;
+      };
     };
 
-    serifFontFamily = mkOption {
-      default = "IBM Plex Serif";
-      description = "The system-wide default serif font family.";
-      type = types.str;
+    serif = {
+      name = mkOption {
+        default = "IBM Plex Serif";
+        description = "The system-wide default serif font family.";
+        type = types.str;
+      };
+      package = mkOption {
+        type = types.nullOr types.package;
+        example = literalExpression "pkgs.ibm-plex";
+        default = ibm-plex;
+      };
     };
 
-    monospaceFontFamily = mkOption {
-      default = "Berkeley Mono";
-      description = "The system-wide default monospace font family.";
-      type = types.str;
+    monospace = {
+      name = mkOption {
+        default = "Berkeley Mono";
+        description = "The system-wide default monospace font family.";
+        type = types.str;
+      };
+      package = mkOption {
+        type = types.nullOr types.package;
+        example = literalExpression "pkgs.ibm-plex";
+        default = null;
+      };
     };
   };
 }
