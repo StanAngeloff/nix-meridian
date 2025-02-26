@@ -1,4 +1,5 @@
 {
+  inputs,
   config,
   lib,
   modulesPath,
@@ -6,6 +7,7 @@
 }:
 {
   imports = [
+    inputs.nixos-hardware.nixosModules.dell-latitude-5520 # NOTE: close enough, right?
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
