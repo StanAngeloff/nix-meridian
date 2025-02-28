@@ -19,6 +19,7 @@ in
     ./nixvim
     ./nodejs+pnpm
     ./ripgrep
+    ./swappy
     ./thunderbird
     ./tig
     ./tmux
