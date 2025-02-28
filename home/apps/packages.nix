@@ -24,6 +24,8 @@ in
     ffmpeg
     httpie
     imagemagick
+    inotify-tools
+    killall
     libsecret
     python312Packages.ocrmypdf
     qemu
@@ -31,6 +33,7 @@ in
     scrcpy
     tesseract
     trash-cli
+    tree
     unp
     wget
     wineWowPackages.stable
@@ -42,6 +45,7 @@ in
     gnome-firmware
     gnome-tweaks
     google-chrome
+    inkscape
     onlyoffice-desktopeditors
     proton-pass.package
     protonvpn-gui
