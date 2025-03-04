@@ -63,11 +63,19 @@
               "fallback"
             }
           '';
+        "<C-P>" = [
+          "select_prev"
+          "fallback"
+        ];
         "<C-K>" = [
           "select_prev"
           "fallback"
         ];
         "<C-J>" = [
+          "select_next"
+          "fallback"
+        ];
+        "<C-N>" = [
           "select_next"
           "fallback"
         ];
