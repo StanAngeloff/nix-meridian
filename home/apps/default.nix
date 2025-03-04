@@ -12,6 +12,7 @@ in
     ./firefox
     ./fzf
     ./git
+    ./httpie
     ./jq
     ./jump
     ./keepassxc

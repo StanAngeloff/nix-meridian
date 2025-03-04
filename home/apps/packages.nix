@@ -22,7 +22,6 @@ in
     dig
     envchain
     ffmpeg
-    httpie
     imagemagick
     inotify-tools
     killall
