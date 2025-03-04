@@ -3,7 +3,6 @@
   name,
   inotify-tools,
   swappy,
-  ...
 }:
 (writeShellScript name ''
   # Configuration

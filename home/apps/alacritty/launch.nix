@@ -5,7 +5,6 @@
   systemd,
   tmux,
   zsh,
-  ...
 }:
 (writeShellScript name ''
   did_focus="$( ${systemd}/bin/busctl --user call org.gnome.Shell /de/lucaswerkmeister/ActivateWindowByTitle de.lucaswerkmeister.ActivateWindowByTitle activateByWmClass s "Alacritty" )"
