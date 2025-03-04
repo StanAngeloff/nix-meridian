@@ -1,5 +1,9 @@
 { pkgs, ... }:
 {
+  imports = [
+    ./annoyances.nix
+  ];
+
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 

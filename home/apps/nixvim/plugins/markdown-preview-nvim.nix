@@ -6,7 +6,7 @@
     ];
 
     globals = {
-      mkdp_browser = "${pkgs.google-chrome}/bin/google-chrome-stable";
+      mkdp_browser = "${pkgs.brave}/bin/brave";
       mkdp_theme = "light";
       mkdp_refresh_slow = 1;
 

@@ -19,7 +19,7 @@ This repository contains my personal NixOS system configuration and home environ
   - tmux for session management
   - Custom prompt and key bindings
 - **Applications**:
-  - Firefox with privacy-focused configuration
+  - Brave ~~Firefox with privacy-focused configuration~~
   - Thunderbird
   - Various GUI and CLI tools
   - Key programming languages

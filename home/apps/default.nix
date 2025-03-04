@@ -5,6 +5,7 @@ in
 {
   imports = [
     ./alacritty
+    ./brave
     ./direnv
     ./dropbox
     ./eza

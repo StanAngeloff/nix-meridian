@@ -70,8 +70,7 @@ with lib.hm.gvariant;
     };
     "org/gnome/shell" = {
       favorite-apps = [
-        "google-chrome.desktop"
-        "firefox.desktop"
+        "brave-browser.desktop"
         "code.desktop"
         "slack.desktop"
         "thunderbird.desktop"
