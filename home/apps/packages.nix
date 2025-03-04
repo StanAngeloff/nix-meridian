@@ -12,6 +12,7 @@ in
     deno
     gcc14
     gnumake
+    inetutils
     moreutils
     python312
     usbutils
