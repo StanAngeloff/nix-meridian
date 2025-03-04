@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 let
   nodejs = pkgs.nodejs_22;
 in
@@ -8,7 +8,7 @@ in
     nodejs.pkgs.pnpm
   ];
 
-  home.file."${config.home.homeDirectory}/.config/pnpm/rc".text = ''
+  home.file.".config/pnpm/rc".text = ''
     engine-strict=false
     package-manager-strict-version=false
   '';

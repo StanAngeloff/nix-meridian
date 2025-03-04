@@ -4,7 +4,7 @@
     swappy
   ];
 
-  home.file."${config.home.homeDirectory}/.config/swappy/config".text = ''
+  home.file.".config/swappy/config".text = ''
     [Default]
     save_dir=${config.home.homeDirectory}/Pictures/Screenshots/
     save_filename_format=Screenshot From %Y-%m-%d %H-%M-%S.o.png

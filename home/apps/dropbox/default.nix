@@ -1,8 +1,8 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 {
   home.packages = [ pkgs.dropbox ];
 
-  home.file."${config.home.homeDirectory}/.config/autostart/dropbox.desktop".text = ''
+  home.file.".config/autostart/dropbox.desktop".text = ''
     [Desktop Entry]
     Categories=Network;FileTransfer
     Comment=Sync your files across computers and to the web
