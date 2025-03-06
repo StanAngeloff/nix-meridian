@@ -8,6 +8,21 @@
   perl,
   wl-clipboard,
 }:
+let
+  excludeHeaders = [
+    "Accept-Encoding"
+    "Accept-Language"
+    "Cache-Control"
+    "Connection"
+    "DNT"
+    "Expires"
+    "Pragma"
+    "Priority"
+    "Sec-\\w+(-\\w+)*"
+    "TE"
+    "User-Agent"
+  ];
+in
 writeShellApplication {
   inherit name;
 
@@ -25,15 +40,15 @@ writeShellApplication {
       shift
     fi
 
-    echo -e "\033[0;36m"
+    echo -ne "👉 \033[0;36m"
     pnpm --silent dlx curlconverter@${curlconverterVersion} --language httpie "$@" \
-      | grep -vE '^\s+"?(Connection|User-Agent|Sec-\w+(-\w+)*|TE|DNT|Expires|Pragma|Cache-Control|Accept-Language|Accept-Encoding):' \
+      | grep -viE '^\s+[[:punct:]]?(${builtins.concatStringsSep "|" excludeHeaders}):' \
       | perl -p -e 's/\s*\\\s*[\r\n]+\s*/ /' \
       | tee >(wl-copy)
 
-    echo -e "\033[0;32m"
-    echo 'Copied.' 1>&2
+    echo -ne "\033[0;32m"
+    echo '✅ Copied.' 1>&2
 
-    echo -e "\033[0m"
+    echo -ne "\033[0m"
   '';
 }
