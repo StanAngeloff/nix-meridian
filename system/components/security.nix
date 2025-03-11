@@ -19,4 +19,15 @@
       }
     ];
   };
+
+  services.fprintd = {
+    # > Broadcom has not provided Linux drivers for the fingerprint reader [..]
+    #
+    # Learn more at https://wiki.nixos.org/wiki/Hardware/Dell/Latitude_E7240
+    enable = false;
+
+    #tod = {
+    #  enable = true;
+    #};
+  };
 }
