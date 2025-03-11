@@ -41,6 +41,7 @@ in
     yt-dlp
 
     # GUI
+    apostrophe
     bottles
     gnome-firmware
     gnome-tweaks
