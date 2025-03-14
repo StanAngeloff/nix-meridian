@@ -9,6 +9,9 @@
     extensions = with pkgs.vscode-extensions; [
       asvetliakov.vscode-neovim
       bbenoist.nix
+      dbaeumer.vscode-eslint
+      denoland.vscode-deno
+      esbenp.prettier-vscode
       github.copilot
       github.copilot-chat
       github.github-vscode-theme
@@ -27,6 +30,7 @@
       };
       "window.commandCenter" = false;
       "window.customTitleBarVisibility" = "auto";
+      "window.dialogStyle" = "custom";
       "window.titleBarStyle" = "custom";
       "window.zoomLevel" = 1.25;
       "workbench.colorTheme" = "GitHub Dark Default";
