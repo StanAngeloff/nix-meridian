@@ -1,4 +1,5 @@
-{ lib, ... }:
+{ config, lib, ... }:
+with lib.lists;
 {
   # Pick only one of the below networking options.
   networking.networkmanager.enable = true; # Easiest to use and most distros use this by default.
@@ -20,5 +21,15 @@
 
     #allowedUDPPorts = [ ];
     #allowedUDPPortRanges = [ ];
+
+    # > [..] If the interface name ends in a "+", then any interface which begins with this name will match.
+    # Learn more at `man iptables`
+    interfaces."podman+" = {
+      allowedUDPPorts =
+        [ ]
+        # > on non default networks [..] you still need to open the ports for the specific network interface podman creates [..]
+        # Learn more at https://github.com/NixOS/nixpkgs/issues/226365#issuecomment-2164985192
+        ++ optional config.virtualisation.podman.defaultNetwork.settings.dns_enabled 53;
+    };
   };
 }
