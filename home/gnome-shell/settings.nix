@@ -61,6 +61,7 @@ with lib.hm.gvariant;
     };
     "org/gnome/mutter" = {
       attach-modal-dialogs = true;
+      check-alive-timeout = 30000;
       dynamic-workspaces = false;
       edge-tiling = false;
       workspaces-only-on-primary = true;
