@@ -35,7 +35,6 @@
     ./vim-exchange.nix
     ./vim-hexokinase.nix
     ./vim-surround.nix
-    ./vim-troll-stopper.nix
     ./vim-unimpaired.nix
     ./vim-zend55.nix
     ./web-devicons.nix
