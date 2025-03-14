@@ -67,7 +67,7 @@
 
       bind -T copy-mode-vi v   send -X begin-selection
       bind -T copy-mode-vi C-v send -X rectangle-toggle
-      bind -T copy-mode-vi y   send -X copy-pipe-and-cancel 'wl-copy'
+      bind -T copy-mode-vi y   send -X copy-pipe 'wl-copy'
 
       set -g mode-style                     bg=colour220,fg=colour16
       set -g status-style                   fg=colour247
