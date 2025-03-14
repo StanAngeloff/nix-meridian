@@ -21,7 +21,8 @@
         "wheel"
       ]
       ++ optional config.networking.networkmanager.enable "networkmanager"
-      ++ optional config.programs.adb.enable "adbusers";
+      ++ optional config.programs.adb.enable "adbusers"
+      ++ optional config.virtualisation.podman.dockerSocket.enable "podman";
   };
 
   # This value determines the NixOS release from which the default settings for stateful data,
