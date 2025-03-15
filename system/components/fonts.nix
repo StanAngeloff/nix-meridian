@@ -5,7 +5,7 @@
   ...
 }:
 let
-  segoe-ui-variable = import ./fonts/segoe-ui-variable.nix { inherit lib pkgs; };
+  segoe-ui-variable = pkgs.callPackage ./fonts/segoe-ui-variable.nix { };
 in
 {
   fonts = {
@@ -21,7 +21,7 @@ in
         [
           corefonts # Microsoft's TrueType core fonts for the Web
           vistafonts # TrueType fonts from Microsoft Windows Vista (Calibri, Cambria, Candara, Consolas, Constantia, Corbel)
-          segoe-ui-variable.package
+          segoe-ui-variable
         ]
         ++ concatMap optionalPackage [
           config.nix-meridian.fonts.sansSerif

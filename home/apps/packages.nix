@@ -1,8 +1,8 @@
 { pkgs, ... }:
 let
-  clipboard2markdown = import ./clipboard2markdown { inherit pkgs; };
-  proton-pass = import ./proton-pass { inherit pkgs; };
-  viber = import ./viber { inherit pkgs; };
+  clipboard2markdown = pkgs.callPackage ./clipboard2markdown { };
+  proton-pass = pkgs.callPackage ./proton-pass { };
+  viber = pkgs.callPackage ./viber { };
 in
 {
   # List packages installed in your user profile. To search, run:
@@ -18,7 +18,7 @@ in
     usbutils
 
     # CLI
-    clipboard2markdown.package
+    clipboard2markdown
     dconf2nix
     dig
     envchain
@@ -48,9 +48,9 @@ in
     google-chrome
     inkscape
     onlyoffice-desktopeditors
-    proton-pass.package
+    proton-pass
     protonvpn-gui
     slack
-    viber.package
+    viber
   ];
 }
