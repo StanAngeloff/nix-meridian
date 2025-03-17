@@ -66,4 +66,11 @@
   hardware.cpu.intel.updateMicrocode = config.hardware.enableRedistributableFirmware;
 
   services.fprintd.tod.driver = pkgs.libfprint-2-tod1-broadcom;
+
+  services.printing = {
+    drivers = with pkgs; [
+      # Samsung M2022W
+      samsung-unified-linux-driver
+    ];
+  };
 }
