@@ -1,6 +1,5 @@
 {
   imports = [
-    ./avante.nix
     ./blink-cmp.nix
     ./bufferline.nix
     ./claudius-nvim.nix
