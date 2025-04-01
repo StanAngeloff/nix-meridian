@@ -35,6 +35,7 @@ in
     trash-cli
     tree
     unp
+    unzip
     wget
     wineWowPackages.stable
     wl-clipboard
