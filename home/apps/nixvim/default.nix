@@ -8,7 +8,7 @@
   ];
 
   programs.neovim = {
-    # All options are mirrored by nixvim.
+    # All Home Manager options are mirrored by nixvim.
   };
 
   programs.nixvim = {
@@ -18,7 +18,7 @@
     viAlias = true;
     vimAlias = true;
 
-    # NOTE: This option is available in nixvim-unstable.
+    # NOTE: Don't re-use global packages as nixvim constructs its own instance of nixpkgs.
     #nixpkgs.useGlobalPackages = true;
 
     colorscheme = "vim-zend55";
@@ -74,7 +74,4 @@
       }
     ];
   };
-
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
 }
