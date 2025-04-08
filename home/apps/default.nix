@@ -1,6 +1,6 @@
-{ pkgs, ... }:
+{ pkgs, pkgs-unstable, ... }:
 let
-  packages = import ./packages.nix { inherit pkgs; };
+  packages = import ./packages.nix { inherit pkgs pkgs-unstable; };
 in
 {
   imports = [

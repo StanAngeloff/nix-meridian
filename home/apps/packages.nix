@@ -1,7 +1,6 @@
-{ pkgs, ... }:
+{ pkgs, pkgs-unstable, ... }:
 let
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown { };
-  proton-pass = pkgs.callPackage ./proton-pass { };
   viber = pkgs.callPackage ./viber { };
 in
 {
@@ -49,7 +48,7 @@ in
     google-chrome
     inkscape
     onlyoffice-desktopeditors
-    proton-pass
+    pkgs-unstable.proton-pass
     protonvpn-gui
     slack
     viber
