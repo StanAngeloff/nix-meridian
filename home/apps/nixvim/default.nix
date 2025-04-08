@@ -1,3 +1,4 @@
+{ pkgs-unstable, ... }:
 {
   imports = [
     ./plugins
@@ -13,6 +14,8 @@
 
   programs.nixvim = {
     enable = true;
+
+    package = pkgs-unstable.neovim-unwrapped;
 
     defaultEditor = true;
 

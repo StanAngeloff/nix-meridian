@@ -33,21 +33,34 @@
   outputs =
     {
       nixpkgs,
+      nixpkgs-unstable,
       home-manager,
       nixvim,
       solaar,
       ...
     }@inputs:
+    let
+      system = "x86_64-linux";
+      pkgs-unstable = (
+        import nixpkgs-unstable {
+          inherit system;
+          config = {
+            allowUnfree = true;
+          };
+        }
+      );
+    in
     {
       nixosConfigurations.stan-latitude = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit inputs; };
+        inherit system;
+        specialArgs = { inherit inputs pkgs-unstable; };
         modules = [
           ./modules/options
           ./configuration.nix
           solaar.nixosModules.default
           home-manager.nixosModules.home-manager
           {
+            home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable; };
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.stan.imports = [
