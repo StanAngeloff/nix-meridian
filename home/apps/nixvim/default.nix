@@ -15,8 +15,10 @@
     enable = true;
 
     defaultEditor = true;
+
     viAlias = true;
     vimAlias = true;
+    vimdiffAlias = true;
 
     # NOTE: Don't re-use global packages as nixvim constructs its own instance of nixpkgs.
     #nixpkgs.useGlobalPackages = true;

@@ -6,6 +6,5 @@
     t = "tig status";
     v = "nvim -p";
     vim = "nvim -p";
-    vimdiff = "nvim -d";
   };
 }
