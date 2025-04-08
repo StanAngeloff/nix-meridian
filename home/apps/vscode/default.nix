@@ -9,6 +9,7 @@
     extensions = with pkgs.vscode-extensions; [
       asvetliakov.vscode-neovim
       bbenoist.nix
+      bierner.markdown-mermaid
       dbaeumer.vscode-eslint
       denoland.vscode-deno
       esbenp.prettier-vscode
