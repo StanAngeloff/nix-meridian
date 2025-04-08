@@ -27,6 +27,18 @@ function _git_branch_prompt() {
   fi
 }
 
+function _shell_level_prompt() {
+  if [[ $SHLVL -gt 1 ]]; then
+    echo " %8F⌁ $SHLVL%f"
+  fi
+}
+
+function _in_nix_shell_prompt() {
+  if echo "$PATH" | grep -qc '/nix/store'; then
+    echo " %8F⌬ nix%f"
+  fi
+}
+
 precmd() {
   local jobs
   # If there are suspended jobs, display the first argument of each command-line.
@@ -38,4 +50,4 @@ precmd() {
   psvar=( "$jobs" )
 }
 
-export PROMPT="$(_user_hostname_prompt)%{$fg[white]%}%{$reset_color%}%{$fg[yellow]%}%(!.%1~.%~)%{$reset_color%}$(_root_prompt)%{$fg[white]%}%1v%{$reset_color%}\$(_git_branch_prompt) %(?:→:×) "
+export PROMPT="$(_user_hostname_prompt)%{$fg[white]%}%{$reset_color%}%{$fg[yellow]%}%(!.%1~.%~)%{$reset_color%}$(_root_prompt)%{$fg[white]%}%1v%{$reset_color%}\$(_git_branch_prompt)\$(_shell_level_prompt)\$(_in_nix_shell_prompt) %(?:→:×) "
