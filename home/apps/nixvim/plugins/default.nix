@@ -6,6 +6,7 @@
     ./comment.nix
     ./committia.nix
     ./copilot.nix
+    ./copilot-lualine.nix
     ./fugitive.nix
     ./fzf-lua.nix
     ./gitgutter.nix

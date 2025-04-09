@@ -1,6 +1,8 @@
+{ pkgs-unstable, ... }:
 {
   programs.nixvim.plugins.lualine = {
     enable = true;
+    package = pkgs-unstable.vimPlugins.lualine-nvim;
 
     luaConfig.pre = # lua
       ''
@@ -77,6 +79,14 @@
           }
         ];
         lualine_x = [
+          {
+            __unkeyed = "copilot";
+            symbols = {
+              spinners = "dots_hop";
+            };
+            show_colors = false;
+            show_loading = true;
+          }
           "encoding"
           "fileformat"
         ];
