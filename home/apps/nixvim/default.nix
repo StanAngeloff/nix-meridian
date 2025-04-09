@@ -1,11 +1,12 @@
 { pkgs-unstable, ... }:
 {
   imports = [
-    ./plugins
     ./abbreviations.nix
     ./commands.nix
+    ./issues.nix
     ./keymaps.nix
     ./options.nix
+    ./plugins
   ];
 
   programs.neovim = {
