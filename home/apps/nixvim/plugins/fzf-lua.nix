@@ -5,6 +5,9 @@
     luaConfig.pre = # lua
       ''
         local fzf_lua_actions = require("fzf-lua.actions")
+
+        -- Register fzf-lua as the UI interface for `vim.ui.select`
+        require('fzf-lua').register_ui_select()
       '';
 
     settings = {
