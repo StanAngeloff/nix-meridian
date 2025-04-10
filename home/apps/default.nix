@@ -20,6 +20,7 @@ in
     ./mise
     ./nixvim
     ./nodejs+pnpm
+    ./ov
     ./ripgrep
     ./swappy
     ./thunderbird
