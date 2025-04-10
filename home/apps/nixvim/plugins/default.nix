@@ -7,6 +7,7 @@
     ./committia.nix
     ./copilot.nix
     ./copilot-lualine.nix
+    ./copilotchat-nvim.nix
     ./fugitive.nix
     ./fzf-lua.nix
     ./gitgutter.nix
