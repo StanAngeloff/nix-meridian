@@ -40,5 +40,6 @@
     ./vim-unimpaired.nix
     ./vim-zend55.nix
     ./web-devicons.nix
+    #./codecompanion-nvim.nix
   ];
 }
