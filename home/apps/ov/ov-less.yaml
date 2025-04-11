@@ -202,11 +202,11 @@ KeyBind:
     hide_other:
         - "alt+-"
     next_section:
-        - "space"
+        - "]"
     last_section:
         - "9"
     previous_section:
-        - "^"
+        - "["
     mark:
         - "m"
     remove_mark:
@@ -250,7 +250,7 @@ KeyBind:
     next_doc:
         - "]"
     previous_doc:
-        - "["
+        - "^"
     toggle_mouse:
         - "ctrl+alt+r"
     multi_color:
