@@ -35,7 +35,10 @@
     keymaps = [
       {
         key = "<leader>c";
-        mode = [ "n" ];
+        mode = [
+          "n"
+          "v"
+        ];
         action.__raw = ''function() require('CopilotChat').toggle() end'';
       }
     ];
