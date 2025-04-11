@@ -1,14 +1,8 @@
+{ pkgs-unstable, ... }:
 {
   programs.nixvim.plugins.blink-cmp = {
     enable = true;
-
-    luaConfig.pre = # lua
-      ''
-        -- The version packages in Nix as of 2025-02-12 does not support "none" preset.
-        require('blink.cmp.keymap').get_preset_keymap = function()
-          return {}
-        end
-      '';
+    package = pkgs-unstable.vimPlugins.blink-cmp;
 
     # See https://github.com/Saghen/blink.cmp/blob/v0.5.1/lua/blink/cmp/config.lua
     settings = {
@@ -20,27 +14,26 @@
         ];
       };
 
-      windows = {
-        autocomplete = {
-          selection = "auto_insert";
+      completion = {
+        accept = {
+          auto_brackets = {
+            enabled = true;
+          };
         };
         documentation = {
           auto_show = true;
-          border = "single";
+          window.border = "single";
         };
-        signature_help = {
-          border = "single";
-        };
-      };
-      accept = {
-        auto_brackets = {
-          enabled = true;
+        list = {
+          selection = {
+            auto_insert = true;
+          };
         };
       };
-      trigger = {
-        signature_help = {
-          enabled = true;
-        };
+
+      signature = {
+        enabled = true;
+        window.border = "single";
       };
 
       keymap = {
