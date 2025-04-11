@@ -1,90 +1,120 @@
 { pkgs-unstable, ... }:
 {
-  programs.nixvim.plugins.blink-cmp = {
-    enable = true;
-    package = pkgs-unstable.vimPlugins.blink-cmp;
+  programs.nixvim = {
+    plugins.blink-cmp = {
+      enable = true;
+      package = pkgs-unstable.vimPlugins.blink-cmp;
 
-    # See https://github.com/Saghen/blink.cmp/blob/v0.5.1/lua/blink/cmp/config.lua
-    settings = {
-      sources = {
-        default = [
-          "lsp"
-          "path"
-          "buffer"
-        ];
-      };
+      # See https://github.com/Saghen/blink.cmp/blob/v0.5.1/lua/blink/cmp/config.lua
+      settings = {
+        sources = {
+          default = [
+            "lsp"
+            "path"
+            "buffer"
+          ];
+        };
 
-      completion = {
-        accept = {
-          auto_brackets = {
-            enabled = true;
+        completion = {
+          accept = {
+            auto_brackets = {
+              enabled = true;
+            };
+          };
+          documentation = {
+            auto_show = true;
+            window.border = "rounded";
+          };
+          list = {
+            selection = {
+              auto_insert = true;
+            };
           };
         };
-        documentation = {
-          auto_show = true;
-          window.border = "single";
+
+        signature = {
+          enabled = true;
+          window.border = "rounded";
         };
-        list = {
-          selection = {
-            auto_insert = true;
+
+        cmdline = {
+          keymap = {
+            preset = "inherit";
+
+            "<Tab>" = [
+              {
+                __raw = # lua
+                  ''
+                    function(cmp)
+                      if cmp.is_ghost_text_visible() and not cmp.is_menu_visible() then return cmp.accept() end
+                    end
+                  '';
+              }
+              "show_and_insert"
+              "select_next"
+            ];
           };
         };
-      };
 
-      signature = {
-        enabled = true;
-        window.border = "single";
-      };
+        keymap = {
+          preset = "none";
 
-      keymap = {
-        preset = "none";
-        "<CR>" = [
-          "accept"
-          "fallback"
-        ];
-        "<Tab>".__raw = # lua
-          ''
-            {
-              "accept",
-              function(cmp)
-                if require("copilot.suggestion").is_visible() then
-                  require('copilot.suggestion').accept()
-                  return true
-                end
-                return false
-              end,
-              "fallback"
-            }
-          '';
-        "<C-P>" = [
-          "select_prev"
-          "fallback"
-        ];
-        "<C-K>" = [
-          "select_prev"
-          "fallback"
-        ];
-        "<C-J>" = [
-          "select_next"
-          "fallback"
-        ];
-        "<C-N>" = [
-          "select_next"
-          "fallback"
-        ];
-        "<C-H>" = [
-          "show_signature"
-          "hide_signature"
-          "fallback"
-        ];
-        "<C-E>" = [
-          "hide"
-        ];
-        "<M-]>" = [
-          "hide"
-          "fallback"
-        ];
+          "<CR>" = [
+            "accept"
+            "fallback"
+          ];
+          "<Tab>".__raw = # lua
+            ''
+              {
+                "accept",
+                function(cmp)
+                  if require("copilot.suggestion").is_visible() then
+                    require('copilot.suggestion').accept()
+                    return true
+                  end
+                  return false
+                end,
+                "fallback"
+              }
+            '';
+          "<C-P>" = [
+            "select_prev"
+            "fallback"
+          ];
+          "<C-K>" = [
+            "select_prev"
+            "fallback"
+          ];
+          "<C-J>" = [
+            "select_next"
+            "fallback"
+          ];
+          "<C-N>" = [
+            "select_next"
+            "fallback"
+          ];
+          "<C-H>" = [
+            "show_signature"
+            "hide_signature"
+            "fallback"
+          ];
+          "<C-E>" = [
+            "hide"
+          ];
+          "<M-]>" = [
+            "hide"
+            "fallback"
+          ];
+        };
       };
     };
+
+    extraConfigLua = ''
+      vim.api.nvim_set_hl(0, "BlinkCmpMenuBorder", { link = "FloatBorder" })
+      vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelpBorder", { link = "FloatBorder" })
+      vim.api.nvim_set_hl(0, "BlinkCmpDocBorder", { link = "FloatBorder" })
+      vim.api.nvim_set_hl(0, "BlinkCmpDocSeparator", { link = "BlinkCmpDocBorder" })
+    '';
   };
+
 }
