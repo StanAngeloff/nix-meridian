@@ -41,6 +41,7 @@ in
     yt-dlp
 
     # GUI
+    eog
     apostrophe
     bottles
     gnome-firmware

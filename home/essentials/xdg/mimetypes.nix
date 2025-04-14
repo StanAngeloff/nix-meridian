@@ -1,6 +1,20 @@
 { ... }:
 {
   defaultApplications = {
+    "org.gnome.eog.desktop" = [
+      "image/avif"
+      "image/bmp"
+      "image/gif"
+      "image/heic"
+      "image/jpeg"
+      "image/png"
+      "image/svg+xml-compressed"
+      "image/svg+xml"
+      "image/svg+xml"
+      "image/tiff"
+      "image/vnd.microsoft.icon"
+      "image/webp"
+    ];
     "org.gnome.Evince.desktop" = [
       "application/pdf"
     ];
