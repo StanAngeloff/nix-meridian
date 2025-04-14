@@ -1,10 +1,17 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 let
   binHome = "${config.home.homeDirectory}/.local/bin";
+  mimetypes = pkgs.callPackage ./xdg/mimetypes.nix { };
 in
 {
   # Enable management of XDG base directories.
-  xdg.enable = true;
+  xdg = {
+    enable = true;
+
+    mime.inverted = {
+      defaultApplications = mimetypes.defaultApplications;
+    };
+  };
 
   home.sessionVariables = {
     # https://specifications.freedesktop.org/basedir-spec/latest/#variables
