@@ -10,6 +10,7 @@
     ./copilotchat-nvim.nix
     ./fugitive.nix
     ./fzf-lua.nix
+    ./git-conflict-nvim.nix
     ./gitgutter.nix
     ./lsp.nix
     ./lspsaga.nix
