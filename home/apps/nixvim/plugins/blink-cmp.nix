@@ -13,6 +13,21 @@
             "path"
             "buffer"
           ];
+
+          providers = {
+            buffer = {
+              opts = {
+                # See https://github.com/Saghen/blink.cmp/blob/v1.1.1/doc/recipes.md#buffer-completion-from-all-open-buffers
+                get_bufnrs.__raw = ''
+                  function()
+                    return vim.tbl_filter(function(bufnr)
+                      return vim.bo[bufnr].buftype == ""
+                    end, vim.api.nvim_list_bufs())
+                  end
+                '';
+              };
+            };
+          };
         };
 
         completion = {
