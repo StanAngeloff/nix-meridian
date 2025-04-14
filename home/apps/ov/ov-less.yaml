@@ -248,7 +248,7 @@ KeyBind:
     next_backsearch:
         - "N"
     next_doc:
-        - "]"
+        - "space"
     previous_doc:
         - "^"
     toggle_mouse:
