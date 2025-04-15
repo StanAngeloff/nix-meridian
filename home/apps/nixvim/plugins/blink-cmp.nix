@@ -81,7 +81,6 @@
           "<Tab>".__raw = # lua
             ''
               {
-                "accept",
                 function(cmp)
                   if require("copilot.suggestion").is_visible() then
                     require('copilot.suggestion').accept()
@@ -89,6 +88,7 @@
                   end
                   return false
                 end,
+                "accept",
                 "fallback"
               }
             '';
