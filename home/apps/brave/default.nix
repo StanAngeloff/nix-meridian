@@ -19,5 +19,10 @@
         '';
       }
     ))
+
+    (pkgs.callPackage ./x-www-browser.nix {
+      package = brave;
+      execPath = "brave";
+    })
   ];
 }
