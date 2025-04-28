@@ -10,25 +10,28 @@ in
   # $ nix search wget
   packages = with pkgs; [
     # Essentials
-    deno
+    dig
+    file
     gcc14
     gnumake
     inetutils
+    inotify-tools
+    killall
     moreutils
-    python312
+    unzip
     usbutils
+    wget
 
     # CLI
     clipboard2markdown
     dconf2nix
-    dig
+    deno
     envchain
     ffmpeg
-    file
+    ghostscript
     imagemagick
-    inotify-tools
-    killall
     libsecret
+    python312
     python312Packages.ocrmypdf
     qemu
     rclone
@@ -37,8 +40,6 @@ in
     trash-cli
     tree
     unp
-    unzip
-    wget
     wineWowPackages.stable
     wl-clipboard
     yt-dlp
