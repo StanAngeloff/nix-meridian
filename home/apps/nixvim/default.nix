@@ -1,4 +1,11 @@
 { pkgs-unstable, ... }:
+let
+  neovim-unwrapped = pkgs-unstable.neovim-unwrapped.overrideAttrs (previousAttrs: {
+    meta = (previousAttrs.meta or { }) // {
+      maintainers = previousAttrs.maintainers or [ ];
+    };
+  });
+in
 {
   imports = [
     ./abbreviations.nix
@@ -16,7 +23,7 @@
   programs.nixvim = {
     enable = true;
 
-    package = pkgs-unstable.neovim-unwrapped;
+    package = neovim-unwrapped;
 
     defaultEditor = true;
 
