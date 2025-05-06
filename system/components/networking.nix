@@ -17,7 +17,9 @@ with lib.lists;
     enable = true;
 
     #allowedTCPPorts = [ ];
-    #allowedTCPPortRanges = [ ];
+    allowedTCPPortRanges = [
+      { from = 8080; to = 8081; } # Expo Go
+    ];
 
     #allowedUDPPorts = [ ];
     #allowedUDPPortRanges = [ ];
