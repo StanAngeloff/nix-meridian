@@ -9,6 +9,10 @@
       sansSerif = [ config.nix-meridian.fonts.sansSerif.name ];
       serif = [ config.nix-meridian.fonts.serif.name ];
       monospace = [ config.nix-meridian.fonts.monospace.name ];
+      emoji = [
+        "Noto Color Emoji"
+        "OpenMoji Color" # Fallback when Noto Color Emoji doesn't have the glyph or for apps blocked from using Noto Color Emoji (e.g., Viber)
+      ];
     };
   };
 

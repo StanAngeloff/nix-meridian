@@ -21,6 +21,7 @@ in
         [
           corefonts # Microsoft's TrueType core fonts for the Web
           vistafonts # TrueType fonts from Microsoft Windows Vista (Calibri, Cambria, Candara, Consolas, Constantia, Corbel)
+          openmoji-color
           segoe-ui-variable
         ]
         ++ concatMap optionalPackage [
