@@ -120,6 +120,8 @@
             "hide"
             "fallback"
           ];
+          # See https://github.com/Saghen/blink.cmp/issues/453
+          #"<C-X><C-O>" = [ "show" ];
         };
       };
     };
@@ -129,6 +131,10 @@
       vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelpBorder", { link = "FloatBorder" })
       vim.api.nvim_set_hl(0, "BlinkCmpDocBorder", { link = "FloatBorder" })
       vim.api.nvim_set_hl(0, "BlinkCmpDocSeparator", { link = "BlinkCmpDocBorder" })
+
+      vim.keymap.set('i', '<C-x><C-o>', function()
+        require('blink.cmp').show()
+      end, { silent = false });
     '';
   };
 
