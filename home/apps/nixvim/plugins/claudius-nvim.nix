@@ -39,8 +39,8 @@ in
             src = pkgs.fetchFromGitHub {
               owner = "StanAngeloff";
               repo = "claudius.nvim";
-              rev = "v25.04-1";
-              hash = "sha256-VZASKA8XpwT7goRqG14IxZQx8U04easn2SROjvap8K4=";
+              rev = "d47139e60d72509665d81d3d0f409fa460c7c50f";
+              hash = "sha256-yEIFHz/Gku0aQtTiQbX1ynVey31868b07az2O9X3oqM=";
             };
           }
         );
