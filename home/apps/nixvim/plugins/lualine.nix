@@ -80,6 +80,10 @@
         ];
         lualine_x = [
           {
+            __unkeyed = "claudius";
+            icon = "🧠";
+          }
+          {
             __unkeyed = "copilot";
             symbols = {
               spinners = "dots_hop";
