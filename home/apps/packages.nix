@@ -1,7 +1,7 @@
 { pkgs, pkgs-unstable, ... }:
 let
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown {
-    pandoc = pkgs-unstable.pandoc_3_6;
+    pandoc = pkgs-unstable.pandoc;
   };
   viber = pkgs.callPackage ./viber { };
 in
