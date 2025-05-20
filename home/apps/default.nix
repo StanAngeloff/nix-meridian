@@ -1,6 +1,8 @@
 { pkgs, pkgs-unstable, ... }:
 let
-  packages = import ./packages.nix { inherit pkgs pkgs-unstable; };
+  packages = pkgs.callPackage ./packages.nix {
+    inherit pkgs pkgs-unstable;
+  };
 in
 {
   imports = [

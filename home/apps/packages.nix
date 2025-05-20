@@ -1,4 +1,9 @@
-{ pkgs, pkgs-unstable, ... }:
+{
+  hiPrio,
+  pkgs,
+  pkgs-unstable,
+  ...
+}:
 let
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown {
     pandoc = pkgs-unstable.pandoc;
@@ -43,6 +48,7 @@ in
     wineWowPackages.stable
     wl-clipboard
     yt-dlp
+    (hiPrio file-rename)
 
     # GUI
     eog
