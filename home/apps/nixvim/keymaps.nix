@@ -13,7 +13,7 @@
     { key = "Q"; mode = [ "v" ]; action = "<Esc>:windo normal ZZ<CR>"; options.silent = true; }
     { key = "<Return>"; mode = [ "n" ]; action = ":w<CR>"; options.desc = "Frantic <C-S> are now hectic <Return>s"; }
     { key = "<Return>"; mode = [ "v" ]; action = ":<C-U>w<CR>gv"; }
-    { key = "<leader><Space>"; mode = [ "n" ]; action = ":noh<CR>:sign unplace *<CR>:call clearmatches()<CR>:GitGutter<CR>"; options.silent = true; options.desc = "Turn off active highlighting, reset signs and plug-ins"; }
+    { key = "<leader><Space>"; mode = [ "n" ]; action = ":noh<CR>:sign unplace *<CR>:call clearmatches()<CR>:Gitsigns refresh<CR>"; options.silent = true; options.desc = "Turn off active highlighting, reset signs and plug-ins"; }
     { key = "<F1>"; mode = [ "n" ]; action = ":setlocal nospell! nospell?<CR>"; options.silent = true; options.desc = "Toggle spell-checking"; }
     { key = "<F2>"; mode = [ "n" ]; action = ":setlocal invpaste paste?<CR>"; options.silent = true; options.desc = "Toggle paste-mode"; }
     { key = "<F3>"; mode = [ "n" ]; action = ":setlocal wrap! wrap?<CR>"; options.silent = true; options.desc = "Toggle long line wrap"; }
@@ -54,15 +54,13 @@
     { key = "<leader>S"; mode = [ "n" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = "" }) end''; }
     { key = "<leader>S"; mode = [ "v" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = require("fzf-lua.utils").get_visual_selection() }) end''; }
     { key = "<leader>ha"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.Git("add %") end''; }
-    { key = "<leader>hp"; mode = [ "n" ]; action = "<Plug>(GitGutterPreviewHunk)"; } # vim-gitgutter
-    { key = "<leader>hs"; mode = [ "n" "v" ]; action = "<Plug>(GitGutterStageHunk)"; }
-    { key = "<leader>hu"; mode = [ "n" ]; action = "<Plug>(GitGutterUndoHunk)"; }
-    { key = "[c"; mode = [ "n" ]; action = "<Plug>(GitGutterPrevHunk)"; }
-    { key = "]c"; mode = [ "n" ]; action = "<Plug>(GitGutterNextHunk)"; }
-    { key = "ic"; mode = [ "o" ]; action = "<Plug>(GitGutterTextObjectInnerPending)"; }
-    { key = "ac"; mode = [ "o" ]; action = "<Plug>(GitGutterTextObjectOuterPending)"; }
-    { key = "ic"; mode = [ "x" ]; action = "<Plug>(GitGutterTextObjectInnerVisual)"; }
-    { key = "ac"; mode = [ "x" ]; action = "<Plug>(GitGutterTextObjectOuterVisual)"; }
+    { key = "<leader>hp"; mode = [ "n" ]; action = ":Gitsigns preview_hunk<CR>"; options.silent = true; } # gitsigns.nvim
+    { key = "<leader>hs"; mode = [ "n" "v" ]; action = ":Gitsigns stage_hunk<CR>"; options.silent = true; }
+    { key = "<leader>hu"; mode = [ "n" ]; action = ":Gitsigns reset_hunk<CR>"; options.silent = true; }
+    { key = "[c"; mode = [ "n" ]; action = ":Gitsigns nav_hunk prev<CR>"; options.silent = true; }
+    { key = "]c"; mode = [ "n" ]; action = ":Gitsigns nav_hunk next<CR>"; options.silent = true; }
+    { key = "ih"; mode = [ "o" ]; action = "<Cmd>Gitsigns select_hunk<CR>"; }
+    { key = "ih"; mode = [ "x" ]; action = "<Cmd>Gitsigns select_hunk<CR>"; }
     { key = "[b"; mode = [ "v" ]; action = ":<C-U>call base64#v_atob()<CR>"; options.silent = true; } # vim-base64
     { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
     { key = "*"; mode = [ "n" ]; action = ":keepjumps normal! mi*`i<CR>"; options.silent = true; }
