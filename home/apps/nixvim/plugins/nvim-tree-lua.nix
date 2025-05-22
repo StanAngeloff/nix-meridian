@@ -47,9 +47,9 @@
                 deleted = "D";
                 ignored = "I";
                 renamed = "R";
-                staged = "S";
+                staged = "+";
                 unmerged = "C";
-                unstaged = "U";
+                unstaged = "∗";
                 untracked = "?";
               };
             };
@@ -61,15 +61,28 @@
         function(bufnr)
           local api = require("nvim-tree.api")
 
+          local function on_close()
+            -- Save the cursor position before closing the tree
+            _G.nvim_tree_cursor_pos = vim.api.nvim_win_get_cursor(0)
+          end
+
+          local function use(fn, ...)
+            local args = {...}
+            return function()
+              on_close()
+              fn(unpack(args))
+            end
+          end
+
           local function opts(desc)
             return { desc = "nvim-tree: " .. desc, buffer = bufnr, noremap = true, silent = true, nowait = true }
           end
 
           -- See https://github.com/nvim-tree/nvim-tree.lua/blob/master@%7B2025-05-09%7D/lua/nvim-tree/keymap.lua
-          vim.keymap.set("n", "<C-t>", api.node.open.tab, opts("Open: New Tab"))
-          vim.keymap.set("n", "t", api.node.open.tab, opts("Open: New Tab"))
-          vim.keymap.set("n", "<CR>", api.node.open.edit, opts("Open"))
-          vim.keymap.set("n", "o", api.node.open.edit, opts("Open"))
+          vim.keymap.set("n", "<C-t>", use(api.node.open.tab), opts("Open: New Tab"))
+          vim.keymap.set("n", "t", use(api.node.open.tab), opts("Open: New Tab"))
+          vim.keymap.set("n", "<CR>", use(api.node.open.edit), opts("Open"))
+          vim.keymap.set("n", "o", use(api.node.open.edit), opts("Open"))
           vim.keymap.set("n", "K", api.node.show_info_popup, opts("Info"))
 
           vim.keymap.set("n", ">", api.node.navigate.sibling.next, opts("Next Sibling"))
@@ -78,12 +91,12 @@
 
           vim.keymap.set("n", "ma", api.fs.create, opts("Create File Or Directory"))
           vim.keymap.set("n", "mr", api.fs.rename_full, opts("Rename"))
-          vim.keymap.set("n", "md", api.fs.trash, opts("Trash"))
+          vim.keymap.set("n", "mt", api.fs.trash, opts("Trash"))
           vim.keymap.set("n", "y", api.fs.copy.filename, opts("Copy Name"))
           vim.keymap.set("n", "Y", api.fs.copy.relative_path, opts("Copy Relative Path"))
 
-          vim.keymap.set("n", "q", api.tree.close, opts("Close"))
-          vim.keymap.set("n", "<Tab>", api.tree.toggle, opts("Toggle"))
+          vim.keymap.set("n", "q", use(api.tree.close), opts("Close"))
+          vim.keymap.set("n", "<Tab>", use(api.tree.close_in_all_tabs), opts("Toggle"))
           vim.keymap.set("n", "R", api.tree.reload, opts("Refresh"))
 
           vim.keymap.set("n", "g?", api.tree.toggle_help, opts("Help"))
@@ -118,5 +131,25 @@
         end
       '';
     };
+
+    keymaps = [
+      {
+        key = "<Tab>";
+        mode = [ "n" ];
+        action.__raw = ''
+          function()
+            local api = require("nvim-tree.api")
+
+            api.tree.open({ focus = true })
+
+            -- Restore the cursor position to the last known one, if available in `_G.nvim_tree_cursor_pos`
+            if _G.nvim_tree_cursor_pos then
+              vim.api.nvim_win_set_cursor(0, _G.nvim_tree_cursor_pos)
+            end
+          end
+        '';
+        options.desc = "nvim-tree: Toggle";
+      }
+    ];
   };
 }
