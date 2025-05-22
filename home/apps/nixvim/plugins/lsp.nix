@@ -37,6 +37,7 @@
           };
           graphql = {
             enable = true;
+            package = pkgs.graphql-language-service-cli;
           };
           html = {
             enable = true;
