@@ -121,6 +121,8 @@
       pattern = "qf";
       callback.__raw = ''
         function()
+          vim.api.nvim_buf_set_option(0, "modifiable", true) -- Make the quickfix buffer modifiable.
+
           vim.keymap.set("n", "q", ":cclose<CR>:lclose<CR>", { buffer = true, silent = true, desc = "Close quickfix/location list" })
           vim.keymap.set("n", "<C-T>", "^<C-W>gF", { buffer = true, desc = "Open in new tab (Ctrl-T)" })
           vim.keymap.set("n", "t", "^<C-W>gF", { buffer = true, desc = "Open in new tab (t)" })
