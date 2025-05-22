@@ -1,5 +1,5 @@
 { pkgs, ... }:
-# See https://github.com/nix-community/nixvim/blob/nixos-24.11/plugins/by-name/treesitter/default.nix#L80
+# See https://github.com/nix-community/nixvim/blob/nixos-25.05/plugins/by-name/treesitter/default.nix#L87
 let
   tree-sitter-blade = pkgs.tree-sitter.buildGrammar rec {
     language = "blade";
