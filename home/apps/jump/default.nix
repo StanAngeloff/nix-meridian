@@ -1,8 +1,12 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 {
   home.packages = [ pkgs.jump ];
 
-  programs.zsh.initExtra = ''
-    eval "$(${pkgs.jump}/bin/jump shell --bind=z)"
-  '';
+  programs.zsh.initContent =
+    let
+      zshConfigAfter = lib.mkOrder 1510 ''
+        eval "$(${pkgs.jump}/bin/jump shell --bind=z)"
+      '';
+    in
+    lib.mkMerge [ zshConfigAfter ];
 }

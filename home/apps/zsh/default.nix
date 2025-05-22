@@ -1,3 +1,4 @@
+{ lib, ... }:
 {
   imports = [
     ./aliases.nix
@@ -16,19 +17,23 @@
       size = 50000;
     };
 
-    initExtra = ''
-      setopt hist_find_no_dups
-      setopt hist_no_functions
-      setopt hist_no_store
-      setopt hist_reduce_blanks
-      setopt hist_save_no_dups
-      setopt inc_append_history
-      setopt no_hist_beep
+    initContent =
+      let
+        zshConfig = lib.mkOrder 1200 ''
+          setopt hist_find_no_dups
+          setopt hist_no_functions
+          setopt hist_no_store
+          setopt hist_reduce_blanks
+          setopt hist_save_no_dups
+          setopt inc_append_history
+          setopt no_hist_beep
 
-      bindkey "^H" backward-delete-word
+          bindkey "^H" backward-delete-word
 
-      source ${./prompt.zsh}
-    '';
+          source ${./prompt.zsh}
+        '';
+      in
+      lib.mkMerge [ zshConfig ];
 
     oh-my-zsh = {
       enable = true;

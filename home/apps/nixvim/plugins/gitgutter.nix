@@ -2,16 +2,16 @@
   programs.nixvim.plugins.gitgutter = {
     enable = true;
 
-    maxSigns = 9999;
-    defaultMaps = false;
+    settings = {
+      map_keys = false;
+      max_signs = 9999;
 
-    signs = {
-      added = "│";
-      modified = "│";
-      removed = "_";
-      removedFirstLine = "‾";
-      removedAboveAndBelow = "-";
-      modifiedRemoved = "-";
+      sign_added = "│";
+      sign_modified = "│";
+      sign_removed = "_";
+      sign_removed_first_line = "‾";
+      sign_removed_above_and_below = "-";
+      sign_modified_removed = "-";
     };
   };
 }

@@ -5,15 +5,17 @@
       enable = true;
       package = pkgs-unstable.vimPlugins.copilot-lua;
 
-      copilotNodeCommand = "${pkgs.nodejs_22}/bin/node";
+      settings = {
+        copilot_node_command = "${pkgs.nodejs_22}/bin/node";
 
-      suggestion = {
-        enabled = true;
-        autoTrigger = true;
-      };
+        suggestion = {
+          enabled = true;
+          auto_trigger = true;
+        };
 
-      filetypes = {
-        markdown = true;
+        filetypes = {
+          markdown = true;
+        };
       };
     };
 
