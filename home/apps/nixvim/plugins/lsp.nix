@@ -74,30 +74,35 @@
           };
 
           # Deno vs. TypeScript
+          # See `:h vim.fs.root()`
           denols = {
             enable = true;
             extraOptions.single_file_support = false;
-            rootDir = # lua
+            rootMarkers = [
+              # lua
               ''
-                function (filename)
-                  return require("lspconfig").util.root_pattern("deno.json", "deno.jsonc")(filename);
+                function (name)
+                  return require("lspconfig").util.root_pattern("deno.json", "deno.jsonc")(name);
                 end
-              '';
+              ''
+            ];
           };
           ts_ls = {
             enable = true;
             extraOptions.single_file_support = false;
-            rootDir = # lua
+            rootMarkers = [
+              # lua
               ''
-                function (filename)
+                function (name)
                   local lspconfig = require("lspconfig");
-                  local denolsFiles = lspconfig.util.root_pattern("deno.json", "deno.jsonc")(filename);
+                  local denolsFiles = lspconfig.util.root_pattern("deno.json", "deno.jsonc")(name);
                   if denolsFiles then
                     return nil;
                   end
-                  return lspconfig.util.root_pattern("package.json", "tsconfig.json")(filename);
+                  return lspconfig.util.root_pattern("package.json", "tsconfig.json")(name);
                 end
-              '';
+              ''
+            ];
           };
         };
       };
