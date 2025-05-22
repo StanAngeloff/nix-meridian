@@ -108,7 +108,7 @@
           end, opts("Find and focus the current buffer in the tree"))
 
           -- See https://github.com/nvim-tree/nvim-tree.lua/blob/master@%7B2025-05-09%7D/doc/nvim-tree-lua.txt#L2667
-          vim.api.nvim_set_hl(0, "NvimTreeGitNewIcon", { fg = "#00ba00" })
+          vim.api.nvim_set_hl(0, "NvimTreeGitNewIcon", { fg = "#747474" })
           vim.api.nvim_set_hl(0, "NvimTreeGitRenamedIcon", { fg = "#00ba00" })
           vim.api.nvim_set_hl(0, "NvimTreeGitStagedIcon", { fg = "#00ba00" })
           vim.api.nvim_set_hl(0, "NvimTreeGitDirtyIcon", { fg = "#ccaa00" })
