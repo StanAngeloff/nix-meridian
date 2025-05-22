@@ -4,10 +4,11 @@
 
     luaConfig.pre = # lua
       ''
-        local fzf_lua_actions = require("fzf-lua.actions")
-
         -- Register fzf-lua as the UI interface for `vim.ui.select`
         require('fzf-lua').register_ui_select()
+
+        vim.api.nvim_set_hl(0, "FzfLuaPreviewBorder", { fg = "#262626" })
+        vim.api.nvim_set_hl(0, "FzfLuaLivePrompt", { link = "Normal" })
       '';
 
     settings = {
@@ -26,6 +27,12 @@
         treesitter = true;
         split = "botright new";
         border = "none";
+        preview = {
+          border = "single";
+          winopts = {
+            border = "none";
+          };
+        };
       };
       keymap = {
         fzf = {
@@ -34,8 +41,8 @@
       };
       actions = {
         files = {
-          "enter".__raw = "fzf_lua_actions.file_edit_or_qf";
-          "ctrl-t".__raw = "fzf_lua_actions.file_tabedit";
+          "enter".__raw = "require('fzf-lua.actions').file_edit_or_qf";
+          "ctrl-t".__raw = "require('fzf-lua.actions').file_tabedit";
         };
       };
     };

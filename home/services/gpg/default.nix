@@ -14,6 +14,8 @@
     enableSshSupport = true;
     defaultCacheTtl = 3600;
     maxCacheTtl = 86400;
-    pinentryPackage = pinentry-gnome3;
+    pinentry = {
+      package = pinentry-gnome3;
+    };
   };
 }
