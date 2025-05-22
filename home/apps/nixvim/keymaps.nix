@@ -8,7 +8,7 @@
     { key = "k"; mode = [ "v" ]; action = "gk"; options.silent = true; }
     { key = "Y"; mode = [ "n" ]; action = "y$"; options.desc = "Make Y consistent with C and D. See ':help Y'"; }
     { key = "$"; mode = [ "v" ]; action = "g_"; options.desc = "Make $ behave consistently in visual mode"; }
-    { key = "<Tab>"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.NERDTreeMirrorToggle() end''; options.desc = "Toggle NERDTree"; }
+    { key = "<Tab>"; mode = [ "n" ]; action = ":NvimTreeToggle<CR>"; options.desc = "Toggle project tree"; }
     { key = "Q"; mode = [ "n" ]; action = ":windo normal ZZ<CR>"; options.silent = true; options.desc = "Q for 'Q'uit, 'Ex' mode has received zero use"; }
     { key = "Q"; mode = [ "v" ]; action = "<Esc>:windo normal ZZ<CR>"; options.silent = true; }
     { key = "<Return>"; mode = [ "n" ]; action = ":w<CR>"; options.desc = "Frantic <C-S> are now hectic <Return>s"; }
