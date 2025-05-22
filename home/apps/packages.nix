@@ -31,7 +31,6 @@ in
     clipboard2markdown
     dconf2nix
     deno
-    envchain
     ffmpeg
     ghostscript
     imagemagick
