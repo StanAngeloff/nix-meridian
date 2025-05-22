@@ -126,6 +126,43 @@
           vim.keymap.set("n", "q", ":cclose<CR>:lclose<CR>", { buffer = true, silent = true, desc = "Close quickfix/location list" })
           vim.keymap.set("n", "<C-T>", "^<C-W>gF", { buffer = true, desc = "Open in new tab (Ctrl-T)" })
           vim.keymap.set("n", "t", "^<C-W>gF", { buffer = true, desc = "Open in new tab (t)" })
+
+          local function open_unique_qf_files()
+            local qf_list = vim.fn.getqflist()
+            if not qf_list or #qf_list == 0 then
+              vim.notify("Quickfix list is empty.", vim.log.levels.INFO)
+              return
+            end
+
+            local unique_files_info = {}
+            local seen_files = {}
+
+            for _, item in ipairs(qf_list) do
+              if item.valid == 1 and item.bufnr ~= 0 then
+                local filename = vim.fn.bufname(item.bufnr)
+                -- Ensure filename is not empty (can happen for non-file buffers)
+                if filename and filename ~= "" then
+                  local abs_filename = vim.fn.fnamemodify(filename, ":p") -- Get absolute path
+                  if not seen_files[abs_filename] then
+                    table.insert(unique_files_info, { filename = abs_filename, lnum = item.lnum })
+                    seen_files[abs_filename] = true
+                  end
+                end
+              end
+            end
+
+            if #unique_files_info == 0 then
+              vim.notify("No valid files found in quickfix list to open.", vim.log.levels.INFO)
+              return
+            end
+
+            for _, file_info in ipairs(unique_files_info) do
+              local escaped_filename = vim.fn.fnameescape(file_info.filename)
+              vim.cmd("tabedit +" .. file_info.lnum .. " " .. escaped_filename)
+            end
+          end
+
+          vim.keymap.set("n", "<C-A>", open_unique_qf_files, { buffer = true, silent = true, desc = "Open unique quickfix files in tabs" })
         end
       '';
     }
