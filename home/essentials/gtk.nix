@@ -9,7 +9,7 @@ with pkgs;
     };
     cursorTheme = {
       name = "DMZ-White";
-      size = 32;
+      size = 24;
       package = vanilla-dmz;
     };
     font = {
