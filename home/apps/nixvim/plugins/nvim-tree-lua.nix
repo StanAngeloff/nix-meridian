@@ -128,6 +128,12 @@
           vim.api.nvim_set_hl(0, "NvimTreeGitMergeIcon", { fg = "#61afef" })
           vim.api.nvim_set_hl(0, "NvimTreeGitDeletedIcon", { fg = "#ba0000" })
           vim.api.nvim_set_hl(0, "NvimTreeGitIgnoredIcon", { fg = "#3a3a3a" })
+
+          vim.api.nvim_set_hl(0, "NvimTreeRootFolder", { fg = "#ff00ff", bold = true, italic = true })
+          vim.api.nvim_set_hl(0, "NvimTreeExecFile", { fg = "#ff00ff", bold = true })
+          vim.api.nvim_set_hl(0, "NvimTreeSpecialFile", { fg = "#afafff" })
+          vim.api.nvim_set_hl(0, "NvimTreeSymlink", { fg = "#ffff00" })
+          vim.api.nvim_set_hl(0, "NvimTreeImageFile", { link = "Normal" })
         end
       '';
     };
