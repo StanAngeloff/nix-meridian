@@ -5,7 +5,7 @@
   ...
 }:
 let
-  segoe-ui-variable = pkgs.callPackage ./fonts/segoe-ui-variable.nix { };
+  segoe-ui-variable = pkgs.callPackage ./fonts/segoe-ui-variable/package.nix { };
 in
 {
   fonts = {

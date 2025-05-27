@@ -5,10 +5,10 @@
   ...
 }:
 let
-  clipboard2markdown = pkgs.callPackage ./clipboard2markdown {
+  clipboard2markdown = pkgs.callPackage ./clipboard2markdown/package.nix {
     pandoc = pkgs-unstable.pandoc;
   };
-  viber = pkgs.callPackage ./viber { };
+  viber = pkgs.callPackage ./viber/package.nix { };
 in
 {
   # List packages installed in your user profile. To search, run:
