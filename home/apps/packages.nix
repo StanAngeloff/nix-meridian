@@ -5,6 +5,7 @@
   ...
 }:
 let
+  bruno = pkgs.callPackage ./bruno/package.nix { };
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown/package.nix {
     pandoc = pkgs-unstable.pandoc;
   };
@@ -50,9 +51,10 @@ in
     (hiPrio file-rename)
 
     # GUI
-    eog
     apostrophe
     bottles
+    bruno
+    eog
     gnome-firmware
     gnome-tweaks
     google-chrome
