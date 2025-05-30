@@ -11,6 +11,7 @@ in
     ./direnv
     ./dropbox
     ./eza
+    ./figma-agent
     ./firefox
     ./fzf
     ./git
