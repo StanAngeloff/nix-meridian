@@ -90,8 +90,12 @@
           vim.keymap.set("n", "x", api.node.navigate.parent_close, opts("Close Directory"))
 
           vim.keymap.set("n", "ma", api.fs.create, opts("Create File Or Directory"))
-          vim.keymap.set("n", "mr", api.fs.rename_full, opts("Rename"))
+          vim.keymap.set("n", "mm", api.fs.rename_full, opts("Rename"))
           vim.keymap.set("n", "mt", api.fs.trash, opts("Trash"))
+          vim.keymap.set("n", "mc", function()
+            api.fs.copy.node()
+            api.fs.paste()
+          end, opts("Duplicate"))
           vim.keymap.set("n", "y", api.fs.copy.filename, opts("Copy Name"))
           vim.keymap.set("n", "Y", api.fs.copy.relative_path, opts("Copy Relative Path"))
 
@@ -108,14 +112,14 @@
           vim.keymap.set("n", "<2-LeftMouse>", api.node.open.edit, opts("Open"))
           vim.keymap.set("n", "<2-RightMouse>", api.tree.change_root_to_node, opts("CD"))
 
-          vim.keymap.set("n", "S", function ()
+          vim.keymap.set("n", "S", function()
             local selected = api.tree.get_node_under_cursor()
             if selected and selected.type == "directory" then
               require("fzf-lua").live_grep({ cwd = selected.absolute_path })
             end
           end, opts("Search"))
 
-          vim.keymap.set("n", "a", function ()
+          vim.keymap.set("n", "a", function()
             api.tree.close()
             api.tree.open({ focus = true, find_file = true })
           end, opts("Find and focus the current buffer in the tree"))
