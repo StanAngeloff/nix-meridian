@@ -7,8 +7,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "StanAngeloff";
         repo = "claudius.nvim";
-        rev = "v25.06-1";
-        hash = "sha256-sWVzfOfZluDe39F9B2EcpsNI2+RcHFYVGXtkZ3l9Z58=";
+        rev = "97005d273827331b59f924f7450f9f69c7b68341";
+        hash = "sha256-LoxZ22+/YymWYqW8j6UHFuUUXK+HsuRVlCqAmiYEtGg=";
       };
 
       postInstall = ''
