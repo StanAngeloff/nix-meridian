@@ -1,4 +1,7 @@
 { pkgs-unstable, ... }:
+let
+  nvimTreeViewWidth = 48;
+in
 {
   programs.nixvim = {
     plugins.nvim-tree = {
@@ -31,7 +34,7 @@
       };
 
       view = {
-        width = 48;
+        width = nvimTreeViewWidth;
       };
 
       # NOTE: `renderer.icons.glyphs.bookmark` is not available in Nixvim so we resort to using `extraOptions` which is shallow merged with the rest.
@@ -84,6 +87,16 @@
           vim.keymap.set("n", "<CR>", use(api.node.open.edit), opts("Open"))
           vim.keymap.set("n", "o", use(api.node.open.edit), opts("Open"))
           vim.keymap.set("n", "K", api.node.show_info_popup, opts("Info"))
+
+          vim.keymap.set("n", "A", function()
+            local api = require("nvim-tree.api")
+            local view = require("nvim-tree.view")
+            if view.View.width == ${builtins.toString nvimTreeViewWidth} then
+              api.tree.resize({ absolute = 120 })
+            else
+              api.tree.resize({ absolute = ${builtins.toString nvimTreeViewWidth} })
+            end
+          end, opts("Toggle Maximized"))
 
           vim.keymap.set("n", ">", api.node.navigate.sibling.next, opts("Next Sibling"))
           vim.keymap.set("n", "<", api.node.navigate.sibling.prev, opts("Previous Sibling"))
