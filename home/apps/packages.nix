@@ -36,8 +36,8 @@ in
     ghostscript
     imagemagick
     libsecret
-    python312
-    python312Packages.ocrmypdf
+    python313
+    python313Packages.ocrmypdf
     qemu
     rclone
     scrcpy
