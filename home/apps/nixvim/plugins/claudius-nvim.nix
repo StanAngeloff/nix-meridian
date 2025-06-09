@@ -19,9 +19,9 @@ let
   );
   claudius-settings = {
     provider = "vertex";
-    model = "gemini-2.5-pro-preview-05-06";
+    # model = "…"; # The latest Gemini Pro model will be used by default.
     parameters = {
-      max_tokens = 8000;
+      max_tokens = 32768;
       timeout = 300;
       project_id = "stans-playground";
     };
