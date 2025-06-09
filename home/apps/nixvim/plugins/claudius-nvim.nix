@@ -7,8 +7,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "StanAngeloff";
         repo = "claudius.nvim";
-        rev = "97005d273827331b59f924f7450f9f69c7b68341";
-        hash = "sha256-LoxZ22+/YymWYqW8j6UHFuUUXK+HsuRVlCqAmiYEtGg=";
+        rev = "1cb1ec05e22a28aa1275c903d81545fa4583c14d";
+        hash = "sha256-rXiQOaIEkK4T1bDjm7Q1ck2lQQ/5AxxoLFw8139smFA=";
       };
 
       postInstall = ''
@@ -46,6 +46,8 @@ let
     };
     highlights = {
       assistant = "#8f9faf";
+      user_lua_expression = "#ff00ff";
+      user_file_reference = "#ff00ff";
     };
   };
 in
