@@ -90,6 +90,9 @@
       # Alacritty
       set -sa terminal-features ",alacritty:RGB"
       set -ga terminal-features ",alacritty:usstyle"
+
+      # tmux uses the default cursor style in copy mode, which is configured to be "Beam" in Alacritty. Use a block cursor instead in copy mode.
+      set-hook -g after-copy-mode 'set -p cursor-style block'
     '';
   };
 }

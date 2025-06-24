@@ -32,8 +32,23 @@
 
           source ${./prompt.zsh}
         '';
+        # Set terminal cursor to block whilst running a command.
+        zshCursorConfig = lib.mkOrder 1000 ''
+          function _zsh_cursor_block() {
+            echo -ne "\e[2 q"
+          }
+
+          function _zsh_cursor_beam() {
+            echo -ne "\e[6 q"
+          }
+
+          autoload -Uz add-zsh-hook
+
+          add-zsh-hook preexec _zsh_cursor_block
+          add-zsh-hook precmd _zsh_cursor_beam
+        '';
       in
-      lib.mkMerge [ zshConfig ];
+      lib.mkMerge [ zshConfig zshCursorConfig ];
 
     oh-my-zsh = {
       enable = true;

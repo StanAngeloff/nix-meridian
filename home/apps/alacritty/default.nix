@@ -34,7 +34,8 @@ in
         foreground = "#ffffff";
       };
       cursor.style = {
-        shape = "Block";
+        shape = "Beam";
+        blinking = "On";
       };
       env = {
         TERM = "alacritty";
