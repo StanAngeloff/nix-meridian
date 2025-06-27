@@ -48,7 +48,10 @@
           add-zsh-hook precmd _zsh_cursor_beam
         '';
       in
-      lib.mkMerge [ zshConfig zshCursorConfig ];
+      lib.mkMerge [
+        zshConfig
+        zshCursorConfig
+      ];
 
     oh-my-zsh = {
       enable = true;
