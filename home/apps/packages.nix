@@ -9,6 +9,7 @@ let
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown/package.nix {
     pandoc = pkgs-unstable.pandoc;
   };
+  nsx = pkgs.callPackage ./nsx/package.nix { };
   viber = pkgs.callPackage ./viber/package.nix { };
 in
 {
@@ -36,6 +37,7 @@ in
     ghostscript
     imagemagick
     libsecret
+    nsx
     python313
     python313Packages.ocrmypdf
     qemu
