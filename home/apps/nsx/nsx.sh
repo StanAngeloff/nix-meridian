@@ -11,7 +11,6 @@ usage() {
 
 channel="nixos-unstable"
 
-# Parse options
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	-h | --help)
@@ -26,7 +25,7 @@ while [[ $# -gt 0 ]]; do
 		shift
 		;;
 	-c=* | --channel=*)
-		channel="''${1#*=}"
+		channel="${1#*=}"
 		;;
 	-*)
 		echo "Error: Unknown option: $1" >&2
@@ -39,15 +38,37 @@ while [[ $# -gt 0 ]]; do
 	shift
 done
 
-# Check if there are packages specified
 if [ $# -eq 0 ]; then
 	echo "Error: No packages specified" >&2
 	usage
 fi
 
-packages=()
+cli_packages=()
+command=()
+did_end_of_options=false
+
 for arg in "$@"; do
-	packages+=("github:NixOS/nixpkgs/$channel#''${arg}")
+	if ! $did_end_of_options && [[ "$arg" == "--" ]]; then
+		did_end_of_options=true
+	elif $did_end_of_options; then
+		command+=("$arg")
+	else
+		cli_packages+=("$arg")
+	fi
 done
 
-exec nix shell "${packages[@]}"
+if [ ${#cli_packages[@]} -eq 0 ]; then
+	echo "Error: No packages specified" >&2
+	usage
+fi
+
+packages=()
+for arg in "${cli_packages[@]}"; do
+	packages+=("github:NixOS/nixpkgs/$channel#${arg}")
+done
+
+if [ ${#command[@]} -gt 0 ]; then
+	exec nix shell "${packages[@]}" --command "${command[@]}"
+else
+	exec nix shell "${packages[@]}"
+fi
