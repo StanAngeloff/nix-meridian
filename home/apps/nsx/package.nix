@@ -6,7 +6,7 @@
 writeShellApplication {
   inherit name;
 
-  text = builtins.toString (
+  text = builtins.readFile (
     replaceVars ./nsx.sh {
       inherit name;
     }
