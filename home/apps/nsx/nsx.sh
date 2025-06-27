@@ -1,5 +1,3 @@
-set -euo pipefail
-
 usage() {
 	echo "Usage: @name@ [options] <pkg>..." >&2
 	echo "" >&2
