@@ -90,8 +90,9 @@ in
 
           vim.keymap.set("n", "A", function()
             local api = require("nvim-tree.api")
-            local view = require("nvim-tree.view")
-            if view.View.width == ${builtins.toString nvimTreeViewWidth} then
+            local core = require("nvim-tree.core")
+            local explorer = core.get_explorer()
+            if explorer.view.width == ${builtins.toString nvimTreeViewWidth} then
               api.tree.resize({ absolute = 120 })
             else
               api.tree.resize({ absolute = ${builtins.toString nvimTreeViewWidth} })
