@@ -15,7 +15,7 @@
       "image/vnd.microsoft.icon"
       "image/webp"
     ];
-    "org.gnome.Evince.desktop" = [
+    "org.gnome.Papers.desktop" = [
       "application/pdf"
     ];
     "org.gnome.TextEditor.desktop" = [

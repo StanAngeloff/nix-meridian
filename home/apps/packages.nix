@@ -62,6 +62,7 @@ in
     google-chrome
     inkscape
     onlyoffice-desktopeditors
+    papers
     pkgs-unstable.proton-pass
     protonvpn-gui
     slack
