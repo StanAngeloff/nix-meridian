@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs-unstable, ... }:
 {
   programs.vscode = {
     enable = true;
@@ -8,7 +8,7 @@
     profiles.default = {
       enableExtensionUpdateCheck = false;
 
-      extensions = with pkgs.vscode-extensions; [
+      extensions = with pkgs-unstable.vscode-extensions; [
         asvetliakov.vscode-neovim
         bbenoist.nix
         bierner.markdown-mermaid
