@@ -79,31 +79,26 @@
           denols = {
             enable = true;
             extraOptions.single_file_support = false;
-            rootMarkers = [
-              # lua
-              ''
-                function (name)
-                  return require("lspconfig").util.root_pattern("deno.json", "deno.jsonc")(name);
-                end
-              ''
-            ];
+            extraOptions.root_dir.__raw = ''
+              function (...)
+                local lspconfig = require("lspconfig");
+                return lspconfig.util.root_pattern("deno.json", "deno.jsonc")(...);
+              end
+            '';
           };
           ts_ls = {
             enable = true;
             extraOptions.single_file_support = false;
-            rootMarkers = [
-              # lua
-              ''
-                function (name)
-                  local lspconfig = require("lspconfig");
-                  local denolsFiles = lspconfig.util.root_pattern("deno.json", "deno.jsonc")(name);
-                  if denolsFiles then
-                    return nil;
-                  end
-                  return lspconfig.util.root_pattern("package.json", "tsconfig.json")(name);
+            extraOptions.root_dir.__raw = ''
+              function (...)
+                local lspconfig = require("lspconfig");
+                local denolsFiles = lspconfig.util.root_pattern("deno.json", "deno.jsonc")(...);
+                if denolsFiles then
+                  return nil;
                 end
-              ''
-            ];
+                return lspconfig.util.root_pattern("package.json", "tsconfig.json")(...);
+              end
+            '';
           };
         };
       };
