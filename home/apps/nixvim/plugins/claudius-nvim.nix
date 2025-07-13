@@ -21,9 +21,12 @@ let
     provider = "vertex";
     # model = "…"; # The latest Gemini Pro model will be used by default.
     parameters = {
-      max_tokens = 32768;
+      max_tokens = 65536;
       timeout = 300;
       project_id = "stans-playground";
+      vertex = {
+        thinking_budget = 32768;
+      };
     };
     editing = {
       auto_write = true;
