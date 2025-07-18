@@ -32,7 +32,7 @@ in
     # CLI
     clipboard2markdown
     dconf2nix
-    deno
+    pkgs-unstable.deno
     ffmpeg
     ghostscript
     imagemagick
