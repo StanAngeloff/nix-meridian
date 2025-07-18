@@ -8,7 +8,7 @@
     colors = {
       "fg" = "#f6f6f8";
       "fg+" = "#ffffff";
-      "bg" = "#000000";
+      "bg" = "-1";
       "bg+" = "#303030";
       "hl" = "#aaaa00:reverse";
       "hl+" = "#aaaa00:reverse";
@@ -18,7 +18,7 @@
       "spinner" = "#c400c4";
       "pointer" = "#c400c4";
       "header" = "#666666";
-      "gutter" = "#000000";
+      "gutter" = "-1";
       "border" = "#262626";
       "scrollbar" = "#666666";
       "label" = "#008888";
