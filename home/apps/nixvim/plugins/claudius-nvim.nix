@@ -25,6 +25,7 @@ let
       timeout = 300;
       project_id = "stans-playground";
       vertex = {
+        location = "europe-central2"; # Warsaw, Poland, Europe
         thinking_budget = 32768;
       };
     };
