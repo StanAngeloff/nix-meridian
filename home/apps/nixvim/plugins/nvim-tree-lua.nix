@@ -58,6 +58,33 @@ in
             };
           };
         };
+
+        sort = {
+          sorter.__raw = ''
+            function (nodes)
+              local natsort = require("nix-meridian/natsort").orderIgnoreCase
+
+              table.sort(nodes, function(a, b)
+                if not (a and b) then
+                  return true
+                end
+
+                -- folders_or_files_first(a, b)
+                local a_directory = a.type == "directory" or a.type == "link"
+                local b_directory = b.type == "directory" or b.type == "link"
+                if not a_directory and b_directory then
+                  -- file <> folder
+                  return false
+                elseif a_directory and not b_directory then
+                  -- folder <> file
+                  return true
+                end
+
+                return natsort(a.name, b.name) == -1
+              end)
+            end
+          '';
+        };
       };
 
       onAttach.__raw = ''
@@ -155,6 +182,8 @@ in
         end
       '';
     };
+
+    extraFiles."lua/nix-meridian/natsort.lua".source = ../contrib/natsort.lua;
 
     keymaps = [
       {
