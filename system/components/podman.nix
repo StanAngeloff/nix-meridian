@@ -14,9 +14,10 @@
       enable = true;
 
       dockerCompat = true;
-      dockerSocket = {
-        enable = true;
-      };
+      # NOTE: $DOCKER_HOST is preferred over the socket which is created as `root`.
+      #dockerSocket = {
+      #  enable = true;
+      #};
 
       defaultNetwork = {
         settings = {
@@ -29,4 +30,6 @@
   environment.systemPackages = with pkgs; [
     docker-compose
   ];
+
+  environment.sessionVariables.DOCKER_HOST = "unix://$XDG_RUNTIME_DIR/podman/podman.sock";
 }

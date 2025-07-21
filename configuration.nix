@@ -22,7 +22,9 @@
       ]
       ++ optional config.networking.networkmanager.enable "networkmanager"
       ++ optional config.programs.adb.enable "adbusers"
-      ++ optional config.virtualisation.podman.dockerSocket.enable "podman";
+      # NOTE: I want rootless podman, so any attempts to use Docker without `sudo` should fail.
+      # ++ optional config.virtualisation.podman.dockerSocket.enable "podman"
+    ;
   };
 
   # This value determines the NixOS release from which the default settings for stateful data,
