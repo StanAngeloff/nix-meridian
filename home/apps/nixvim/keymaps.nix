@@ -100,6 +100,12 @@
     }
   ];
 
+  # Learn more at https://neovim.io/doc/user/ft_sql.html#sql-completion-customization
+  programs.nixvim.extraFiles."ftdetect/sql.lua".text = # lua
+    ''
+      vim.g.omni_sql_no_default_maps = 1
+    '';
+
   programs.nixvim.autoCmd = [
     # Open help windows on the right in a vertical split, credits @EvanPurkhiser.
     {
