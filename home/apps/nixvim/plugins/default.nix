@@ -3,6 +3,7 @@
     ./blink-cmp.nix
     ./bufferline.nix
     ./claudius-nvim.nix
+    ./dadbod.nix
     ./comment.nix
     ./committia.nix
     ./copilot.nix
