@@ -24,6 +24,7 @@
     { key = "<leader>tn"; mode = [ "n" ]; action = ":tabnew<CR>"; options.desc = "Create a new tab"; }
     { key = "<leader>tm"; mode = [ "n" ]; action = ":tabmove"; options.desc = "Move the current tab"; }
     { key = "<leader>te"; mode = [ "n" ]; action = "':tabedit '"; options.expr = true; }
+    # Clipboard
     { key = "<leader>p"; mode = [ "n" ]; action = "\"+p"; options.desc = "Paste from the system clipboard"; }
     { key = "<leader>P"; mode = [ "n" ]; action = "\"+P"; options.desc = "Paste from the system clipboard"; }
     { key = "<leader>p"; mode = [ "v" ]; action = "\"+p"; options.desc = "Paste from the system clipboard"; }
@@ -31,14 +32,17 @@
     { key = "<leader>y"; mode = [ "v" ]; action = "\"+y"; options.desc = "Yank to the system clipboard"; }
     { key = "<leader>d"; mode = [ "v" ]; action = "\"+d"; options.desc = "Delete to the system clipboard"; }
     { key = "<leader>="; mode = [ "n" ]; action = "mZggVG\"+yg`Z"; options.desc = "Copy entire buffer to X clipboard."; }
+    { key = "<leader>v"; mode = [ "n" ]; action = "g`[Vg`]o"; options.desc = "Restore last implicit selection (e.g., on paste) in VISUAL mode"; }
+    # Navigation
     { key = "<C-J>"; mode = [ "n" ]; action = "gt"; options.silent = true; options.desc = "Switch to the next tab"; }
     { key = "<C-K>"; mode = [ "n" ]; action = "gT"; options.silent = true; options.desc = "Switch to the previous tab"; }
+    # Quick buffer whitespace changes
     { key = "<leader>w2"; mode = [ "n" ]; action = ":setlocal tabstop=2<CR>:setlocal shiftwidth=2<CR>"; }
     { key = "<leader>w4"; mode = [ "n" ]; action = ":setlocal tabstop=4<CR>:setlocal shiftwidth=4<CR>"; }
     { key = "<leader>w8"; mode = [ "n" ]; action = ":setlocal tabstop=8<CR>:setlocal shiftwidth=8<CR>"; }
     { key = "<leader>w<Tab>"; mode = [ "n" ]; action = ":setlocal noexpandtab<CR>:retab<CR>:echo 'expandtab'<CR>"; options.silent = true; }
     { key = "<leader>w<Space>"; mode = [ "n" ]; action = ":setlocal expandtab<CR>:retab<CR>:echo 'noexpandtab'<CR>"; options.silent = true; }
-    { key = "<leader>v"; mode = [ "n" ]; action = "g`[Vg`]o"; options.desc = "Restore last implicit selection (e.g., on paste) in VISUAL mode"; }
+    # Miscellaneous
     { key = "<C-C>"; mode = [ "n" "i" "v" ]; action = "<Esc><Esc>"; options.desc = "Escape, escape!"; }
     { key = "<C-W>"; mode = [ "i" ]; action = "<C-G>u<C-W>"; } # Start a new Undo group before making changes in INSERT mode.
     { key = "<C-R>"; mode = [ "i" ]; action = "<C-G>u<C-R>"; }
@@ -63,7 +67,6 @@
     { key = "[b"; mode = [ "v" ]; action = ":<C-U>call base64#v_atob()<CR>"; options.silent = true; } # vim-base64
     { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
     { key = "*"; mode = [ "n" ]; action = ":keepjumps normal! mi*`i<CR>"; options.silent = true; }
-    { key = "X"; mode = [ "x" ]; action = "<Plug>(Exchange)"; }
 
     # Jump to the first non-whitespace character on the line or the beginning of the line.
     {

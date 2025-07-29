@@ -3,12 +3,12 @@
     ./blink-cmp.nix
     ./bufferline.nix
     ./claudius-nvim.nix
-    ./dadbod.nix
     ./comment.nix
     ./committia.nix
     ./copilot.nix
     ./copilot-lualine.nix
     ./copilotchat-nvim.nix
+    ./dadbod.nix
     ./fugitive.nix
     ./fzf-lua.nix
     ./git-conflict-nvim.nix
@@ -42,6 +42,7 @@
     ./vim-unimpaired.nix
     ./vim-zend55.nix
     ./web-devicons.nix
+    ./yanky.nix
     #./codecompanion-nvim.nix
   ];
 }
