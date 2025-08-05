@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, pkgs-unstable, ... }:
 {
   programs.nixvim = {
     plugins = {
@@ -44,6 +44,7 @@
           };
           jsonls = {
             enable = true;
+            package = pkgs-unstable.vscode-json-languageserver;
           };
           lua_ls = {
             enable = true;
