@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  lib,
+  pkgs,
+  voxinput-pkgs,
+  ...
+}:
 {
   dconf.settings = {
     "org/gnome/desktop/wm/keybindings" = {
@@ -60,6 +65,7 @@
       calculator = [ "<Super>a" ];
       custom-keybindings = [
         "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
+        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/"
       ];
       decrease-text-size = [ "<Super>KP_Subtract" ];
       home = [ "<Super>e" ];
@@ -85,6 +91,22 @@
       command = "${pkgs.callPackage ../apps/alacritty/launch.nix { name = "launch-alacritty"; }}";
       name = "Alacritty";
     };
+    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1" =
+      let
+        name = "voxinput-record";
+        voxinput = pkgs.callPackage ../apps/voxinput/package.nix {
+          voxinput = voxinput-pkgs.default;
+        };
+        voxinput-record = pkgs.callPackage ../apps/voxinput/record/package.nix {
+          inherit name voxinput;
+        };
+      in
+      {
+        inherit name;
+
+        binding = "<Super>s";
+        command = "${lib.makeBinPath [ voxinput-record ]}/${name}";
+      };
     "org/gnome/shell/keybindings" = {
       show-screen-recording-ui = [ "<Super>Print" ];
       switch-to-application-1 = [ ];
@@ -99,6 +121,7 @@
       toggle-application-view = [ ];
       toggle-message-tray = [ "<Super>x" ];
       toggle-overview = [ "<Super>w" ];
+      toggle-quick-settings = [ ]; # default is <Super>s
     };
   };
 }
