@@ -259,7 +259,8 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "nixvim": "nixvim",
-        "solaar": "solaar"
+        "solaar": "solaar",
+        "voxinput-flake": "voxinput-flake"
       }
     },
     "snowfall-lib": {
@@ -349,6 +350,27 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "voxinput-flake": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1753193199,
+        "narHash": "sha256-Uxl+qr4KEBAiIMbPlBq+1vvdjRDOsKOl+JOI1hjH4TE=",
+        "owner": "richiejp",
+        "repo": "VoxInput",
+        "rev": "b4258e60ede026d4de665999444b312a78649d34",
+        "type": "github"
+      },
+      "original": {
+        "owner": "richiejp",
+        "ref": "main",
+        "repo": "VoxInput",
         "type": "github"
       }
     }

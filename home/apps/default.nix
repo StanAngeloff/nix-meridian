@@ -1,7 +1,12 @@
-{ pkgs, pkgs-unstable, ... }:
+{
+  pkgs,
+  pkgs-unstable,
+  voxinput-pkgs,
+  ...
+}:
 let
   packages = pkgs.callPackage ./packages.nix {
-    inherit pkgs pkgs-unstable;
+    inherit pkgs pkgs-unstable voxinput-pkgs;
   };
 in
 {
@@ -30,6 +35,7 @@ in
     ./tig
     ./tmux
     ./unicode-tussle
+    ./voxinput
     ./vscode
     ./zsh
   ];

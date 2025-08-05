@@ -28,6 +28,11 @@
       url = "https://flakehub.com/f/Svenum/Solaar-Flake/*.tar.gz";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    voxinput-flake = {
+      url = "github:richiejp/VoxInput/main";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -37,6 +42,7 @@
       home-manager,
       nixvim,
       solaar,
+      voxinput-flake,
       ...
     }@inputs:
     let
@@ -49,18 +55,19 @@
           };
         }
       );
+      voxinput-pkgs = voxinput-flake.packages.${system};
     in
     {
       nixosConfigurations.stan-latitude = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs pkgs-unstable; };
+        specialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
         modules = [
           ./modules/options
           ./configuration.nix
           solaar.nixosModules.default
           home-manager.nixosModules.home-manager
           {
-            home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable; };
+            home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.stan.imports = [
