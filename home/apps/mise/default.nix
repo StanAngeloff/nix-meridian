@@ -1,7 +1,10 @@
+{ pkgs-unstable, ... }:
 {
   programs.mise = {
     enable = true;
     enableZshIntegration = true;
+
+    package = pkgs-unstable.mise;
 
     # See https://mise.jdx.dev/configuration.html#global-config-config-mise-config-toml
     globalConfig = {
