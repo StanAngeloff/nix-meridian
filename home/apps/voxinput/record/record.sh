@@ -112,7 +112,7 @@ log "Stopping recording…"
 # Stop recording and let transcription happen.
 (@voxinput@ stop 2>&1 | indent "${c_dim}voxinput │ ${c_reset}") &
 
-@notify-send@ --app-name="$prg_name" --icon="@icon@" "Transcribing…" "Your recording is being transcribed – once ready the transcribed text will be sent to the active window."
+notification_id=$(@notify-send@ --app-name="$prg_name" --icon="@icon@" --urgency=normal --expire-time=3000 --transient --print-id "Transcribing…" "Your recording is being transcribed – once ready the transcribed text will be sent to the active window.")
 
 # Wait for the listener to return to the waiting state, then exit.
 while read -r -u "${voxinput_listen[0]}" line; do
@@ -121,5 +121,7 @@ while read -r -u "${voxinput_listen[0]}" line; do
 		break
 	fi
 done
+
+@notify-send@ --app-name="$prg_name" --icon="@icon@" --urgency=low --expire-time=3000 --transient --replace-id="$notification_id" "Transcribed" "Your recording has finished transcribing, sending the text to the active window."
 
 log "✅ Transcription complete. Exiting."
