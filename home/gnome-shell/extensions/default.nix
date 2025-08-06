@@ -10,6 +10,7 @@
     ./openweather.nix
     ./soft-brightness-plus.nix
     ./tiling-assistant.nix
+    ./window-calls.nix
     ./window-title-is-back.nix
   ];
 

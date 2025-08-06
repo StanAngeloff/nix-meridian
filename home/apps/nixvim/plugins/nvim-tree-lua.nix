@@ -11,17 +11,6 @@ in
       disableNetrw = true;
       reloadOnBufenter = true;
 
-      actions = {
-        openFile = {
-          quitOnOpen = true;
-        };
-        filePopup = {
-          openWinConfig = {
-            border = "rounded";
-          };
-        };
-      };
-
       git = {
         enable = true;
       };
@@ -37,8 +26,25 @@ in
         width = nvimTreeViewWidth;
       };
 
-      # NOTE: `renderer.icons.glyphs.bookmark` is not available in Nixvim so we resort to using `extraOptions` which is shallow merged with the rest.
+      # NOTE: Most of the below options are not available in Nixvim so we resort to using `extraOptions` which is shallow merged with the rest.
       extraOptions = {
+        sync_root_with_cwd = true;
+
+        actions = {
+          change_dir = {
+            enable = true;
+            global = true;
+          };
+          open_file = {
+            quit_on_open = true;
+          };
+          file_popup = {
+            open_win_config = {
+              border = "rounded";
+            };
+          };
+        };
+
         renderer = {
           add_trailing = true;
           highlight_git = "icon";

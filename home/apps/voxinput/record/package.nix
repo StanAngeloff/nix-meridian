@@ -4,8 +4,11 @@
   name ? "voxinput-record",
   icon ? "microphone-sensitivity-high",
   replaceVars,
-  libnotify,
   voxinput,
+  libnotify,
+  procps,
+  systemd,
+  tmux,
   zenity,
 }:
 writeShellApplication {
@@ -16,8 +19,12 @@ writeShellApplication {
       inherit name icon;
 
       voxinput = "${lib.makeBinPath [ voxinput ]}/voxinput";
-      zenity = "${lib.makeBinPath [ zenity ]}/zenity";
+
+      busctl = "${lib.makeBinPath [ systemd ]}/busctl";
       notify-send = "${lib.makeBinPath [ libnotify ]}/notify-send";
+      pgrep = "${lib.makeBinPath [ procps ]}/pgrep";
+      tmux = "${lib.makeBinPath [ tmux ]}/tmux";
+      zenity = "${lib.makeBinPath [ zenity ]}/zenity";
     }
   );
 }

@@ -1,6 +1,6 @@
 pid_file="/run/user/$(id -u)/VoxInput.pid"
 
-if tty -s && [ -n "$TERM" ]; then
+if tty -s && [[ -n "$TERM" ]]; then
 	c_dim="$(tput setaf 8)"
 	c_reset="$(tput sgr0)"
 else
@@ -47,8 +47,63 @@ if [[ -f "$pid_file" ]]; then
 	rm -f "$pid_file"
 fi
 
+# Let's determine if we have a nearest prompt file we can read.
+window_in_focus_cwd=
+# Start by grabbing the currently focused window PID.
+window_in_focus_pid=$(@busctl@ --user -j call org.gnome.Shell /org/gnome/Shell/Extensions/Windows org.gnome.Shell.Extensions.Windows List | jq -r '.data[0]' | jq '.[] | select(.focus == true) | .pid' || true)
+# If we were invoked as a command within a terminal, we can use the current working directory.
+if tty -s && [[ -n "$TERM" ]]; then
+	window_in_focus_cwd=$(readlink -f "$PWD" || true)
+elif [[ -n "$window_in_focus_pid" ]]; then
+	# Let's capture the command-line of the focused window.
+	window_in_focus_cmd="$(tr '\0' ' ' </proc/"$window_in_focus_pid"/cmdline || true)"
+	log "Focused window PID: $window_in_focus_pid"
+	log "Focused window command-line: $window_in_focus_cmd"
+	# If the command running is Alacritty with nested tmux, we want to delve deeper.
+	if [[ "$window_in_focus_cmd" == *"/bin/alacritty"* && "$window_in_focus_cmd" == *"/bin/tmux"* ]]; then
+		log "Focused window is Alacritty with nested tmux."
+		# Let's grab the process name in the current tmux pane.
+		tmux_active_pane_command=$(@tmux@ display-message -p '#{pane_current_command}' || true)
+		log "tmux pane command: $tmux_active_pane_command"
+		# If the command is `nvim`, we want to delve even deeper.
+		if [[ "$tmux_active_pane_command" == "nvim" ]]; then
+			log "tmux pane is running Neovim."
+			# Let's grab the PID of the Neovim process in the current tmux pane.
+			nvim_pid=$(@pgrep@ -t "$(@tmux@ display-message -p -F "#{pane_tty}" | sed 's|/dev/||')" nvim || true)
+			if [[ -n "$nvim_pid" ]]; then
+				log "Neovim PID: $nvim_pid"
+				# If we have a Neovim PID, we can read the current working directory from it.
+				window_in_focus_cwd=$(readlink -f "/proc/$nvim_pid/cwd" || true)
+			else
+				log "tmux is running Neovim, but no PID found."
+			fi
+		else
+			# Otherwise, we can just use the current working directory of the tmux pane.
+			window_in_focus_cwd=$(readlink -f "$(@tmux@ display-message -p -F "#{pane_current_path}" || true)" || true)
+		fi
+	else
+		# Otherwise, we can just use the current working directory of the process.
+		window_in_focus_cwd=$(readlink -f "/proc/$window_in_focus_pid/cwd" || true)
+	fi
+fi
+
+# Look for a WHISPER.txt prompt file in the working directory.
+if [[ -n "$window_in_focus_cwd" && -d "$window_in_focus_cwd" ]]; then
+	prompt_file="$window_in_focus_cwd/WHISPER.txt"
+	if [[ -f "$prompt_file" ]]; then
+		log "Using WHISPER.txt prompt file: $prompt_file"
+		# Read the prompt file and export it as an environment variable.
+		VOXINPUT_PROMPT="$(tr '\r\n' ' ' <"$prompt_file" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
+		export VOXINPUT_PROMPT
+	else
+		log "No WHISPER.txt prompt file found in $window_in_focus_cwd."
+	fi
+else
+	log "No valid working directory found for the focused window."
+fi
+
 # Check for rogue processes and kill those, too.
-rogue_pids=$(pgrep -f 'voxinput listen' || true)
+rogue_pids=$(@pgrep@ -f 'voxinput listen' || true)
 if [[ -n "$rogue_pids" ]]; then
 	log "Terminating rogue processes: $rogue_pids"
 	# shellcheck disable=SC2086 # double quote not wanted, word splitting is intended.
@@ -100,7 +155,13 @@ while read -r -u "${voxinput_listen[0]}" line; do
 done
 
 # Show a dialog to the user to stop recording (or bail out).
-if ! @zenity@ --info --width=300 --title="voxinput" --icon="@icon@" --text="<span size='large'>Recording…</span>" --ok-label="Stop" --extra-button="Cancel" 2>/dev/null 1>&2; then
+if ! @zenity@ --info \
+	--width="$([[ -n "${VOXINPUT_PROMPT:-}" ]] && echo 520 || echo 300)" \
+	--title="voxinput" \
+	--icon="@icon@" \
+	--text="<span size='large'>Recording…</span>${VOXINPUT_PROMPT:+"\\n\\n<span foreground='gray'>Prompt: <i>${VOXINPUT_PROMPT}</i></span>"}" \
+	--ok-label="Stop" \
+	--extra-button="Cancel" 2>/dev/null 1>&2; then
 	# "Cancel" was clicked or dialog closed.
 	log "Cancelling recording…"
 	# This assumes killing the coproc also stops the recording without transcription.
