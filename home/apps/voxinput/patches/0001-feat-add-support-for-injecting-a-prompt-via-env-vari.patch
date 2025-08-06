@@ -1,0 +1,90 @@
+From c2dbbcfe6517d1e43bf0bd7aa7d6b6a2e63bdc77 Mon Sep 17 00:00:00 2001
+From: Stan Angeloff <stanimir@angeloff.name>
+Date: Wed, 6 Aug 2025 12:22:50 +0300
+Subject: [PATCH] feat: add support for injecting a prompt via env variables.
+
+This only works in --no-realtime mode.
+---
+ main.go | 11 ++++++++++-
+ old.go  |  3 ++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/main.go b/main.go
+index 485f271..30b5706 100644
+--- a/main.go
++++ b/main.go
+@@ -51,10 +51,11 @@ func main() {
+ 
+ 	if cmd == "listen" {
+ 		apiKey := getOpenaiEnv("API_KEY", "sk-xxx")
+ 		httpApiBase := getOpenaiEnv("BASE_URL", "http://localhost:8080/v1")
+ 		wsApiBase := getOpenaiEnv("WS_BASE_URL", "ws://localhost:8080/v1/realtime")
++		prompt := getPrefixedEnv([]string{"VOXINPUT", ""}, "PROMPT", "")
+ 		lang := getPrefixedEnv([]string{"VOXINPUT", ""}, "LANG", "")
+ 		model := getPrefixedEnv([]string{"VOXINPUT", ""}, "TRANSCRIPTION_MODEL", "whisper-1")
+ 		timeoutStr := getPrefixedEnv([]string{"VOXINPUT", ""}, "TRANSCRIPTION_TIMEOUT", "30s")
+ 		showStatus := getPrefixedEnv([]string{"VOXINPUT", ""}, "SHOW_STATUS", "yes")
+ 
+@@ -82,21 +83,29 @@ func main() {
+ 
+ 		replay := slices.Contains(os.Args[2:], "--replay")
+ 		realtime := !slices.Contains(os.Args[2:], "--no-realtime")
+ 
+ 		if realtime {
++			if prompt != "" {
++				log.Println("main: cannot apply prompt in realtime mode")
++			}
++
+ 			ctx, cancel := context.WithCancel(context.Background())
+ 			ui := gui.New(ctx, showStatus)
+ 
+ 			go func() {
+ 				listen(pidPath, apiKey, httpApiBase, wsApiBase, lang, model, timeout, ui)
+ 				cancel()
+ 			}()
+ 
+ 			ui.Run()
+ 		} else {
+-			listenOld(pidPath, apiKey, httpApiBase, lang, model, replay, timeout)
++			if prompt != "" {
++				log.Println("main: using prompt ", prompt)
++			}
++
++			listenOld(pidPath, apiKey, httpApiBase, prompt, lang, model, replay, timeout)
+ 		}
+ 
+ 		return
+ 	}
+ 
+diff --git a/old.go b/old.go
+index cf233b8..72e35f5 100644
+--- a/old.go
++++ b/old.go
+@@ -19,11 +19,11 @@ import (
+ 
+ 	"github.com/richiejp/VoxInput/internal/audio"
+ 	"github.com/richiejp/VoxInput/internal/pid"
+ )
+ 
+-func listenOld(pidPath, apiKey, httpApiBase, lang, model string, replay bool, timeout time.Duration) {
++func listenOld(pidPath, apiKey, httpApiBase, prompt, lang, model string, replay bool, timeout time.Duration) {
+ 	mctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
+ 		log.Print("internal/audio: ", message)
+ 	})
+ 	if err != nil {
+ 		log.Fatalln("main: ", err)
+@@ -130,10 +130,11 @@ Listen:
+ 		client := openai.NewClientWithConfig(clientConfig)
+ 		req := openai.AudioRequest{
+ 			Model:    model,
+ 			FilePath: "audio.wav",
+ 			Reader:   wavReader,
++			Prompt:   prompt,
+ 			Language: lang,
+ 		}
+ 
+ 		resp, err := client.CreateTranscription(context.Background(), req)
+ 		if err != nil {
+-- 
+2.49.0
+

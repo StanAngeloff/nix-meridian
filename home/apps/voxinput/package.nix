@@ -19,6 +19,10 @@ voxinput.overrideAttrs (previousAttrs: rec {
 
   vendorHash = "sha256-z7ais1eHoj15LzwsKbKl7qn9RIwxP1cd7WmoBs0Xzk0=";
 
+  patches = [
+    ./patches/0001-feat-add-support-for-injecting-a-prompt-via-env-vari.patch
+  ];
+
   nativeBuildInputs = [
     pkg-config
   ]
