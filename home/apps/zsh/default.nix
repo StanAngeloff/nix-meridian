@@ -11,6 +11,7 @@
     history = {
       append = true;
       extended = true;
+      share = false;
       ignoreDups = true;
       ignoreSpace = true;
       save = 50000;
