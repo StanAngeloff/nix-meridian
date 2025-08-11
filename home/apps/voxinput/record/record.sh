@@ -159,7 +159,7 @@ if ! @zenity@ --info \
 	--width="$([[ -n "${VOXINPUT_PROMPT:-}" ]] && echo 520 || echo 300)" \
 	--title="voxinput" \
 	--icon="@icon@" \
-	--text="<span size='large'>Recording…</span>${VOXINPUT_PROMPT:+"\\n\\n<span foreground='gray'>Prompt: <i>${VOXINPUT_PROMPT}</i></span>"}" \
+	--text="<span size='large'>Recording…</span>${VOXINPUT_PROMPT:+"\\n\\n<span foreground='gray'>Prompt: <i>${VOXINPUT_PROMPT//&/\\&amp;}</i></span>"}" \
 	--ok-label="Stop" \
 	--extra-button="Cancel" 2>/dev/null 1>&2; then
 	# "Cancel" was clicked or dialog closed.
