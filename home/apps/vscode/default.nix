@@ -37,6 +37,8 @@
         "window.titleBarStyle" = "custom";
         "window.zoomLevel" = 1.25;
         "workbench.colorTheme" = "GitHub Dark Default";
+        # Learn more at https://code.visualstudio.com/updates/v1_100#_expandable-hovers-for-javascript-and-typescript-experimental
+        "typescript.experimental.expandableHover" = true;
       };
 
       keybindings = [
