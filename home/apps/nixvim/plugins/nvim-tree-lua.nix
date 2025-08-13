@@ -1,4 +1,4 @@
-{ pkgs-unstable, ... }:
+{ pkgs, ... }:
 let
   nvimTreeViewWidth = 48;
 in
@@ -6,7 +6,17 @@ in
   programs.nixvim = {
     plugins.nvim-tree = {
       enable = true;
-      package = pkgs-unstable.vimPlugins.nvim-tree-lua;
+      package =
+        with pkgs;
+        vimPlugins.nvim-tree-lua.overrideAttrs (previousAttrs: rec {
+          version = "1.14.0";
+          src = fetchFromGitHub {
+            owner = "nvim-tree";
+            repo = "nvim-tree.lua";
+            rev = "v${version}";
+            sha256 = "sha256-68KXPF1bALan+rkHxIkSt0DDT1pWB3+g73imwSHVafg=";
+          };
+        });
 
       reloadOnBufenter = true;
 
@@ -130,9 +140,8 @@ in
 
           vim.keymap.set("n", "A", function()
             local api = require("nvim-tree.api")
-            local core = require("nvim-tree.core")
-            local explorer = core.get_explorer()
-            if explorer.view.width == ${builtins.toString nvimTreeViewWidth} then
+            local view = require("nvim-tree.view")
+            if view.View.width == ${builtins.toString nvimTreeViewWidth} then
               api.tree.resize({ absolute = 120 })
             else
               api.tree.resize({ absolute = ${builtins.toString nvimTreeViewWidth} })
