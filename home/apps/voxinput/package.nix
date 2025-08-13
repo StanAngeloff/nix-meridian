@@ -16,6 +16,7 @@ voxinput.overrideAttrs (previousAttrs: rec {
 
   patches = [
     ./patches/0001-feat-add-support-for-injecting-a-prompt-via-env-vari.patch
+    ./patches/0002-feat-replace-dotool-with-wl-copy.patch
   ];
 
   postInstall =
@@ -33,4 +34,6 @@ voxinput.overrideAttrs (previousAttrs: rec {
         ])
       ]
       (previousAttrs.postInstall or "");
+
+  meta.mainProgram = "voxinput";
 })

@@ -105,7 +105,7 @@
         inherit name;
 
         binding = "<Super>s";
-        command = "${lib.makeBinPath [ voxinput-record ]}/${name}";
+        command = lib.getExe voxinput-record;
       };
     "org/gnome/shell/keybindings" = {
       show-screen-recording-ui = [ "<Super>Print" ];

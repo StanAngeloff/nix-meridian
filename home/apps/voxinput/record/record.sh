@@ -2,16 +2,21 @@ pid_file="/run/user/$(id -u)/VoxInput.pid"
 
 if tty -s && [[ -n "$TERM" ]]; then
 	c_dim="$(tput setaf 8)"
+	c_yellow="$(tput setaf 3)"
 	c_reset="$(tput sgr0)"
 else
 	c_dim=""
+	c_yellow=""
 	c_reset=""
 fi
 
 prg_name='@name@'
 
+log_file="/run/user/$(id -u)/${prg_name}.log"
+echo -n >"$log_file"
+
 log() {
-	echo "${c_dim}[${prg_name}] $(date '+%Y-%m-%d %H:%M:%S') ┃ ${c_reset}$*"
+	echo "${c_dim}[${prg_name}] $(date '+%Y-%m-%d %H:%M:%S') ┃ ${c_reset}$*" | tee -a >(sed -r "s/\x1B\[[0-9;]*[mK]//g" >>"$log_file")
 }
 
 indent() {
@@ -173,7 +178,7 @@ log "Stopping recording…"
 # Stop recording and let transcription happen.
 (@voxinput@ stop 2>&1 | indent "${c_dim}voxinput │ ${c_reset}") &
 
-notification_id=$(@notify-send@ --app-name="$prg_name" --icon="@icon@" --urgency=normal --expire-time=3000 --transient --print-id "Transcribing…" "Your recording is being transcribed – once ready the transcribed text will be sent to the active window.")
+notification_id=$(@notify-send@ --app-name="$prg_name" --icon="@icon@" --urgency=normal --expire-time=3000 --transient --print-id "⏳ Transcribing…" "Your recording is being transcribed – once ready the transcribed text will be sent to the clipboard.")
 
 # Wait for the listener to return to the waiting state, then exit.
 while read -r -u "${voxinput_listen[0]}" line; do
@@ -183,6 +188,42 @@ while read -r -u "${voxinput_listen[0]}" line; do
 	fi
 done
 
-@notify-send@ --app-name="$prg_name" --icon="@icon@" --urgency=low --expire-time=3000 --transient --replace-id="$notification_id" "Transcribed" "Your recording has finished transcribing, sending the text to the active window."
+# Let's try and paste into the active window. If we call busctl just once, it doesn't correctly refresh the focused window PID, so we call it again.
+@busctl@ --user -j call org.gnome.Shell /org/gnome/Shell/Extensions/Windows org.gnome.Shell.Extensions.Windows List >/dev/null || true
+window_in_focus_pid=$(@busctl@ --user -j call org.gnome.Shell /org/gnome/Shell/Extensions/Windows org.gnome.Shell.Extensions.Windows List | jq -r '.data[0]' | jq '.[] | select(.focus == true) | .pid' || true)
+if tty -s && [[ -n "$TERM" ]]; then
+	echo "$c_yellow"
+	wl-paste --no-newline
+	echo "$c_reset"
+	echo
+elif [[ -n "$window_in_focus_pid" ]]; then
+	window_in_focus_cmd="$(tr '\0' ' ' </proc/"$window_in_focus_pid"/cmdline || true)"
+	log "Focused window PID: $window_in_focus_pid"
+	log "Focused window command-line: $window_in_focus_cmd"
+	if [[ "$window_in_focus_cmd" == *"/bin/alacritty"* ]]; then
+		if [[ "$window_in_focus_cmd" == *"/bin/tmux"* ]]; then
+			log "Focused window is Alacritty with nested tmux."
+			tmux_active_pane_command=$(@tmux@ display-message -p '#{pane_current_command}' || true)
+			log "tmux pane command: $tmux_active_pane_command"
+			if [[ "$tmux_active_pane_command" == "nvim" ]]; then
+				log "tmux pane is running Neovim."
+				log "Sending sequence to paste into Neovim."
+				@tmux@ send-keys 'C-c' 'C-c' ',pa'
+			else
+				log "tmux pane is running: $tmux_active_pane_command"
+				log "Sending Ctrl+Shift+V to tmux pane."
+				echo 'key ctrl+shift+v' | @dotool@
+			fi
+		else
+			log "Focused window is Alacritty. Sending Ctrl+Shift+V."
+			echo 'key ctrl+shift+v' | @dotool@
+		fi
+	else
+		log "Sending Ctrl+V to focused window."
+		echo 'key ctrl+v' | @dotool@
+	fi
+fi
+
+@notify-send@ --app-name="$prg_name" --icon="@icon@" --urgency=low --expire-time=3000 --transient --replace-id="$notification_id" "📋 Transcribed" "Your recording has finished transcribing."
 
 log "✅ Transcription complete. Exiting."

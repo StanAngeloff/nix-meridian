@@ -5,6 +5,7 @@
   icon ? "microphone-sensitivity-high",
   replaceVars,
   voxinput,
+  dotool,
   libnotify,
   procps,
   systemd,
@@ -18,13 +19,16 @@ writeShellApplication {
     replaceVars ./record.sh {
       inherit name icon;
 
-      voxinput = "${lib.makeBinPath [ voxinput ]}/voxinput";
+      voxinput = lib.getExe voxinput;
 
-      busctl = "${lib.makeBinPath [ systemd ]}/busctl";
-      notify-send = "${lib.makeBinPath [ libnotify ]}/notify-send";
-      pgrep = "${lib.makeBinPath [ procps ]}/pgrep";
-      tmux = "${lib.makeBinPath [ tmux ]}/tmux";
-      zenity = "${lib.makeBinPath [ zenity ]}/zenity";
+      busctl = "${lib.getBin systemd}/bin/busctl";
+      dotool = "${lib.getBin dotool}/bin/dotool";
+      notify-send = lib.getExe libnotify;
+      pgrep = "${lib.getBin procps}/bin/pgrep";
+      tmux = lib.getExe tmux;
+      zenity = lib.getExe zenity;
     }
   );
+
+  meta.mainProgram = name;
 }

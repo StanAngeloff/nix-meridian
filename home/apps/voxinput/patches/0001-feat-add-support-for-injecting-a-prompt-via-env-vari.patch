@@ -1,7 +1,8 @@
 From c2dbbcfe6517d1e43bf0bd7aa7d6b6a2e63bdc77 Mon Sep 17 00:00:00 2001
 From: Stan Angeloff <stanimir@angeloff.name>
 Date: Wed, 6 Aug 2025 12:22:50 +0300
-Subject: [PATCH] feat: add support for injecting a prompt via env variables.
+Subject: [PATCH 1/2] feat: add support for injecting a prompt via env
+ variables.
 
 This only works in --no-realtime mode.
 ---
@@ -86,5 +87,5 @@ index cf233b8..72e35f5 100644
  		resp, err := client.CreateTranscription(context.Background(), req)
  		if err != nil {
 -- 
-2.49.0
+2.50.1
 
