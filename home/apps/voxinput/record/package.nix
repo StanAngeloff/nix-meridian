@@ -2,7 +2,8 @@
   lib,
   writeShellApplication,
   name ? "voxinput-record",
-  icon ? "microphone-sensitivity-high",
+  # See https://gitlab.gnome.org/GNOME/adwaita-icon-theme/-/tree/gnome-48/Adwaita/symbolic for a list of icons.
+  icon ? "audio-input-microphone",
   replaceVars,
   voxinput,
   dotool,
