@@ -39,7 +39,7 @@ in
     libsecret
     nsx
     python313
-    #python313Packages.ocrmypdf
+    pkgs-unstable.ocrmypdf
     qemu
     rclone
     scrcpy
