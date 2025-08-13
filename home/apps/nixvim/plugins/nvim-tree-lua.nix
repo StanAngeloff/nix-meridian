@@ -8,7 +8,6 @@ in
       enable = true;
       package = pkgs-unstable.vimPlugins.nvim-tree-lua;
 
-      disableNetrw = true;
       reloadOnBufenter = true;
 
       git = {
@@ -29,6 +28,14 @@ in
       # NOTE: Most of the below options are not available in Nixvim so we resort to using `extraOptions` which is shallow merged with the rest.
       extraOptions = {
         sync_root_with_cwd = true;
+
+        disable_netrw = false;
+        hijack_netrw = true;
+
+        hijack_directories = {
+          enable = true;
+          auto_open = true;
+        };
 
         actions = {
           change_dir = {
@@ -188,6 +195,12 @@ in
         end
       '';
     };
+
+    extraConfigLuaPre = ''
+      -- It is strongly advised to eagerly disable netrw, due to race conditions at Vim startup.
+      vim.g.loaded_netrw = 1
+      vim.g.loaded_netrwPlugin = 1
+    '';
 
     extraFiles."lua/nix-meridian/natsort.lua".source = ../contrib/natsort.lua;
 
