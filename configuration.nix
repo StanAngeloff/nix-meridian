@@ -16,14 +16,13 @@
     isNormalUser = true;
     createHome = true;
     description = "Stan Angeloff";
-    extraGroups =
-      [
-        "wheel"
-      ]
-      ++ optional config.networking.networkmanager.enable "networkmanager"
-      ++ optional config.programs.adb.enable "adbusers"
-      # NOTE: I want rootless podman, so any attempts to use Docker without `sudo` should fail.
-      # ++ optional config.virtualisation.podman.dockerSocket.enable "podman"
+    extraGroups = [
+      "wheel"
+    ]
+    ++ optional config.networking.networkmanager.enable "networkmanager"
+    ++ optional config.programs.adb.enable "adbusers"
+    # NOTE: I want rootless podman, so any attempts to use Docker without `sudo` should fail.
+    # ++ optional config.virtualisation.podman.dockerSocket.enable "podman"
     ;
   };
 
