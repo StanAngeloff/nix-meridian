@@ -41,7 +41,8 @@ writeShellApplication {
     fi
 
     echo -ne "👉 \033[0;36m"
-    pnpm --silent dlx curlconverter@${curlconverterVersion} --language httpie "$@" \
+    pnpm --silent --package=curlconverter@${curlconverterVersion} dlx -- \
+        curlconverter --language httpie "$@" \
       | grep -viE '^\s+[[:punct:]]?(${builtins.concatStringsSep "|" excludeHeaders}):' \
       | perl -p -e 's/\s*\\\s*[\r\n]+\s*/ /' \
       | tee >(wl-copy)
