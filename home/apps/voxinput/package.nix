@@ -3,16 +3,16 @@
   fetchFromGitHub,
 }:
 voxinput.overrideAttrs (previousAttrs: rec {
-  version = "0.6.0";
+  version = "0.6.2";
 
   src = fetchFromGitHub {
     owner = "richiejp";
     repo = "VoxInput";
     rev = "v${version}";
-    hash = "sha256-Uxl+qr4KEBAiIMbPlBq+1vvdjRDOsKOl+JOI1hjH4TE=";
+    hash = "sha256-+W+xaPYwofYdsV8C2G7hOugUekrdmA6Q0o4xUvbbLlg=";
   };
 
-  vendorHash = "sha256-z7ais1eHoj15LzwsKbKl7qn9RIwxP1cd7WmoBs0Xzk0=";
+  vendorHash = "sha256-HOXjD4mwvK3jcFmpZyvKB7WOfpCIDlUWJTJSTN7wFXM=";
 
   patches = [
     ./patches/0001-feat-add-support-for-injecting-a-prompt-via-env-vari.patch
