@@ -37,10 +37,14 @@
       unbind Down
       unbind Left
       unbind Right
+      bind h select-pane -L
       bind j select-pane -D
       bind k select-pane -U
       bind l select-pane -R
-      bind h select-pane -L
+      bind -n M-h select-pane -L
+      bind -n M-j select-pane -D
+      bind -n M-k select-pane -U
+      bind -n M-l select-pane -R
 
       unbind C-Up
       unbind C-Down
@@ -59,6 +63,18 @@
       bind -r C-M-j resize-pane -D 5
       bind -r C-M-h resize-pane -L 5
       bind -r C-M-l resize-pane -R 5
+
+      bind -n M-z resize-pane -Z
+
+      bind -n M-1 select-window -t 1
+      bind -n M-2 select-window -t 2
+      bind -n M-3 select-window -t 3
+      bind -n M-4 select-window -t 4
+      bind -n M-5 select-window -t 5
+      bind -n M-6 select-window -t 6
+      bind -n M-7 select-window -t 7
+      bind -n M-8 select-window -t 8
+      bind -n M-9 select-window -t 9
 
       unbind '"'
       unbind %

@@ -72,6 +72,24 @@ in
         opacity = 0.9875;
         startup_mode = "Maximized";
       };
+      keyboard.bindings = [
+        { key = "1"; mods = "Alt"; chars = "\\u001b1"; }
+        { key = "2"; mods = "Alt"; chars = "\\u001b2"; }
+        { key = "3"; mods = "Alt"; chars = "\\u001b3"; }
+        { key = "4"; mods = "Alt"; chars = "\\u001b4"; }
+        { key = "5"; mods = "Alt"; chars = "\\u001b5"; }
+        { key = "6"; mods = "Alt"; chars = "\\u001b6"; }
+        { key = "7"; mods = "Alt"; chars = "\\u001b7"; }
+        { key = "8"; mods = "Alt"; chars = "\\u001b8"; }
+        { key = "9"; mods = "Alt"; chars = "\\u001b9"; }
+
+        { key = "H"; mods = "Alt"; chars = "\\u001bh"; }
+        { key = "J"; mods = "Alt"; chars = "\\u001bj"; }
+        { key = "K"; mods = "Alt"; chars = "\\u001bk"; }
+        { key = "L"; mods = "Alt"; chars = "\\u001bl"; }
+
+        { key = "Z"; mods = "Alt"; chars = "\\u001bz"; }
+      ];
     };
   };
 
