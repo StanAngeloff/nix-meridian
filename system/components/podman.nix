@@ -25,6 +25,8 @@
         };
       };
     };
+
+    oci-containers.backend = "podman";
   };
 
   environment.systemPackages = with pkgs; [
