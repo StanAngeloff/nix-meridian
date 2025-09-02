@@ -5,6 +5,7 @@
   ...
 }:
 let
+  bruno = pkgs.callPackage ./bruno/package.nix { };
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown/package.nix {
     pandoc = pkgs-unstable.pandoc;
   };
@@ -54,7 +55,7 @@ in
     # GUI
     apostrophe
     bottles
-    pkgs-unstable.bruno
+    bruno
     eog
     gnome-firmware
     gnome-tweaks
