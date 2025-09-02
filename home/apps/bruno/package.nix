@@ -26,12 +26,12 @@
 }:
 stdenv.mkDerivation rec {
   pname = "bruno";
-  version = "2.3.0";
+  version = "2.10.0";
   # Use the official .deb release as it supports the 'Golden Edition'.
   # The package in nixpkgs is the re-packaged GitHub source which cannot be activated.
   src = fetchurl {
     url = "https://github.com/usebruno/bruno/releases/download/v${version}/bruno_${version}_amd64_linux.deb";
-    sha256 = "sha256-Wv/8yUphE1VBxnSeD1pmmDGDklB33zQ7SWZPDHbvOcI=";
+    sha256 = "sha256-fyUHZ7rpyStjKMJKP8LZvw+fWj8ebNEU1eIKfMzOUqE=";
   };
 
   libPath = lib.makeLibraryPath [
