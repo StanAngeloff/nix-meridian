@@ -33,6 +33,7 @@ in
     dconf2nix
     pkgs-unstable.deno
     ffmpeg
+    (hiPrio file-rename)
     ghostscript
     imagemagick
     libsecret
@@ -49,7 +50,6 @@ in
     wineWowPackages.stable
     wl-clipboard
     yt-dlp
-    (hiPrio file-rename)
 
     # GUI
     apostrophe
