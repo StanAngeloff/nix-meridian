@@ -60,6 +60,7 @@ in
     gnome-tweaks
     google-chrome
     inkscape
+    keepassxc
     onlyoffice-desktopeditors
     papers
     pkgs-unstable.proton-pass

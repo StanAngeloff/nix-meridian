@@ -23,7 +23,6 @@ in
     ./httpie
     ./jq
     ./jump
-    ./keepassxc
     ./less
     ./mise
     ./nixvim
