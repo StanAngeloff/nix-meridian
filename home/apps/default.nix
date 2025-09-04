@@ -45,5 +45,5 @@ in
     ./vscode
   ];
 
-  home.packages = packages.packages;
+  home.packages = packages;
 }
