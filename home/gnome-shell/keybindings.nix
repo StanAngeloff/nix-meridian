@@ -88,7 +88,7 @@
     };
     "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
       binding = "<Super>t";
-      command = "${pkgs.callPackage ../apps/alacritty/launch.nix { name = "launch-alacritty"; }}";
+      command = "${pkgs.callPackage ../apps/alacritty/launch/package.nix { name = "launch-alacritty"; }}";
       name = "Alacritty";
     };
     "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1" =

@@ -18,7 +18,7 @@
       PartOf = [ "graphical-session.target" ];
     };
     Service = {
-      ExecStart = "${pkgs.callPackage ./launch.nix { name = "launch-swappy"; }}";
+      ExecStart = "${pkgs.callPackage ./launch/package.nix { name = "launch-swappy"; }}";
       Restart = "on-failure";
       RestartSec = 5;
     };

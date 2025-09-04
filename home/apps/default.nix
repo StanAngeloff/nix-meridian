@@ -11,14 +11,11 @@ let
 in
 {
   imports = [
+    # CLI
     ./alacritty
     ./ast-grep
-    ./brave
     ./direnv
-    ./dropbox
     ./eza
-    ./figma-agent
-    ./firefox
     ./fzf
     ./git
     ./httpie
@@ -30,14 +27,22 @@ in
     ./nodejs+pnpm
     ./ov
     ./ripgrep
-    ./swappy
-    ./thunderbird
     ./tig
     ./tmux
     ./unicode-tussle
     ./voxinput
-    ./vscode
     ./zsh
+
+    # Services
+    ./figma-agent
+
+    # GUI
+    ./brave
+    ./dropbox
+    ./firefox
+    ./swappy
+    ./thunderbird
+    ./vscode
   ];
 
   home.packages = packages.packages;
