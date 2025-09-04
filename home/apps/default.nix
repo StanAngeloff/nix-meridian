@@ -23,6 +23,7 @@ in
     ./jump
     ./less
     ./mise
+    ./nh
     ./nixvim
     ./nodejs+pnpm
     ./ov
