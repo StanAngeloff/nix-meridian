@@ -24,9 +24,11 @@
         diff = "${pkgs.diff-so-fancy}/bin/diff-so-fancy | ${pkgs-unstable.ov}/bin/ov ${
           lib.escapeShellArgs [
             # See https://github.com/so-fancy/diff-so-fancy/blob/v1.4.4/pro-tips.md#moving-around-in-the-diff
+            # nixfmt: off
             "--section-delimiter" "^(Date|added|deleted|modified): "
             "--section-start" "-1"
             "--section-header-num" "3"
+            # nixfmt: on, as: shell-args
           ]
         }";
       };

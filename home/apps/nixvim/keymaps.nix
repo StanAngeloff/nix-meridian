@@ -2,6 +2,7 @@
   programs.nixvim.globals.mapleader = ",";
 
   programs.nixvim.keymaps = [
+    # nixfmt: off
     { key = "j"; mode = [ "n" ]; action = "gj"; options.silent = true; }
     { key = "k"; mode = [ "n" ]; action = "gk"; options.silent = true; }
     { key = "j"; mode = [ "v" ]; action = "gj"; options.silent = true; }
@@ -67,6 +68,7 @@
     { key = "[b"; mode = [ "v" ]; action = ":<C-U>call base64#v_atob()<CR>"; options.silent = true; } # vim-base64
     { key = "]b"; mode = [ "v" ]; action = ":<C-U>call base64#v_btoa()<CR>"; options.silent = true; }
     { key = "*"; mode = [ "n" ]; action = ":keepjumps normal! mi*`i<CR>"; options.silent = true; }
+    # nixfmt: on
 
     # Jump to the first non-whitespace character on the line or the beginning of the line.
     {

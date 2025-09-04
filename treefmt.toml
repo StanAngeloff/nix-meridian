@@ -1,0 +1,12 @@
+on-unmatched = "info"
+
+[formatter.nixfmt]
+command = "nixfmt"
+includes = [ "*.nix" ]
+priority = 100
+
+[formatter.nixfmt-pretty]
+command = "awk"
+options = ["-f", "contrib/nixfmt-pretty.awk", "-i", "inplace"]
+includes = [ "*.nix" ]
+priority = 200

@@ -10,7 +10,9 @@
     };
 
     keymaps = [
+      # nixfmt: off
       { key = "X"; mode = [ "x" ]; action = "<Plug>(Exchange)"; }
+      # nixfmt: on
     ];
   };
 }

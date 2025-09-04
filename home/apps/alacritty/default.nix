@@ -73,6 +73,7 @@ in
         startup_mode = "Maximized";
       };
       keyboard.bindings = [
+        # nixfmt: off
         { key = "1"; mods = "Alt"; chars = "\\u001b1"; }
         { key = "2"; mods = "Alt"; chars = "\\u001b2"; }
         { key = "3"; mods = "Alt"; chars = "\\u001b3"; }
@@ -89,6 +90,7 @@ in
         { key = "L"; mods = "Alt"; chars = "\\u001bl"; }
 
         { key = "Z"; mods = "Alt"; chars = "\\u001bz"; }
+        # nixfmt: on
       ];
     };
   };

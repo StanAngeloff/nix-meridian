@@ -18,7 +18,9 @@ with lib.lists;
 
     #allowedTCPPorts = [ ];
     allowedTCPPortRanges = [
+      # nixfmt: off
       { from = 8080; to = 8081; } # Expo Go
+      # nixfmt: on
     ];
 
     #allowedUDPPorts = [ ];
