@@ -12,6 +12,7 @@ in
 {
   imports = [
     ./alacritty
+    ./ast-grep
     ./brave
     ./direnv
     ./dropbox

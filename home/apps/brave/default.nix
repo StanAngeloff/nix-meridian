@@ -6,9 +6,6 @@
 }:
 let
   brave = pkgs.brave;
-  x-www-browser = pkgs.callPackage ./x-www-browser.nix {
-    execPath = lib.getExe brave;
-  };
 in
 {
   ## Brave uses system-wide policies which are linked outside of Home Manager, see /system/apps/annoyances.nix
@@ -30,9 +27,15 @@ in
         '';
       }
     ))
-
-    x-www-browser
   ];
+
+  home.file.".local/bin/x-www-browser" = {
+    executable = true;
+    text = ''
+      #!/bin/sh
+      exec "${lib.getExe brave}" "$@"
+    '';
+  };
 
   home.activation.updateBravePreferences =
     let
