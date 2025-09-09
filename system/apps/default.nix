@@ -7,14 +7,8 @@
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # NOTE: nix-ld allows running unpatched dynamic binaries on NixOS. This is a prerequisite for `aapt` when Expo does an Android build.
   programs.nix-ld.enable = true;
-
-  # List packages installed in system profile. To search, run:
-  # $ nix search wget
-  environment.systemPackages = with pkgs; [
-    libappindicator-gtk2 # Library to allow applications to export a menu into the Unity Menu bar.
-    libappindicator-gtk3 # Library to allow applications to export a menu into the Unity Menu bar.
-  ];
 
   # List packages to exclude from the default Gnome desktop environment.
   environment.gnome.excludePackages = with pkgs; [
