@@ -1,23 +1,23 @@
 { config, pkgs, ... }:
 let
   nixvim = config.lib.nixvim;
-  claudius-nvim = (
+  flemma-nvim = (
     pkgs.vimUtils.buildVimPlugin {
-      name = "claudius.nvim";
+      name = "flemma.nvim";
       src = pkgs.fetchFromGitHub {
-        owner = "StanAngeloff";
-        repo = "claudius.nvim";
-        rev = "9ae6792392540958e713264e6eefcf4ae8bd3db6";
-        hash = "sha256-DajJbK3HIuvjhwVov5KqUButqXokgh7y9jiJl4/CY/A=";
+        owner = "Flemma-Dev";
+        repo = "flemma.nvim";
+        rev = "3c6a2356518d3838a64495fc7de4862569f9333e";
+        hash = "sha256-W4ZYajbJUu83AXPKr2IuHZovfm0QPWtSax8irqY2HBo=";
       };
 
       postInstall = ''
-        substituteInPlace $target/lua/claudius/provider/vertex.lua \
+        substituteInPlace $target/lua/flemma/provider/vertex.lua \
           --replace gcloud "${pkgs.google-cloud-sdk}/bin/gcloud"
       '';
     }
   );
-  claudius-settings = {
+  flemma-settings = {
     provider = "vertex";
     # model = "…"; # The latest Gemini Pro model will be used by default.
     parameters = {
@@ -57,10 +57,10 @@ let
 in
 {
   programs.nixvim = {
-    extraPlugins = [ claudius-nvim ];
+    extraPlugins = [ flemma-nvim ];
 
     extraConfigLua = ''
-      require("claudius").setup(${nixvim.toLuaObject claudius-settings});
+      require("flemma").setup(${nixvim.toLuaObject flemma-settings});
     '';
   };
 }

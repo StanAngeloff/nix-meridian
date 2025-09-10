@@ -2,13 +2,13 @@
   imports = [
     ./blink-cmp.nix
     ./bufferline.nix
-    ./claudius-nvim.nix
     ./comment.nix
     ./committia.nix
     ./copilot.nix
     ./copilot-lualine.nix
     ./copilotchat-nvim.nix
     ./dadbod.nix
+    ./flemma-nvim.nix
     ./fugitive.nix
     ./fzf-lua.nix
     ./git-conflict-nvim.nix

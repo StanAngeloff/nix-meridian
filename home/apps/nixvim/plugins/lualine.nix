@@ -80,7 +80,7 @@
         ];
         lualine_x = [
           {
-            __unkeyed = "claudius";
+            __unkeyed = "flemma";
             icon = "🧠";
           }
           {
