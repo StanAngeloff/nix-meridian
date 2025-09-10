@@ -6,7 +6,7 @@
       package = pkgs-unstable.vimPlugins.CopilotChat-nvim;
 
       settings = {
-        model = "claude-3.7-sonnet";
+        model = "claude-sonnet-4-0";
         context = "buffer";
 
         auto_insert_mode = true;
