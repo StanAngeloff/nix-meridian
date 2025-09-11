@@ -11,6 +11,7 @@ function parse_fmt_options(options_str, pairs, kv, n, i, key, value) {
 
     # Split the string by commas, allowing for whitespace around them.
     n = split(options_str, pairs, /\s*,\s*/)
+
     for (i = 1; i <= n; i++) {
         # Split each pair into a key and a value by the first colon.
         if (split(pairs[i], kv, /\s*:\s*/) == 2) {
@@ -27,26 +28,23 @@ function parse_fmt_options(options_str, pairs, kv, n, i, key, value) {
 function get_brace_delta(line, i, char, in_string, delta) {
     in_string = 0
     delta = 0
+
     for (i = 1; i <= length(line); ++i) {
         char = substr(line, i, 1)
 
         # If we see a quote, check if it's escaped. If not, flip the in_string state.
         # This simple check handles \" correctly.
         if (char == "\"") {
-            if (i == 1 || substr(line, i - 1, 1) != "\\") {
-                in_string = !in_string
-            }
+            if (i == 1 || substr(line, i - 1, 1) != "\\") { in_string = !in_string }
         }
 
         # Only count braces if we are NOT inside a string.
         if (!in_string) {
-            if (char == "{") {
-                delta++
-            } else if (char == "}") {
-                delta--
-            }
+            if (char == "{") { delta++ }
+            else if (char == "}") { delta-- }
         }
     }
+
     return delta
 }
 
@@ -54,49 +52,57 @@ function get_brace_delta(line, i, char, in_string, delta) {
 # This pattern has the highest priority to ensure it can turn off the active state.
 /#\s*nixfmt:\s*on\>/ {
     # Parse any options present on the 'on' directive line.
-    if (match($0, /#\s*nixfmt:\s*on\s*,(.*)/, m)) {
-        parse_fmt_options(m[1])
-    }
+    if (match($0, /#\s*nixfmt:\s*on\s*,(.*)/, m)) { parse_fmt_options(m[1]) }
 
     # If we are active but never processed a block, format the buffered section.
     if (active && !block_was_processed && section_buffer) {
-        # Check if the 'as: shell-args' mode was specified.
+        # Check for a specific formatting mode.
         if (fmt_options["as"] == "shell-args") {
-            # New behavior: Join lines, but create newlines for arguments starting with "--".
+            # Behavior for shell arguments: join lines, but create newlines for args starting with "--".
             output_line = ""
             split(section_buffer, lines, RS) # RS is the Record Separator (newline)
 
             for (i = 1; i <= length(lines); i++) {
                 line = lines[i]
-                # Skip empty or whitespace-only lines.
-                if (line !~ /\S/) {
-                    continue
-                }
 
-                # Trim leading/trailing whitespace from the current line part.
+                if (line !~ /\S/) { continue } # Skip empty lines.
+
                 sub(/^\s*/, "", line)
-                sub(/\s*$/, "", line)
+                sub(/\s*$/, "", line) # Trim the line
 
-                # Check if the line is a new argument starting with "--".
                 if (line ~ /^"--/) {
-                    # If there's a completed line, print it first.
-                    if (output_line) {
-                        print section_indent output_line
-                    }
-                    # Start the new line with the current argument.
+                    if (output_line) { print section_indent output_line }
+
                     output_line = line
-                } else {
-                    # Otherwise, append it to the current line with a space.
-                    output_line = output_line " " line
+                }
+                else { output_line = output_line " " line }
+            }
+
+            if (output_line) { print section_indent output_line }
+        }
+        else if (fmt_options["as"] == "list-of-calls") {
+            # Behavior: For a list of function calls like (call1) (call2)
+            # 1. Collapse the buffer into a single line.
+            gsub(RS, " ", section_buffer)
+            gsub(/\s+/, " ", section_buffer)
+            sub(/^\s*/, "", section_buffer)
+            sub(/\s*$/, "", section_buffer)
+
+            # 2. Insert a newline between closing and opening parentheses.
+            # This effectively splits by ") ("
+            gsub(/\)\s*\(/, ")" RS "(", section_buffer)
+
+            # 3. Print each resulting line with the proper section indent.
+            split(section_buffer, lines, RS)
+            for (i = 1; i <= length(lines); i++) {
+                if (lines[i] ~ /\S/) {
+                    print section_indent lines[i]
                 }
             }
-
-            # Print the last remaining line after the loop finishes.
-            if (output_line) {
-                print section_indent output_line
-            }
-        } else {
-            # Original behavior: collapse all lines into a single line.
+        }
+        else {
+            # Original/default behavior: collapse all lines into a single line.
+            gsub(RS, " ", section_buffer) # Use RS instead of /\n/
             gsub(/\s+/, " ", section_buffer)
             sub(/^\s*/, "", section_buffer)
             sub(/\s*$/, "", section_buffer)
@@ -104,8 +110,8 @@ function get_brace_delta(line, i, char, in_string, delta) {
         }
     }
 
-    print  # Print the directive itself
-    active = 0  # Turn off the active state
+    print # Print the directive itself
+    active = 0 # Turn off the active state
 
     # Reset block-parsing state in case of a malformed file
     in_block = 0
@@ -122,8 +128,8 @@ function get_brace_delta(line, i, char, in_string, delta) {
 
 # Rule 2: Handle the "nixfmt: off" directive.
 /#\s*nixfmt:\s*off\>/ {
-    print  # Print the directive itself
-    active = 1  # Turn on the active state
+    print # Print the directive itself
+    active = 1 # Turn on the active state
     block_was_processed = 0
     section_buffer = ""
     section_indent = ""
@@ -135,9 +141,8 @@ active && !in_block {
     # If the line is just an opening brace, start a new block.
     if (/^\s*{\s*$/) {
         # If there were lines buffered before this block, print them now.
-        if (!block_was_processed && section_buffer) {
-            print section_buffer
-        }
+        if (!block_was_processed && section_buffer) { print section_buffer }
+
         # Mark that we have now found a block, so we won't collapse the whole section.
         block_was_processed = 1
 
@@ -148,21 +153,23 @@ active && !in_block {
         in_block = 1
         brace_count = 1
         buffer = $0 # Start the buffer with the opening brace
-    } else {
+    }
+    else {
         # If a block has already been processed, print subsequent lines (like comments) normally.
-        if (block_was_processed) {
-            print
-        } else {
+        if (block_was_processed) { print }
+        else {
             # Otherwise, buffer the line in case we need to collapse the whole section later.
             # Only capture indentation from the first non-empty line of the section.
             if (!section_buffer && /\S/) {
                 match($0, /^\s*/)
                 section_indent = substr($0, RSTART, RLENGTH)
             }
+
             # Buffer the line, preserving newlines (RS is the Record Separator).
             section_buffer = (section_buffer ? section_buffer RS : "") $0
         }
     }
+
     next # Move to the next line
 }
 
@@ -194,12 +201,11 @@ active && in_block {
         # Mark that a block was successfully processed.
         block_was_processed = 1
     }
+
     next # Move to the next line
 }
 
 # Rule 5: Default action.
 # This runs for any line that wasn't handled by the rules above.
 # Primarily, this prints lines when `active` is false.
-{
-    print
-}
+{ print }
