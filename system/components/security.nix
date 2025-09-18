@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 {
   security.sudo = {
     extraConfig = ''
@@ -26,13 +26,6 @@
   environment.sessionVariables.SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 
   services.fprintd = {
-    # > Broadcom has not provided Linux drivers for the fingerprint reader [..]
-    #
-    # Learn more at https://wiki.nixos.org/wiki/Hardware/Dell/Latitude_E7240
-    enable = false;
-
-    #tod = {
-    #  enable = true;
-    #};
+    enable = lib.mkDefault false;
   };
 }
