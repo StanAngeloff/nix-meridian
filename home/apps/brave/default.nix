@@ -16,14 +16,19 @@ in
   home.packages = [
     (brave.override (
       let
-        features = [
+        enabledBlinkFeatures = [
           # Enables autoscrolling when the middle mouse button is clicked – Mac, Linux.
           "MiddleClickAutoscroll"
+        ];
+        disabledFeatures = [
+          # "GlobalShortcutsPortal feature is misbehaving on Gnome 48" https://issues.chromium.org/issues/404298968
+          "GlobalShortcutsPortal"
         ];
       in
       {
         commandLineArgs = builtins.replaceStrings [ "\n" ] [ " " ] ''
-          --enable-blink-features=${builtins.concatStringsSep "," features}
+          --enable-blink-features=${builtins.concatStringsSep "," enabledBlinkFeatures}
+          --disable-features=${builtins.concatStringsSep "," disabledFeatures}
         '';
       }
     ))
