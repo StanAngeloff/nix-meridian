@@ -62,6 +62,9 @@
           tailwindcss = {
             enable = true;
           };
+          terraformls = {
+            enable = true;
+          };
           theme_check = {
             enable = true;
             package = null;

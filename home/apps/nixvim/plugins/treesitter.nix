@@ -1,7 +1,6 @@
-{ pkgs, ... }:
-# See https://github.com/nix-community/nixvim/blob/nixos-25.05/plugins/by-name/treesitter/default.nix#L87
+{ pkgs, pkgs-unstable, ... }:
 let
-  tree-sitter-blade = pkgs.tree-sitter.buildGrammar rec {
+  blade = pkgs.tree-sitter.buildGrammar rec {
     language = "blade";
     version = "0.11.0";
     src = pkgs.fetchFromGitHub {
@@ -12,6 +11,7 @@ let
     };
     meta.homepage = "https://github.com/EmranMR/tree-sitter-blade";
   };
+  terraform = pkgs-unstable.vimPlugins.nvim-treesitter-parsers.terraform;
 in
 {
   programs.nixvim = {
@@ -29,25 +29,24 @@ in
         };
       };
 
+      # See https://github.com/nix-community/nixvim/blob/nixos-25.05/plugins/by-name/treesitter/default.nix#L87
       grammarPackages = pkgs.vimPlugins.nvim-treesitter.passthru.allGrammars ++ [
-        tree-sitter-blade
+        blade
+        terraform
       ];
     };
 
     extraPlugins = [
-      tree-sitter-blade
+      blade
+      terraform
     ];
 
     extraConfigLua = # lua
       ''
-        require("nvim-treesitter.parsers").get_parser_configs().blade = {
-          install_info = {
-            url = "https://github.com/EmranMR/tree-sitter-blade",
-            files = {"src/parser.c"},
-            branch = "main",
-          },
-          filetype = "blade",
-        }
+        local parser_configs = require("nvim-treesitter.parsers").get_parser_configs();
+
+        parser_configs.blade = { install_info = { url = "${blade}", files = {"src/parser.c"} }, filetype = "blade" }
+        parser_configs.terraform = { install_info = { url = "${terraform}", files = {"src/parser.c"} }, filetype = "tf" }
       '';
   };
 }
