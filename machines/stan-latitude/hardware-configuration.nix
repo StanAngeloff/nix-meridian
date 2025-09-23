@@ -1,15 +1,13 @@
 {
   inputs,
-  config,
   lib,
   pkgs,
-  modulesPath,
   ...
 }:
 {
   imports = [
-    inputs.nixos-hardware.nixosModules.dell-latitude-5520 # NOTE: close enough, right?
-    (modulesPath + "/installer/scan/not-detected.nix")
+    inputs.nixos-hardware.nixosModules.dell-latitude-5520 # …close enough, right? Right?!
+    "${inputs.nixpkgs}/pkgs/by-name/sa/samsung-unified-linux-driver_1_00_36/module.nix"
   ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
@@ -63,13 +61,12 @@
     { device = "/dev/disk/by-label/NIXOS_SWAP"; }
   ];
 
-  hardware.cpu.intel.updateMicrocode = config.hardware.enableRedistributableFirmware;
+  hardware.enableRedistributableFirmware = true;
+  hardware.cpu.intel.updateMicrocode = true;
 
-  services.printing = {
-    drivers = with pkgs; [
-      # Samsung M2022W
-      samsung-unified-linux-driver
-    ];
+  # Enable the Samsung Unified Linux Driver module directly instead of setting printing drivers.
+  services.samsung-unified-linux-driver_1_00_36 = {
+    enable = true; # Adds support for Samsung M2022W
   };
 
   services.fprintd = {
