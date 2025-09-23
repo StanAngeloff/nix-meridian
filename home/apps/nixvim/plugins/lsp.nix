@@ -46,6 +46,10 @@
             enable = true;
             package = pkgs-unstable.vscode-json-languageserver;
           };
+          jsonnet_ls = {
+            enable = true;
+            package = pkgs-unstable.jsonnet-language-server;
+          };
           lua_ls = {
             enable = true;
           };
