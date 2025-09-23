@@ -14,7 +14,7 @@ in
             owner = "nvim-tree";
             repo = "nvim-tree.lua";
             rev = "v${version}";
-            sha256 = "sha256-68KXPF1bALan+rkHxIkSt0DDT1pWB3+g73imwSHVafg=";
+            hash = "sha256-68KXPF1bALan+rkHxIkSt0DDT1pWB3+g73imwSHVafg=";
           };
         });
 

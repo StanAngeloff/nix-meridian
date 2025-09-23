@@ -31,7 +31,7 @@ stdenv.mkDerivation rec {
   # The package in nixpkgs is the re-packaged GitHub source which cannot be activated.
   src = fetchurl {
     url = "https://github.com/usebruno/bruno/releases/download/v${version}/bruno_${version}_amd64_linux.deb";
-    sha256 = "sha256-fyUHZ7rpyStjKMJKP8LZvw+fWj8ebNEU1eIKfMzOUqE=";
+    hash = "sha256-fyUHZ7rpyStjKMJKP8LZvw+fWj8ebNEU1eIKfMzOUqE=";
   };
 
   libPath = lib.makeLibraryPath [
