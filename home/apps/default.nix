@@ -20,7 +20,6 @@ in
     ./git
     ./httpie
     ./jq
-    ./jump
     ./less
     ./mise
     ./nh
@@ -32,6 +31,7 @@ in
     ./tmux
     ./unicode-tussle
     ./voxinput
+    ./zoxide
     ./zsh
 
     # Services
