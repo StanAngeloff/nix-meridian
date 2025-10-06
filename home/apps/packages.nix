@@ -10,6 +10,7 @@ let
     pandoc = pkgs-unstable.pandoc;
   };
   nsx = pkgs.callPackage ./nsx/package.nix { };
+  slack = pkgs.callPackage ./slack/package.nix { };
   viber = pkgs.callPackage ./viber/package.nix { };
 in
 # List packages installed in your user profile. To search, run:
