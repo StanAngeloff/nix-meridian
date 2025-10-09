@@ -41,6 +41,7 @@ with pkgs;
   libsecret
   nsx
   python313
+  python313Packages.uv
   pkgs-unstable.ocrmypdf
   qemu
   rclone
