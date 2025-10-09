@@ -68,6 +68,7 @@ with pkgs;
   papers
   pkgs-unstable.proton-pass
   protonvpn-gui
+  remmina
   slack
   viber
 ]
