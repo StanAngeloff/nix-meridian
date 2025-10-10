@@ -11,6 +11,9 @@ in
     mime.inverted = {
       defaultApplications = mimetypes.defaultApplications;
     };
+
+    # Ensure the file is always overwritten to avoid collisions.
+    configFile."mimeapps.list".force = true;
   };
 
   home.sessionVariables = {
