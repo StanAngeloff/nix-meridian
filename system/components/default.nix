@@ -10,6 +10,7 @@
     ./fonts.nix
     ./input.nix
     ./keyring.nix
+    ./libimobiledevice.nix
     ./networking.nix
     ./nix.nix
     ./podman.nix
