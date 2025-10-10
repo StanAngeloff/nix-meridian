@@ -7,12 +7,12 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "030b739640a27b390ab963347e60ccbf5db1a0cd";
-        hash = "sha256-fcMQq1lkL6bo0/nzJ5YhiVk9D3IbEu9qkHEDPoDIWZI=";
+        rev = "f144e4a811715a3db7ef1a68ae3323ba8b3bea21";
+        hash = "sha256-GnrCFJ0x5h2e1nuJch4moCOJ3PPExhVhKXOTiHc1GM8=";
       };
 
       postInstall = ''
-        substituteInPlace $target/lua/flemma/provider/vertex.lua \
+        substituteInPlace $target/lua/flemma/provider/providers/vertex.lua \
           --replace gcloud "${pkgs.google-cloud-sdk}/bin/gcloud"
       '';
     }
