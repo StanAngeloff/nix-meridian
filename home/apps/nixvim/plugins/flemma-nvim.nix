@@ -7,8 +7,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "f144e4a811715a3db7ef1a68ae3323ba8b3bea21";
-        hash = "sha256-GnrCFJ0x5h2e1nuJch4moCOJ3PPExhVhKXOTiHc1GM8=";
+        rev = "v25.10-1";
+        hash = "sha256-he9ibXXhv0EIdZFSjzoCoW7kLZYw72A8NDHH4058smQ=";
       };
 
       postInstall = ''
@@ -52,6 +52,14 @@ let
       assistant = "#8f9faf";
       user_lua_expression = "#ff00ff";
       user_file_reference = "#ff00ff";
+      thinking_tag = {
+        fg = "#6f7f8f";
+        bold = true;
+        underline = true;
+      };
+      thinking_block = {
+        fg = "#6f7f8f";
+      };
     };
   };
 in
