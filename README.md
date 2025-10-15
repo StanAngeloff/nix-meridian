@@ -48,15 +48,15 @@ This repository contains my personal NixOS system configuration and home environ
 
 ### Post-Installation Steps
 
-1. Install Berkeley Mono™ and patch with Nerd Fonts:
+1. Install Berkeley Mono™ and patch with Nerd Fonts [(always use `*.ttf` fonts for this)](https://github.com/ryanoasis/nerd-fonts/issues/1772):
 
    ```bash
    cd ~/.local/share/fonts
-   nix-shell -p nerd-font-patcher
-   for f in *.ttf; do
-     nerd-font-patcher --progressbars --mono --adjust-line-height --complete "$f"
-   done
+   nix-shell -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz -p nerd-font-patcher -p parallel
+   parallel -j8 nerd-font-patcher --no-progressbars --careful --has-no-italic --single-width-glyphs --complete --name postscript {} ::: *.ttf
    ```
+
+   Be patient! The patching will take a while.
 
 2. Import GPG secret keys from a backup
 
