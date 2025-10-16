@@ -1,6 +1,5 @@
 { config, pkgs, ... }:
 let
-  nixvim = config.lib.nixvim;
   flemma-nvim = (
     pkgs.vimUtils.buildVimPlugin {
       name = "flemma.nvim";
@@ -65,10 +64,12 @@ let
 in
 {
   programs.nixvim = {
-    extraPlugins = [ flemma-nvim ];
+    extraPlugins = [
+      flemma-nvim
+    ];
 
-    extraConfigLua = ''
-      require("flemma").setup(${nixvim.toLuaObject flemma-settings});
+    extraConfigLua = with config.lib.nixvim; ''
+      require("flemma").setup(${toLuaObject flemma-settings});
     '';
   };
 }
