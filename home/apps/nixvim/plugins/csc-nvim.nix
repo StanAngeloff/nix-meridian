@@ -21,6 +21,11 @@ let
         "csc.logger"
         "csc.parser"
       ];
+
+      postInstall = ''
+        substituteInPlace $target/lua/csc/logger.lua \
+          --replace vim.notify "--vim.notify"
+      '';
     }
   );
   csc-settings = { };
