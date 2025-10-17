@@ -13,8 +13,8 @@
       function! g:committia_hooks.edit_open(info)
         setlocal spell
         if a:info.vcs ==# 'git' && getline(1) ==# ${"''"} | startinsert | endif
-        imap <buffer><C-n> <Plug>(committia-scroll-diff-down-half)
-        imap <buffer><C-p> <Plug>(committia-scroll-diff-up-half)
+        imap <buffer><PgDown> <Plug>(committia-scroll-diff-down-half)
+        imap <buffer><PgUp> <Plug>(committia-scroll-diff-up-half)
       endfunction
     '';
   };
