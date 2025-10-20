@@ -24,10 +24,6 @@
   systemd.services."getty@tty1".enable = false;
   systemd.services."autovt@tty1".enable = false;
 
-  # Automatically unlock the GNOME keyring on login.
-  services.gnome.gnome-keyring.enable = true;
-  security.pam.services.login.enableGnomeKeyring = true;
-
   # Sushi, a quick previewer for Nautilus.
   services.gnome.sushi.enable = true;
 
