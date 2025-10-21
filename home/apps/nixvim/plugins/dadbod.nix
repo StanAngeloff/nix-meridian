@@ -1,17 +1,26 @@
 { pkgs-unstable, ... }:
 {
-  programs.nixvim.plugins.vim-dadbod = {
-    enable = true;
-    package = pkgs-unstable.vimPlugins.vim-dadbod;
-  };
+  programs.nixvim = {
+    plugins = with pkgs-unstable; {
+      vim-dadbod = {
+        enable = true;
+        package = vimPlugins.vim-dadbod;
+      };
 
-  programs.nixvim.plugins.vim-dadbod-ui = {
-    enable = true;
-    package = pkgs-unstable.vimPlugins.vim-dadbod-ui;
-  };
+      vim-dadbod-ui = {
+        enable = true;
+        package = vimPlugins.vim-dadbod-ui;
+      };
 
-  programs.nixvim.plugins.vim-dadbod-completion = {
-    enable = true;
-    package = pkgs-unstable.vimPlugins.vim-dadbod-completion;
+      vim-dadbod-completion = {
+        enable = true;
+        package = vimPlugins.vim-dadbod-completion;
+      };
+    };
+
+    extraConfigLua = ''
+      vim.g.db_ui_disable_mappings_sql = 1
+      vim.g.db_ui_disable_mappings_javascript = 1
+    '';
   };
 }
