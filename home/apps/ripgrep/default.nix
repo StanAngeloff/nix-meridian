@@ -14,6 +14,7 @@ in
     --hidden
     --ignore-vcs
     --smart-case
+    --auto-hybrid-regex
     --glob=!.git/*
     --glob=!node_modules/*
     --colors=line:fg:yellow

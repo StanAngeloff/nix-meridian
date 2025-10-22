@@ -19,7 +19,19 @@
         rg_opts = builtins.concatStringsSep " " [
           "--column --line-number --no-heading --max-columns=4096 --color=always"
           # NOTE: See home/apps/ripgrep/default.nix - the default ripgrep configuration is not read by fzf.
-          "--hidden --ignore-vcs --smart-case --glob=\"!.git/*\" --glob=\"!node_modules/*\" --colors=line:fg:yellow --colors=line:style:bold --colors=path:fg:green --colors=path:style:bold --colors=match:fg:black --colors=match:bg:yellow --colors=match:style:nobold"
+          "--hidden"
+          "--ignore-vcs"
+          "--smart-case"
+          "--auto-hybrid-regex"
+          "--glob=\"!.git/*\""
+          "--glob=\"!node_modules/*\""
+          "--colors=line:fg:yellow"
+          "--colors=line:style:bold"
+          "--colors=path:fg:green"
+          "--colors=path:style:bold"
+          "--colors=match:fg:black"
+          "--colors=match:bg:yellow"
+          "--colors=match:style:nobold"
           "-e"
         ];
       };
