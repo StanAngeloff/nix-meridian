@@ -30,7 +30,7 @@ with lib.hm.gvariant;
         # Each option is an XKB option string as defined by xkeyboard-config’s rules files.
         # See http://manpages.ubuntu.com/manpages/trusty/man7/xkeyboard-config.7.html
         #
-        # - Switching to another layout: Caps Lock (grp:caps_toggle); Mata+Space (grp:win_space_toggle)
+        # - Switching to another layout: Caps Lock (grp:caps_toggle); Meta+Space (grp:win_space_toggle)
         # - Use keyboard LED to show alternative layout: Caps Lock (grp_led:caps)
         # - Position of Compose key: Right Alt (compose:ralt)
         #
@@ -55,6 +55,12 @@ with lib.hm.gvariant;
     };
     "org/gnome/desktop/session" = {
       idle-delay = mkUint32 0;
+    };
+    # Learn more at https://github.com/GNOME/gsettings-desktop-schemas/blob/gnome-48/schemas/org.gnome.desktop.privacy.gschema.xml.in
+    "org/gnome/desktop/privacy" = {
+      remove-old-trash-files = true;
+      remove-old-temp-files = true;
+      old-files-age = mkUint32 30;
     };
     "org/gnome/desktop/wm/preferences" = {
       num-workspaces = 4;
