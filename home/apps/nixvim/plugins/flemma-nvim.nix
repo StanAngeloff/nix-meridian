@@ -1,13 +1,15 @@
 { config, pkgs, ... }:
 let
+  gcloud-project-id = "stans-playground";
+  gcloud-location = "europe-central2"; # Warsaw, Poland, Europe
   flemma-nvim = (
     pkgs.vimUtils.buildVimPlugin {
       name = "flemma.nvim";
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "v25.10-1";
-        hash = "sha256-he9ibXXhv0EIdZFSjzoCoW7kLZYw72A8NDHH4058smQ=";
+        rev = "e94310cb2d400c3c536953f06be722ae423af324";
+        hash = "sha256-xjaLGH1LI0h9Tt0vX5h6lMjXaJsjqrMvW7TlsdAyYoM=";
       };
 
       postInstall = ''
@@ -17,14 +19,24 @@ let
     }
   );
   flemma-settings = {
+    presets = {
+      "$gemini" = {
+        provider = "vertex";
+        model = "gemini-2.5-pro";
+        project_id = gcloud-project-id;
+        location = gcloud-location;
+        max_tokens = 65536;
+        thinking_budget = 32768;
+      };
+    };
     provider = "vertex";
     # model = "…"; # The latest Gemini Pro model will be used by default.
     parameters = {
       max_tokens = 65536;
       timeout = 300;
-      project_id = "stans-playground";
+      project_id = gcloud-project-id;
       vertex = {
-        location = "europe-central2"; # Warsaw, Poland, Europe
+        location = gcloud-location;
         thinking_budget = 32768;
       };
     };
