@@ -4,18 +4,37 @@
   pkgs-unstable,
   ...
 }:
+let
+  markdown-preview-nvim = pkgs-unstable.vimPlugins.markdown-preview-nvim.overrideAttrs (
+    finalAttrs: previousAttrs: {
+      postInstall = ''
+        ${previousAttrs.postInstall or ""}
+
+        grep -q ',this.md.use(' $out/app/out/_next/static/*/pages/index.js && \
+          sed -i 's/,this.md.use(/,this.md.use(mentionsPlugin).use(/' $out/app/out/_next/static/*/pages/index.js
+
+        cat ${../resources/markdown-preview-nvim/mentionsPlugin.js} >> $out/app/out/_next/static/*/pages/index.js
+      '';
+    }
+  );
+in
 {
   programs.nixvim = {
     plugins.markdown-preview = {
       enable = true;
-      package = pkgs-unstable.vimPlugins.markdown-preview-nvim;
+      package = markdown-preview-nvim;
 
       settings = {
+        filetypes = [
+          "markdown"
+          "chat"
+        ];
+
         browser = "${pkgs.brave}/bin/brave";
         theme = "light";
         refresh_slow = 1;
         markdown_css = builtins.toString (
-          pkgs.replaceVars ../resources/markdown.css {
+          pkgs.replaceVars ../resources/markdown-preview-nvim/markdown.css {
             markdowncss = builtins.readFile "${pkgs-unstable.vimPlugins.markdown-preview-nvim}/app/_static/markdown.css";
             fontsSerif = config.nix-meridian.fonts.serif.name;
             fontsSansSerif = config.nix-meridian.fonts.sansSerif.name;

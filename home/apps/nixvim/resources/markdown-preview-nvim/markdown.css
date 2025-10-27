@@ -24,3 +24,21 @@
 #page-header {
   font-family: "@fontsSansSerif@";
 }
+
+/* ------------------------------------------------------------------ */
+
+x-mention::before {
+  content: "";
+  display: block;
+  border-top: 2px solid #8800ff;
+  margin: 4px -16px;
+  padding-bottom: 4px;
+}
+x-mention {
+  font-size: 120%;
+  font-weight: bold;
+
+  & .mention-colon {
+    font-weight: normal;
+  }
+}
