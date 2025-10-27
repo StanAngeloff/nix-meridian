@@ -1,19 +1,34 @@
 {
   config,
+  lib,
   pkgs,
   pkgs-unstable,
   ...
 }:
 let
+  plugins = [
+    ../resources/markdown-preview-nvim/mentionsPlugin.js
+    ../resources/markdown-preview-nvim/fileRefPlugin.js
+  ];
+
+  # names like "mentionsPlugin", "fileRefPlugin"
+  pluginNames = map (p: lib.removeSuffix ".js" (builtins.baseNameOf p)) plugins;
+  # ".use(mentionsPlugin).use(fileRefPlugin)" minus the leading dot (we add it in sed)
+  pluginUseChain = builtins.concatStringsSep ").use(" pluginNames;
+  # commands to append each plugin file to index.js
+  appendPlugins = builtins.concatStringsSep "\n" (
+    map (p: "cat ${p} >> $out/app/out/_next/static/*/pages/index.js") plugins
+  );
+
   markdown-preview-nvim = pkgs-unstable.vimPlugins.markdown-preview-nvim.overrideAttrs (
     finalAttrs: previousAttrs: {
       postInstall = ''
         ${previousAttrs.postInstall or ""}
 
         grep -q ',this.md.use(' $out/app/out/_next/static/*/pages/index.js && \
-          sed -i 's/,this.md.use(/,this.md.use(mentionsPlugin).use(/' $out/app/out/_next/static/*/pages/index.js
+          sed -i 's/,this.md.use(/,this.md.use(${pluginUseChain}).use(/' $out/app/out/_next/static/*/pages/index.js
 
-        cat ${../resources/markdown-preview-nvim/mentionsPlugin.js} >> $out/app/out/_next/static/*/pages/index.js
+        ${appendPlugins}
       '';
     }
   );
