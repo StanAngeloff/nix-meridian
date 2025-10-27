@@ -27,6 +27,9 @@
   # Sushi, a quick previewer for Nautilus.
   services.gnome.sushi.enable = true;
 
+  # Suspend is too buggy on most hardware I own, so use hibernate instead.
+  services.logind.hibernateKey = "hibernate";
+
   # Electron and Chromium
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
