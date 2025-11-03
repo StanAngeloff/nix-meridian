@@ -28,15 +28,17 @@
 /* ------------------------------------------------------------------ */
 
 x-mention {
+  --accent: #8800ff;
+
   font-size: 120%;
   font-weight: bold;
 
   &::before {
     content: "";
     display: block;
-    border-top: 2px solid #8800ff;
-    margin: 4px -16px;
-    padding-bottom: 4px;
+    border-top: 2px solid var(--accent);
+    margin: 0.25rem -1rem;
+    padding-bottom: 0.25rem;
   }
 
   & .mention-colon {
@@ -44,20 +46,96 @@ x-mention {
   }
 }
 
+.markdown-body > p:first-child > x-mention:first-child::before {
+  display: none;
+}
+
 x-file-ref {
+  --accent: #ff00ff;
+
   font-family: monospace;
   display: inline-block;
   position: relative;
-  color: #ff00ff;
+  color: var(--accent);
 
   &::before {
     content: "";
     display: block;
     position: absolute;
     inset: -1px -2px;
-    background-color: color-mix(in srgb, currentColor, transparent 96.25%);
-    border: 1px solid color-mix(in srgb, currentColor, transparent 90%);
+    background-color: color-mix(in srgb, var(--accent), transparent 96.25%);
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 90%);
     border-radius: 4px;
     pointer-events: none;
+  }
+}
+
+thinking {
+  /* NOTE: this is a fallback if the plug-in fails to process <thinking> tags. */
+  display: block;
+  border: 1.5px solid rgb(0 0 0 / 0.1);
+  border-radius: 4px;
+  background-color: rgb(0 0 0 / 0.01);
+  padding: 1rem;
+
+  & > :first-child {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  & > :last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+}
+
+.x-thinking {
+  --accent: #8060c4;
+
+  display: block;
+  background-color: color-mix(in srgb, var(--accent), transparent 96.25%);
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 90%);
+  border-radius: 4px;
+  margin-inline: -1rem;
+  padding: 1rem;
+
+  & > summary {
+    cursor: pointer;
+    list-style: none;
+    margin: -1rem;
+    padding: 1rem;
+
+    & > .thinking-tag {
+      color: var(--accent);
+      font-family: monospace;
+
+      &.tag-open {
+        display: inline-block;
+        padding-right: 4px;
+      }
+
+      &.tag-close {
+        display: inline-block;
+        padding-left: 4px;
+      }
+    }
+  }
+
+  &[open] > summary {
+    margin-bottom: 0;
+  }
+
+  & > :first-child + * {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  & > :last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  &:has(+ p > x-mention) {
+    margin-bottom: 1rem;
   }
 }
