@@ -8,6 +8,7 @@
 let
   plugins = [
     ../resources/markdown-preview-nvim/fileRefPlugin.js
+    ../resources/markdown-preview-nvim/githubAlertsPlugin.js
     ../resources/markdown-preview-nvim/mentionsPlugin.js
     ../resources/markdown-preview-nvim/thinkingBlockPlugin.js
   ];
