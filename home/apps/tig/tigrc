@@ -5,8 +5,9 @@ bind status T @trash %(file)
 set diff-highlight = true
 set ignore-case = smart-case
 set line-graphics = utf-8
-set refresh-interval = 2
-set refresh-mode = periodic
 set truncation-delimiter = utf-8
+set refresh-mode = auto
+#set refresh-mode = periodic
+#set refresh-interval = 1
 
 source ~/.config/tig/vim.tigrc
