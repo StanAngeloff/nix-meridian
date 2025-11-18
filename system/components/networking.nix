@@ -4,6 +4,21 @@ with lib.lists;
   networking.useDHCP = lib.mkDefault true; # NOTE: NetworkManager, if enabled, will override this to `false`, so use a default value here.
   networking.networkmanager.enable = true;
 
+  services.resolved = {
+    enable = true;
+
+    # Learn more at https://news.ycombinator.com/item?id=44581619
+    # > If you were using systemd-resolved however, it retries all servers in the order they were specified, so it's important to interleave upstreams.
+    fallbackDns = [
+      "1.1.1.1" # Cloudflare DNS
+      "9.9.9.9" # Quad9 DNS
+      "8.8.8.8" # Google DNS
+      "1.0.0.1" # Cloudflare DNS
+      "149.112.112.112" # Quad9 DNS
+      "8.8.4.4" # Google DNS
+    ];
+  };
+
   # Learn more at https://nixos.wiki/wiki/Printing#Enable_autodiscovery_of_network_printers
   services.avahi = {
     enable = true;
