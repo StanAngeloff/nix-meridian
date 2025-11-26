@@ -8,8 +8,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "b30367fd5169095f7032c19dbbc0c8d6c45294ff";
-        hash = "sha256-MZl3AGi6BTXFUerIaVCVvILkg3PAWtEVcwlIrHKJuC8=";
+        rev = "ca921a6489c816e96b5bdabe130d1034737933b9";
+        hash = "sha256-gNcheBDFirXtKpDLubwIwyOQuLJlTdZt1SpRTPUkQ5g=";
       };
 
       postInstall = ''
