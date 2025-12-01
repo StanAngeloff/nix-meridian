@@ -5,6 +5,8 @@
 
     # NOTE: See home/apps/ripgrep/default.nix - additional configuration including ripgrep colors under fzf.
     # NOTE: See home/apps/nixvim/plugins/fzf-lua.nix - additional configuration including ripgrep colors under fzf.
+    #
+    # Learrn more at https://github.com/junegunn/fzf/wiki/Color-schemes
     colors = {
       "fg" = "#f6f6f8";
       "fg+" = "#ffffff";
@@ -39,6 +41,7 @@
       in
       [
         "--ellipsis='…'"
+        "--gutter=' '"
         "--marker='▎'"
         "--pointer='▶'"
         "--prompt='→ '"
