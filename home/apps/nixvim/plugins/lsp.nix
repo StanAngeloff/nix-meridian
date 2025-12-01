@@ -69,6 +69,11 @@
             enable = true;
             package = null;
           };
+          ts_ls = {
+            enable = true;
+            # NOTE: I used to enable denols conditionally based on the presence of a deno.json,
+            #       but I rarely work on Deno-only projects these days – it's not worth the complexity.
+          };
           typos_lsp = {
             enable = true;
             settings = {
@@ -80,33 +85,6 @@
           };
           yamlls = {
             enable = true;
-          };
-
-          # Deno vs. TypeScript
-          # See `:h vim.fs.root()`
-          denols = {
-            enable = true;
-            extraOptions.single_file_support = false;
-            extraOptions.root_dir.__raw = ''
-              function (...)
-                local lspconfig = require("lspconfig");
-                return lspconfig.util.root_pattern("deno.json", "deno.jsonc")(...);
-              end
-            '';
-          };
-          ts_ls = {
-            enable = true;
-            extraOptions.single_file_support = false;
-            extraOptions.root_dir.__raw = ''
-              function (...)
-                local lspconfig = require("lspconfig");
-                local denolsFiles = lspconfig.util.root_pattern("deno.json", "deno.jsonc")(...);
-                if denolsFiles then
-                  return nil;
-                end
-                return lspconfig.util.root_pattern("package.json", "tsconfig.json")(...);
-              end
-            '';
           };
         };
       };
