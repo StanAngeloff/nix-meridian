@@ -4,12 +4,18 @@ viber.overrideAttrs (
     installPhase = ''
       ${builtins.replaceStrings
         [
+          # makeWrapper $out/opt/viber/Viber $out/bin/viber \
           "--set QT_QPA_PLATFORM \"xcb\""
           "--set QML2_IMPORT_PATH"
+          # substituteInPlace $out/share/applications/viber.desktop \
+          "--replace-fail \"/opt/viber/\" \"$out/opt/viber/\""
         ]
         [
-          "--set QT_QPA_PLATFORM \"wayland\""
-          "--set FONTCONFIG_FILE \"${./fonts.conf}\" --set QML2_IMPORT_PATH"
+          # makeWrapper $out/opt/viber/Viber $out/bin/viber \
+          "--set QT_QPA_PLATFORM \"wayland\"" # Force Wayland backend
+          "--set FONTCONFIG_FILE \"${./fonts.conf}\" --set QML2_IMPORT_PATH" # Use custom fontconfig
+          # substituteInPlace $out/share/applications/viber.desktop \
+          "--replace-fail \"/opt/viber/Viber\" \"$out/bin/viber\" --replace-fail \"/opt/viber/\" \"$out/opt/viber/\"" # Update desktop file "Exec" path
         ]
         (previousAttrs.installPhase or "")
       }
