@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs = {
-      url = "github:NixOS/nixpkgs/nixos-25.05";
+      url = "github:NixOS/nixpkgs/nixos-25.11";
     };
 
     nixpkgs-unstable = {
@@ -15,17 +15,17 @@
     };
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.05";
+      url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nixvim = {
-      url = "github:nix-community/nixvim/nixos-25.05";
+      url = "github:nix-community/nixvim/nixos-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    solaar = {
-      url = "https://flakehub.com/f/Svenum/Solaar-Flake/*.tar.gz";
+    solaar-unstable = {
+      url = "github:Svenum/Solaar-Flake/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -41,7 +41,7 @@
       nixpkgs-unstable,
       home-manager,
       nixvim,
-      solaar,
+      solaar-unstable,
       voxinput-flake,
       ...
     }@inputs:
@@ -64,14 +64,14 @@
         modules = [
           ./modules/options
           ./configuration.nix
-          solaar.nixosModules.default
+          solaar-unstable.nixosModules.default
           home-manager.nixosModules.home-manager
           {
             home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.stan.imports = [
-              nixvim.homeManagerModules.nixvim
+              nixvim.homeModules.nixvim
               ./modules/options
               ./modules/home-manager
               ./home

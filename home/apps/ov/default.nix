@@ -19,7 +19,7 @@
       }";
     };
 
-    extraConfig = {
+    settings = {
       pager = {
         diff = "${pkgs.diff-so-fancy}/bin/diff-so-fancy | ${pkgs-unstable.ov}/bin/ov ${
           lib.escapeShellArgs [

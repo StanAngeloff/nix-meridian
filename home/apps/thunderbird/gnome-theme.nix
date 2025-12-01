@@ -3,13 +3,13 @@ with pkgs;
 let
   theme = stdenv.mkDerivation rec {
     pname = "thunderbird-gnome-theme";
-    version = "1994e7ec06";
+    version = "8b9a19eb18";
 
     src = fetchFromGitHub {
       owner = "rafaelmardojai";
       repo = "thunderbird-gnome-theme";
       rev = "${version}";
-      hash = "sha256-i0Uo5EN45rlGuR85hvPet43zW/thOQTwHypVg9shTHU=";
+      hash = "sha256-aQAlgHsBAS+DdyYDlYhW/xT86xIu9FO8yJEzSCVaSBg=";
     };
 
     installPhase = ''

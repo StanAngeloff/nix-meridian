@@ -1,5 +1,5 @@
 {
-  hiPrio,
+  lib,
   pkgs,
   pkgs-unstable,
   ...
@@ -35,7 +35,7 @@ with pkgs;
   dconf2nix
   pkgs-unstable.deno
   ffmpeg
-  (hiPrio file-rename)
+  (lib.hiPrio file-rename)
   ghostscript
   imagemagick
   libsecret

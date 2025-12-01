@@ -29,7 +29,7 @@ in
         };
       };
 
-      # See https://github.com/nix-community/nixvim/blob/nixos-25.05/plugins/by-name/treesitter/default.nix#L87
+      # See https://github.com/nix-community/nixvim/blob/nixos-25.11/plugins/by-name/treesitter/default.nix#L85
       grammarPackages = pkgs.vimPlugins.nvim-treesitter.passthru.allGrammars ++ [
         blade
         terraform

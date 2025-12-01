@@ -11,7 +11,7 @@
 
 # Building from source as the latest release (v0.9.8) does not contain https://github.com/ajeetdsouza/zoxide/pull/1027 "--base-dir" support.
 #
-# See https://github.com/NixOS/nixpkgs/blob/nixos-25.05/pkgs/by-name/zo/zoxide/package.nix
+# See https://github.com/NixOS/nixpkgs/blob/nixos-25.11/pkgs/by-name/zo/zoxide/package.nix
 rustPlatform.buildRustPackage rec {
   pname = "zoxide";
   version = "main@{2025-09-23T12:00:00Z}";

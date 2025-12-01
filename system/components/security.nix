@@ -13,9 +13,9 @@
         commands = [
           # nixfmt: off
           # Allow `nh switch` to activate a new configuration without a password.
-          { command = "/nix/store/*/bin/switch-to-configuration test"; options = [ "NOPASSWD" ]; }
-          { command = "/nix/store/*/bin/switch-to-configuration boot"; options = [ "NOPASSWD" ]; }
-          { command = "/run/current-system/sw/bin/nix build --no-link --profile /nix/var/nix/profiles/system /nix/store/*"; options = [ "NOPASSWD" ]; }
+          { command = "/run/current-system/sw/bin/env * /nix/store/*-nixos-system-*/bin/switch-to-configuration test"; options = [ "NOPASSWD" ]; }
+          { command = "/run/current-system/sw/bin/env * nix build --no-link --profile /nix/var/nix/profiles/system /nix/store/*-nixos-system-*"; options = [ "NOPASSWD" ]; }
+          { command = "/run/current-system/sw/bin/env * /nix/store/*-nixos-system-*/bin/switch-to-configuration boot"; options = [ "NOPASSWD" ]; }
           # nixfmt: on
         ];
       }

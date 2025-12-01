@@ -3,48 +3,43 @@
     enable = true;
     lfs.enable = true;
 
-    diff-so-fancy = {
-      enable = true;
-
-      changeHunkIndicators = false;
-      stripLeadingSymbols = false;
-    };
-
-    userName = "Stan Angeloff";
-    userEmail = "stanimir@angeloff.name";
-
     signing = {
       key = "595EA753";
       signByDefault = true;
     };
 
-    aliases =
-      let
-        gitLogFormat = "%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)%cr (%cd) %C(blue)%an%C(reset) ▸ %C(cyan)%cn%C(reset)";
-      in
-      {
-        a = "add";
-        b = "branch";
-        br = "branch -r";
-        c = "commit";
-        co = "checkout";
-        df = "diff --no-ext-diff --ignore-space-change --ignore-blank-lines --color-moved-ws=ignore-space-change";
-        f = "fetch --verbose";
-        fa = "fetch --all --verbose";
-        l = "log --graph --date=human --pretty=format:'${gitLogFormat}'";
-        la = "log --all --tags --graph --date=human --pretty=format:'${gitLogFormat}'";
-        s = "status --short --branch";
-
-        au = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; git add `f`";
-        eu = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; nvim -p `f`";
-
-        ig = "!git ls-files -v | grep \"^[[:lower:]]\"";
-
-        ro = "!sh -c 'git rebase --interactive origin/\"$( git symbolic-ref --short HEAD )\"'";
+    # Git configuration https://git-scm.com/docs/git-config
+    settings = {
+      user = {
+        name = "Stan Angeloff";
+        email = "stanimir@angeloff.name";
       };
 
-    # Git configuration https://git-scm.com/docs/git-config
-    extraConfig = {
+      alias =
+        let
+          gitLogFormat = "%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)%cr (%cd) %C(blue)%an%C(reset) ▸ %C(cyan)%cn%C(reset)";
+        in
+        {
+          a = "add";
+          b = "branch";
+          br = "branch -r";
+          c = "commit";
+          co = "checkout";
+          df = "diff --no-ext-diff --ignore-space-change --ignore-blank-lines --color-moved-ws=ignore-space-change";
+          f = "fetch --verbose";
+          fa = "fetch --all --verbose";
+          l = "log --graph --date=human --pretty=format:'${gitLogFormat}'";
+          la = "log --all --tags --graph --date=human --pretty=format:'${gitLogFormat}'";
+          s = "status --short --branch";
+
+          au = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; git add `f`";
+          eu = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; nvim -p `f`";
+
+          ig = "!git ls-files -v | grep \"^[[:lower:]]\"";
+
+          ro = "!sh -c 'git rebase --interactive origin/\"$( git symbolic-ref --short HEAD )\"'";
+        };
+
       github = {
         user = "StanAngeloff";
       };
@@ -122,6 +117,15 @@
       tag = {
         sort = "version:refname";
       };
+    };
+  };
+
+  programs.diff-so-fancy = {
+    enable = true;
+
+    settings = {
+      changeHunkIndicators = false;
+      stripLeadingSymbols = false;
     };
   };
 }

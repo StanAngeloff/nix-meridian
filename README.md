@@ -42,7 +42,7 @@ This repository contains my personal NixOS system configuration and home environ
 
 ## Requirements
 
-- NixOS 25.05 or later
+- NixOS 25.11 or later
 - Private fonts:
   - Berkeley Mono™ (TX-02) - primary monospace font
 

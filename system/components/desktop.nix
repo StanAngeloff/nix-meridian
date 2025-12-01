@@ -4,8 +4,8 @@
   services.xserver.enable = true;
 
   # Enable the GNOME Desktop Environment.
-  services.xserver.displayManager.gdm.enable = true;
-  services.xserver.desktopManager.gnome = {
+  services.displayManager.gdm.enable = true;
+  services.desktopManager.gnome = {
     enable = true;
     extraGSettingsOverridePackages = [ pkgs.mutter ];
     extraGSettingsOverrides = ''
@@ -29,10 +29,12 @@
 
   # Suspend is too buggy on most hardware I own, so use hibernate instead.
   services.logind = {
-    powerKey = "suspend-then-hibernate";
-    hibernateKey = "suspend-then-hibernate";
-    lidSwitch = "suspend-then-hibernate";
-    lidSwitchDocked = "ignore";
+    settings = {
+      Login.HandlePowerKey = "suspend-then-hibernate";
+      Login.HandleHibernateKey = "suspend-then-hibernate";
+      Login.HandleLidSwitch = "suspend-then-hibernate";
+      Login.HandleLidSwitchDocked = "ignore";
+    };
   };
 
   # Electron and Chromium
