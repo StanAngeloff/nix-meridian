@@ -8,6 +8,14 @@ let
   pathUtils = import ../../modules/lib/path-utils.nix { inherit lib; };
 in
 {
+  boot.tmp = {
+    useZram = true;
+    zramSettings = {
+      zram-size = "min(ram / 2, 8192)";
+      compression-algorithm = "lzo-rle";
+    };
+  };
+
   services.locate.enable = true;
 
   systemd.tmpfiles.rules = map (path: "d \"${path}\" 0755 stan users -") (
