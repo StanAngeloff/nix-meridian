@@ -32,7 +32,7 @@ let
         provider = "vertex";
         model = "gemini-3-pro-preview";
         project_id = gcloud-project-id;
-        location = gcloud-location;
+        location = "global";
         max_tokens = 65536;
         thinking_budget = 32768;
       };
