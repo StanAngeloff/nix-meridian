@@ -18,6 +18,7 @@ in
 with pkgs;
 [
   # Essentials
+  bc
   dig
   file
   gcc14
