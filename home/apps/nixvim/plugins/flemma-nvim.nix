@@ -20,9 +20,17 @@ let
   );
   flemma-settings = {
     presets = {
-      "$gemini" = {
+      "$gemini-2.5" = {
         provider = "vertex";
         model = "gemini-2.5-pro";
+        project_id = gcloud-project-id;
+        location = gcloud-location;
+        max_tokens = 65536;
+        thinking_budget = 32768;
+      };
+      "$gemini-3" = {
+        provider = "vertex";
+        model = "gemini-3-pro-preview";
         project_id = gcloud-project-id;
         location = gcloud-location;
         max_tokens = 65536;
