@@ -10,6 +10,11 @@
     globalConfig = {
       settings = {
         idiomatic_version_file_enable_tools = [ "node" ];
+
+        node = {
+          # Disable compiling Node.js from source when installing versions, `programs.nix-ld.enable` must be true.
+          compile = false;
+        };
       };
     };
   };
