@@ -6,7 +6,7 @@
       package = pkgs-unstable.vimPlugins.copilot-lua;
 
       settings = {
-        copilot_node_command = "${pkgs.nodejs_22}/bin/node";
+        copilot_node_command = "${pkgs.nodejs_24}/bin/node";
 
         suggestion = {
           enabled = true;

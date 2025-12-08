@@ -41,8 +41,8 @@ with pkgs;
   imagemagick
   libsecret
   nsx
-  python313
-  python313Packages.uv
+  python314
+  python314Packages.uv
   pkgs-unstable.ocrmypdf
   qemu
   rclone

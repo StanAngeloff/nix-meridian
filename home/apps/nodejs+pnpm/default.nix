@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  nodejs = pkgs.nodejs_22;
+  nodejs = pkgs.nodejs_24;
 in
 {
   home.packages = [
