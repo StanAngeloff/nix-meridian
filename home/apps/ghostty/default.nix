@@ -68,8 +68,20 @@ in
       cursor-style-blink = true;
 
       keybind = [
-        "ctrl+shift+v=paste_from_clipboard"
+        # General
         "ctrl+shift+,=reload_config"
+        # Clipboard
+        "ctrl+shift+c=copy_to_clipboard"
+        "ctrl+shift+v=paste_from_clipboard"
+        "ctrl+insert=copy_to_clipboard"
+        "shift+insert=paste_from_selection"
+        "copy=copy_to_clipboard"
+        "paste=paste_from_clipboard"
+        # Appearance
+        "ctrl+0=reset_font_size"
+        "ctrl+equal=increase_font_size:1"
+        "ctrl++=increase_font_size:1"
+        "ctrl+-=decrease_font_size:1"
       ];
 
       shell-integration-features = builtins.concatStringsSep "," [
