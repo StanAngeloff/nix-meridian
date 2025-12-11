@@ -15,7 +15,7 @@ This repository contains my personal NixOS system configuration and home environ
   - Zsh as default shell
   - Podman for containerization
 - **Terminal Setup**:
-  - Alacritty as the primary terminal
+  - ~~Alacritty~~ Ghostty as the primary terminal
   - tmux for session management
   - Custom prompt and key bindings
 - **Applications**:

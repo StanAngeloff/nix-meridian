@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  pkgs-unstable,
   voxinput-pkgs,
   ...
 }:
@@ -88,8 +89,11 @@
     };
     "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
       binding = "<Super>t";
-      command = "${pkgs.callPackage ../apps/alacritty/launch/package.nix { name = "launch-alacritty"; }}";
-      name = "Alacritty";
+      command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
+        name = "launch-ghostty";
+        ghostty = pkgs-unstable.ghostty;
+      }}";
+      name = "Ghostty";
     };
     "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1" =
       let

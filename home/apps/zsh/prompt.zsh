@@ -34,9 +34,13 @@ function _shell_level_prompt() {
 }
 
 function _in_nix_shell_prompt() {
-  if echo "$PATH" | grep -qc '/nix/store'; then
-    echo " %8F⌬ nix%f"
-  fi
+  echo "$PATH" | tr ':' '\n' | while IFS= read -r p; do
+    # NOTE: Ghostty always adds itself to $PATH, see https://github.com/ghostty-org/ghostty/pull/1423
+    if [[ "$p" == /nix/store* && "$p" != *ghostty* ]]; then
+      echo " %8F⌬ nix%f"
+      return
+    fi
+  done
 }
 
 precmd() {

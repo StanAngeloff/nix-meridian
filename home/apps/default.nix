@@ -12,11 +12,11 @@ in
 {
   imports = [
     # CLI
-    ./alacritty
     ./ast-grep
     ./direnv
     ./eza
     ./fzf
+    ./ghostty
     ./git
     ./httpie
     ./jq

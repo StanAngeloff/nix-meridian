@@ -64,9 +64,9 @@ elif [[ -n "$window_in_focus_pid" ]]; then
 	window_in_focus_cmd="$(tr '\0' ' ' </proc/"$window_in_focus_pid"/cmdline || true)"
 	log "Focused window PID: $window_in_focus_pid"
 	log "Focused window command-line: $window_in_focus_cmd"
-	# If the command running is Alacritty with nested tmux, we want to delve deeper.
-	if [[ "$window_in_focus_cmd" == *"/bin/alacritty"* && "$window_in_focus_cmd" == *"/bin/tmux"* ]]; then
-		log "Focused window is Alacritty with nested tmux."
+	# If the command running is Ghostty with nested tmux, we want to delve deeper.
+	if [[ "$window_in_focus_cmd" == *"/bin/ghostty"* && "$window_in_focus_cmd" == *"/bin/tmux"* ]]; then
+		log "Focused window is Ghostty with nested tmux."
 		# Let's grab the process name in the current tmux pane.
 		tmux_active_pane_command=$(@tmux@ display-message -p '#{pane_current_command}' || true)
 		log "tmux pane command: $tmux_active_pane_command"
@@ -200,9 +200,9 @@ elif [[ -n "$window_in_focus_pid" ]]; then
 	window_in_focus_cmd="$(tr '\0' ' ' </proc/"$window_in_focus_pid"/cmdline || true)"
 	log "Focused window PID: $window_in_focus_pid"
 	log "Focused window command-line: $window_in_focus_cmd"
-	if [[ "$window_in_focus_cmd" == *"/bin/alacritty"* ]]; then
+	if [[ "$window_in_focus_cmd" == *"/bin/ghostty"* ]]; then
 		if [[ "$window_in_focus_cmd" == *"/bin/tmux"* ]]; then
-			log "Focused window is Alacritty with nested tmux."
+			log "Focused window is Ghostty with nested tmux."
 			tmux_active_pane_command=$(@tmux@ display-message -p '#{pane_current_command}' || true)
 			log "tmux pane command: $tmux_active_pane_command"
 			if [[ "$tmux_active_pane_command" == "nvim" ]]; then
@@ -215,7 +215,7 @@ elif [[ -n "$window_in_focus_pid" ]]; then
 				echo 'key ctrl+shift+v' | @dotool@
 			fi
 		else
-			log "Focused window is Alacritty. Sending Ctrl+Shift+V."
+			log "Focused window is Ghostty. Sending Ctrl+Shift+V."
 			echo 'key ctrl+shift+v' | @dotool@
 		fi
 	else

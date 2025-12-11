@@ -1,0 +1,99 @@
+{
+  config,
+  pkgs-unstable,
+  ...
+}:
+let
+  ghostty = pkgs-unstable.ghostty;
+  monospaceFontFamily = "${
+    builtins.replaceStrings [ " " ] [ "" ] config.nix-meridian.fonts.monospace.name
+  } Nerd Font Mono";
+in
+{
+  programs.ghostty = {
+    enable = true;
+    package = ghostty;
+
+    systemd.enable = false;
+    enableZshIntegration = false;
+
+    clearDefaultKeybinds = true;
+
+    settings = {
+      font-family = monospaceFontFamily;
+      font-size = 14;
+      font-style = "Regular";
+      font-style-bold = "ExtraBold";
+      font-style-italic = "Oblique";
+      font-style-bold-italic = "ExtraBold Oblique";
+
+      adjust-cell-width = "-10%";
+      adjust-cell-height = "2%";
+      adjust-font-baseline = "0%";
+      adjust-box-thickness = "-25%";
+
+      maximize = true;
+      window-decoration = "auto";
+      window-padding-x = 0;
+      window-padding-y = 0;
+
+      gtk-titlebar = false;
+      gtk-custom-css = "~/.config/ghostty/gtk.css";
+
+      background = "#000000";
+      foreground = "#ffffff";
+      background-opacity = 0.9875;
+
+      palette = [
+        "0=#000000"
+        "1=#cd0000"
+        "2=#00cd00"
+        "3=#cdcd00"
+        "4=#1e90ff"
+        "5=#cd00cd"
+        "6=#00cdcd"
+        "7=#e5e5e5"
+        "8=#4c4c4c"
+        "9=#ff0000"
+        "10=#00ff00"
+        "11=#ffff00"
+        "12=#4682b4"
+        "13=#ff00ff"
+        "14=#00ffff"
+        "15=#ffffff"
+      ];
+
+      mouse-hide-while-typing = true;
+      cursor-style = "bar";
+      cursor-style-blink = true;
+
+      keybind = [
+        "ctrl+shift+v=paste_from_clipboard"
+        "ctrl+shift+,=reload_config"
+      ];
+
+      shell-integration-features = builtins.concatStringsSep "," [
+        "no-cursor"
+        "no-path"
+        "no-ssh-env"
+        "no-ssh-terminfo"
+        "no-sudo"
+        "title"
+      ];
+    };
+  };
+
+  home.file.".config/ghostty/gtk.css".text = # css
+    ''
+      window.solid-csd {
+        padding: 0;
+      }
+    '';
+
+  dconf.settings = {
+    "org/gnome/desktop/default-applications/terminal" = {
+      exec = "${ghostty}/bin/ghostty";
+      exec-arg = "-e";
+    };
+  };
+}
