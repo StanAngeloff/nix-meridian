@@ -1,6 +1,6 @@
 { slack }:
 slack.overrideAttrs (
-  finalAttrs: previousAttrs: {
+  final: prev: {
     installPhase = ''
       ${builtins.replaceStrings
         [
@@ -10,7 +10,7 @@ slack.overrideAttrs (
         [
           "--ozone-platform=wayland"
         ]
-        (previousAttrs.installPhase or "")
+        (prev.installPhase or "")
       }
     '';
   }

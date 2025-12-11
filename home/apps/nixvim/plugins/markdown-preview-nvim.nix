@@ -23,9 +23,9 @@ let
   );
 
   markdown-preview-nvim = pkgs-unstable.vimPlugins.markdown-preview-nvim.overrideAttrs (
-    finalAttrs: previousAttrs: {
+    final: prev: {
       postInstall = ''
-        ${previousAttrs.postInstall or ""}
+        ${prev.postInstall or ""}
 
         grep -q ',this.md.use(' $out/app/out/_next/static/*/pages/index.js && \
           sed -i 's/,this.md.use(/,this.md.use(${pluginUseChain}).use(/' $out/app/out/_next/static/*/pages/index.js

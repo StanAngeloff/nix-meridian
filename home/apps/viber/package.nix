@@ -1,6 +1,6 @@
 { viber }:
 viber.overrideAttrs (
-  finalAttrs: previousAttrs: {
+  final: prev: {
     installPhase = ''
       ${builtins.replaceStrings
         [
@@ -17,7 +17,7 @@ viber.overrideAttrs (
           # substituteInPlace $out/share/applications/viber.desktop \
           "--replace-fail \"/opt/viber/Viber\" \"$out/bin/viber\" --replace-fail \"/opt/viber/\" \"$out/opt/viber/\"" # Update desktop file "Exec" path
         ]
-        (previousAttrs.installPhase or "")
+        (prev.installPhase or "")
       }
 
       substituteInPlace $out/share/applications/viber.desktop \

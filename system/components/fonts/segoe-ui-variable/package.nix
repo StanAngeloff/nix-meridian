@@ -4,7 +4,7 @@
   fetchzip,
 }:
 # See https://github.com/ewancg/shit/blob/main@%7B2025-02-10%7D/nix/misc/segoe-ui-variable/default.nix
-stdenvNoCC.mkDerivation (finalAttrs: {
+stdenvNoCC.mkDerivation (final: {
   pname = "segoe-ui-variable";
   version = "2.02;210625223709";
 
@@ -22,9 +22,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook preInstall
 
     mkdir -p $out/share/{fonts/truetype,licenses/segoe-ui-variable}
-    ln -s ${finalAttrs.src}/EULA.txt $out/share/licenses/segoe-ui-variable/LICENSE
+    ln -s ${final.src}/EULA.txt $out/share/licenses/segoe-ui-variable/LICENSE
     for font in *.ttf; do
-      ln -s ${finalAttrs.src}/"$font" $out/share/fonts/truetype/"$font"
+      ln -s ${final.src}/"$font" $out/share/fonts/truetype/"$font"
     done
 
     runHook postInstall

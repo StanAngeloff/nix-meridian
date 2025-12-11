@@ -1,7 +1,7 @@
 { pkgs, ... }:
 let
   nvim-tree-lua = (
-    pkgs.vimPlugins.nvim-tree-lua.overrideAttrs (previousAttrs: rec {
+    pkgs.vimPlugins.nvim-tree-lua.overrideAttrs (prev: rec {
       version = "1.14.0";
       src = pkgs.fetchFromGitHub {
         owner = "nvim-tree";

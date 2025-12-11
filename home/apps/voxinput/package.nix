@@ -2,7 +2,7 @@
   voxinput,
   fetchFromGitHub,
 }:
-voxinput.overrideAttrs (previousAttrs: rec {
+voxinput.overrideAttrs (prev: rec {
   version = "0.6.2";
 
   src = fetchFromGitHub {
@@ -33,7 +33,7 @@ voxinput.overrideAttrs (previousAttrs: rec {
           marker
         ])
       ]
-      (previousAttrs.postInstall or "");
+      (prev.postInstall or "");
 
   meta.mainProgram = "voxinput";
 })
