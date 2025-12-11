@@ -91,7 +91,7 @@
       binding = "<Super>t";
       command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
         name = "launch-ghostty";
-        ghostty = pkgs-unstable.ghostty;
+        ghostty = pkgs-unstable.ghostty-meridian;
       }}";
       name = "Ghostty";
     };

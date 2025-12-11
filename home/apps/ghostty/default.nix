@@ -4,7 +4,7 @@
   ...
 }:
 let
-  ghostty = pkgs-unstable.ghostty;
+  ghostty = pkgs-unstable.ghostty-meridian;
   monospaceFontFamily = "${
     builtins.replaceStrings [ " " ] [ "" ] config.nix-meridian.fonts.monospace.name
   } Nerd Font Mono";

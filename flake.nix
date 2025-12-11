@@ -47,12 +47,16 @@
     }@inputs:
     let
       system = "x86_64-linux";
+      pkgs-overlay = final: prev: {
+        ghostty-meridian = final.callPackage ./pkgs/ghostty/default.nix { };
+      };
       pkgs-unstable = (
         import nixpkgs-unstable {
           inherit system;
           config = {
             allowUnfree = true;
           };
+          overlays = [ pkgs-overlay ];
         }
       );
       voxinput-pkgs = voxinput-flake.packages.${system};
@@ -62,6 +66,8 @@
         inherit system;
         specialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
         modules = [
+          { nixpkgs.overlays = [ pkgs-overlay ]; }
+
           ./modules/options
           ./configuration.nix
           solaar-unstable.nixosModules.default
