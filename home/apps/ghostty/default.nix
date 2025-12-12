@@ -33,7 +33,7 @@ in
       adjust-box-thickness = "-25%";
 
       maximize = true;
-      window-decoration = "auto";
+      window-decoration = "none";
       window-padding-x = 0;
       window-padding-y = 0;
 
