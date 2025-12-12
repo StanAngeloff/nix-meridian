@@ -66,8 +66,9 @@
         inherit system;
         specialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
         modules = [
-          { nixpkgs.overlays = [ pkgs-overlay ]; }
-
+          {
+            nixpkgs.overlays = [ pkgs-overlay ];
+          }
           ./modules/options
           ./configuration.nix
           solaar-unstable.nixosModules.default
