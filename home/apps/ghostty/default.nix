@@ -95,12 +95,7 @@ in
     };
   };
 
-  home.file.".config/ghostty/gtk.css".text = # css
-    ''
-      window.solid-csd {
-        padding: 0;
-      }
-    '';
+  home.file.".config/ghostty/gtk.css".source = ./gtk.css;
 
   dconf.settings = {
     "org/gnome/desktop/default-applications/terminal" = {
