@@ -32,6 +32,19 @@ let
         command = lib.getExe voxinput-record;
       }
     )
+    rec {
+      name = "unipicker";
+      binding = "<Control><Shift>e";
+      command = lib.getExe (
+        pkgs-unstable.callPackage ../apps/ghostty/overlay/package.nix {
+          inherit name;
+          command = with pkgs; "${lib.getExe unipicker} | ${lib.getBin wl-clipboard}/bin/wl-copy";
+          window-width = 82;
+          window-height = 24;
+          window-padding = 12;
+        }
+      );
+    }
   ];
 in
 {
