@@ -1,8 +1,25 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 with lib.lists;
 {
   networking.useDHCP = lib.mkDefault true; # NOTE: NetworkManager, if enabled, will override this to `false`, so use a default value here.
-  networking.networkmanager.enable = true;
+
+  networking.networkmanager = {
+    enable = true;
+
+    plugins = with pkgs; [
+      # See https://discourse.nixos.org/t/breaking-changes-announcement-for-unstable/17574/85:
+      #
+      # > NetworkManager will not ship with VPN plugins by default any more.
+      #
+      # OpenVPN is still required by apps, such as ProtonVPN.
+      networkmanager-openvpn
+    ];
+  };
 
   services.resolved = {
     enable = true;
