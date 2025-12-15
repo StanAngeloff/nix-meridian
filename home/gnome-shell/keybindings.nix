@@ -5,6 +5,35 @@
   voxinput-pkgs,
   ...
 }:
+let
+  keybindings = [
+    {
+      binding = "<Super>t";
+      command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
+        name = "launch-ghostty";
+        ghostty = pkgs-unstable.ghostty-meridian;
+      }}";
+      name = "Ghostty";
+    }
+    (
+      let
+        name = "voxinput-record";
+        voxinput = pkgs.callPackage ../apps/voxinput/package.nix {
+          voxinput = voxinput-pkgs.default;
+        };
+        voxinput-record = pkgs.callPackage ../apps/voxinput/record/package.nix {
+          inherit name voxinput;
+        };
+      in
+      {
+        inherit name;
+
+        binding = "<Super>s";
+        command = lib.getExe voxinput-record;
+      }
+    )
+  ];
+in
 {
   dconf.settings = {
     "org/gnome/desktop/wm/keybindings" = {
@@ -64,10 +93,9 @@
       area-screenshot = [ "<Primary>Print" ];
       area-screenshot-clip = [ "<Primary><Shift>Print" ];
       calculator = [ "<Super>a" ];
-      custom-keybindings = [
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/"
-      ];
+      custom-keybindings = builtins.map (
+        idx: "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString idx}/"
+      ) (lib.lists.range 0 (lib.lists.length keybindings - 1));
       decrease-text-size = [ "<Super>KP_Subtract" ];
       home = [ "<Super>e" ];
       increase-text-size = [ "<Super>KP_Add" ];
@@ -87,30 +115,6 @@
       window-screenshot-clip = [ "<Shift><Alt>Print" ];
       www = [ ];
     };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
-      binding = "<Super>t";
-      command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
-        name = "launch-ghostty";
-        ghostty = pkgs-unstable.ghostty-meridian;
-      }}";
-      name = "Ghostty";
-    };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1" =
-      let
-        name = "voxinput-record";
-        voxinput = pkgs.callPackage ../apps/voxinput/package.nix {
-          voxinput = voxinput-pkgs.default;
-        };
-        voxinput-record = pkgs.callPackage ../apps/voxinput/record/package.nix {
-          inherit name voxinput;
-        };
-      in
-      {
-        inherit name;
-
-        binding = "<Super>s";
-        command = lib.getExe voxinput-record;
-      };
     "org/gnome/shell/keybindings" = {
       show-screen-recording-ui = [ "<Super>Print" ];
       switch-to-application-1 = [ ];
@@ -127,5 +131,11 @@
       toggle-overview = [ "<Super>w" ];
       toggle-quick-settings = [ ]; # default is <Super>s
     };
-  };
+  }
+  // builtins.listToAttrs (
+    builtins.map (idx: {
+      name = "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString idx}";
+      value = builtins.elemAt keybindings idx;
+    }) (lib.lists.range 0 (lib.lists.length keybindings - 1))
+  );
 }
