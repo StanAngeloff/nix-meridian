@@ -10,8 +10,9 @@ let
     rec {
       name = "Ghostty";
       binding = "<Super>t";
-      command = "${pkgs-unstable.callPackage ../apps/ghostty/launch/package.nix {
+      command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
         inherit name;
+        inherit (pkgs-unstable) ghostty-meridian;
       }}";
     }
     (
@@ -34,8 +35,9 @@ let
       name = "unipicker";
       binding = "<Control><Shift>e";
       command = lib.getExe (
-        pkgs-unstable.callPackage ../apps/ghostty/overlay/package.nix {
+        pkgs.callPackage ../apps/ghostty/overlay/package.nix {
           inherit name;
+          inherit (pkgs-unstable) ghostty-meridian;
           command =
             with pkgs;
             "${lib.getExe unipicker} --copy --copy-command ${lib.getBin wl-clipboard}/bin/wl-copy";
