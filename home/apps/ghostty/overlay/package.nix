@@ -5,7 +5,7 @@
   name,
   command,
   runtimeEnv ? { },
-  window-background ? "#100610",
+  window-background ? "#060610",
   window-width ? 80,
   window-height ? 24,
   window-padding ? 8,
