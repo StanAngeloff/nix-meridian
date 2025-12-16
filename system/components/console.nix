@@ -1,9 +1,12 @@
-{ pkgs, ... }:
 {
+  # Set the console log level to show more detailed kernel messages during boot.
+  # Learn more at https://www.kernel.org/doc/html/next/core-api/printk-basics.html
+  boot.consoleLogLevel = 5;
+
   console = {
     earlySetup = true;
-    font = "${pkgs.terminus_font}/share/consolefonts/ter-120n.psf.gz";
-    packages = with pkgs; [ terminus_font ];
     keyMap = "us";
+
+    font = "lat4a-19";
   };
 }
