@@ -66,6 +66,7 @@ in
       mouse-hide-while-typing = true;
       cursor-style = "bar";
       cursor-style-blink = true;
+      mouse-scroll-multiplier = 0.5;
 
       keybind = [
         # General
