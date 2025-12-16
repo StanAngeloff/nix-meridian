@@ -39,7 +39,6 @@ let
           command = with pkgs; "${lib.getExe unipicker} | ${lib.getBin wl-clipboard}/bin/wl-copy";
           window-width = 82;
           window-height = 24;
-          window-padding = 12;
         }
       );
     }
