@@ -36,7 +36,9 @@ let
       command = lib.getExe (
         pkgs-unstable.callPackage ../apps/ghostty/overlay/package.nix {
           inherit name;
-          command = with pkgs; "${lib.getExe unipicker} | ${lib.getBin wl-clipboard}/bin/wl-copy";
+          command =
+            with pkgs;
+            "${lib.getExe unipicker} --copy --copy-command ${lib.getBin wl-clipboard}/bin/wl-copy";
           window-width = 82;
           window-height = 24;
         }
