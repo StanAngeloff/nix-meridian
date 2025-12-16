@@ -16,7 +16,8 @@
 
     extraConfig = ''
       ${builtins.readFile ./tmux.conf}
-      ${builtins.readFile ./tmux.tig.conf}
+      ${builtins.readFile ./abilities/tmux.tig.conf}
+      ${builtins.readFile ./abilities/tmux.nix-diff.conf}
     '';
   };
 }
