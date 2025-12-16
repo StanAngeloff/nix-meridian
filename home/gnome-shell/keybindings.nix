@@ -7,13 +7,12 @@
 }:
 let
   keybindings = [
-    {
-      binding = "<Super>t";
-      command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
-        name = "launch-ghostty";
-        ghostty = pkgs-unstable.ghostty-meridian;
-      }}";
+    rec {
       name = "Ghostty";
+      binding = "<Super>t";
+      command = "${pkgs-unstable.callPackage ../apps/ghostty/launch/package.nix {
+        inherit name;
+      }}";
     }
     (
       let
@@ -27,7 +26,6 @@ let
       in
       {
         inherit name;
-
         binding = "<Super>s";
         command = lib.getExe voxinput-record;
       }
