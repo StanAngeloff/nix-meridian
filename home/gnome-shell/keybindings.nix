@@ -38,9 +38,7 @@ let
         pkgs.callPackage ../apps/ghostty/overlay/package.nix {
           inherit name;
           inherit (pkgs-unstable) ghostty-meridian;
-          command =
-            with pkgs;
-            "${lib.getExe unipicker} --copy --copy-command ${lib.getBin wl-clipboard}/bin/wl-copy";
+          command = with pkgs; "${lib.getExe unipicker} --copy --copy-command wl-copy";
           window-width = 82;
           window-height = 24;
         }
