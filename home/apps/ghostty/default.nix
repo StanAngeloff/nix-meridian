@@ -20,7 +20,10 @@ in
     clearDefaultKeybinds = true;
 
     settings = {
-      font-family = monospaceFontFamily;
+      font-family = [
+        monospaceFontFamily
+        "Adwaita Mono"
+      ];
       font-size = 14;
       font-style = "Regular";
       font-style-bold = "ExtraBold";
