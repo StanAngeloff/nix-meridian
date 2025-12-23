@@ -34,9 +34,6 @@ in
     ./zoxide
     ./zsh
 
-    # Services
-    ./figma-agent
-
     # GUI
     ./brave
     ./dropbox
