@@ -1,8 +1,19 @@
+{ lib, ... }:
 {
   programs.git = {
     enable = true;
     lfs.enable = true;
+  };
 
+  programs.mergiraf = {
+    enable = true;
+  };
+
+  programs.diff-so-fancy = {
+    enable = true;
+  };
+
+  programs.git = {
     signing = {
       key = "595EA753";
       signByDefault = true;
@@ -86,7 +97,7 @@
       };
 
       merge = {
-        conflictstyle = "zdiff3";
+        conflictStyle = lib.mkDefault "zdiff3";
       };
 
       pull = {
@@ -121,8 +132,6 @@
   };
 
   programs.diff-so-fancy = {
-    enable = true;
-
     settings = {
       changeHunkIndicators = false;
       stripLeadingSymbols = false;
