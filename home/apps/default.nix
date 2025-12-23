@@ -28,8 +28,9 @@ in
     ./mise
     ./nh
     ./nixvim
-    ./nodejs+pnpm
+    ./nodejs
     ./ov
+    ./python
     ./ripgrep
     ./tig
     ./tmux
@@ -72,8 +73,6 @@ in
     imagemagick
     libsecret
     nsx
-    python314
-    python314Packages.uv
     pkgs-unstable.ocrmypdf
     qemu
     rclone
