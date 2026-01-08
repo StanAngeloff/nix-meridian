@@ -44,6 +44,5 @@
     ./vim-zend55.nix
     ./web-devicons.nix
     ./yanky.nix
-    #./codecompanion-nvim.nix
   ];
 }
