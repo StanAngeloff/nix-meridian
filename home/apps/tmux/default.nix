@@ -1,3 +1,4 @@
+{ pkgs, ... }:
 {
   programs.tmux = {
     enable = true;
@@ -13,6 +14,16 @@
     mouse = true;
     prefix = "C-s";
     terminal = "tmux-256color";
+
+    plugins = with pkgs.tmuxPlugins; [
+      {
+        plugin = fuzzback;
+        extraConfig = # tmux
+          ''
+            set -g @fuzzback-bind /
+          '';
+      }
+    ];
 
     extraConfig = ''
       ${builtins.readFile ./tmux.conf}
