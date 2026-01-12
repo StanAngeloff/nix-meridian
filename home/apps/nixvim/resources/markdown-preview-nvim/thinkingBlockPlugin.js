@@ -1,6 +1,6 @@
 function thinkingBlockPlugin(md) {
   function thinkingBlockRule(state, startLine, endLine, silent) {
-    const startTag = /^\s*<thinking>\s*$/;
+    const startTag = /^\s*<thinking[^>]*>\s*$/;
     const endTag = /^\s*<\/thinking>\s*$/;
 
     // --- Find the start of the block ---

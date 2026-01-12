@@ -8,8 +8,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "ca921a6489c816e96b5bdabe130d1034737933b9";
-        hash = "sha256-gNcheBDFirXtKpDLubwIwyOQuLJlTdZt1SpRTPUkQ5g=";
+        rev = "e0fc5c72f3ff4d0479b7155b7e9b5a44162f67c2";
+        hash = "sha256-GYCE84ouD0Zoqf8J8KEhlI9/FjhikvuVXOg+h9/TL6U=";
       };
 
       postInstall = ''
@@ -36,6 +36,12 @@ let
         max_tokens = 65536;
         thinking_budget = 32768;
       };
+      "$opus-4-5" = {
+        provider = "anthropic";
+        model = "claude-opus-4-5";
+        max_tokens = 64000;
+        reasoning = "high";
+      };
     };
     provider = "vertex";
     # model = "…"; # The latest Gemini Pro model will be used by default.
@@ -53,32 +59,6 @@ let
     };
     pricing = {
       enabled = true;
-    };
-    ruler = {
-      char = "━";
-    };
-    signs = {
-      enabled = true;
-      assistant = {
-        hl = "#8f9fdf";
-      };
-      user = {
-        char = "▏";
-        hl = "#6f6f6f";
-      };
-    };
-    highlights = {
-      assistant = "#8f9faf";
-      user_lua_expression = "#ff00ff";
-      user_file_reference = "#ff00ff";
-      thinking_tag = {
-        fg = "#6f7f8f";
-        bold = true;
-        underline = true;
-      };
-      thinking_block = {
-        fg = "#6f7f8f";
-      };
     };
   };
 in
