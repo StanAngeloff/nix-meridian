@@ -34,6 +34,7 @@
       Login.HandleHibernateKey = "suspend-then-hibernate";
       Login.HandleLidSwitch = "suspend-then-hibernate";
       Login.HandleLidSwitchDocked = "ignore";
+      Login.PowerKeyIgnoreInhibited = "yes";
     };
   };
 
