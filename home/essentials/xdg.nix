@@ -14,6 +14,12 @@ in
 
     # Ensure the file is always overwritten to avoid collisions.
     configFile."mimeapps.list".force = true;
+
+    portal = {
+      enable = true;
+      extraPortals = with pkgs; [ xdg-desktop-portal-gnome ];
+      config.common.default = "gnome";
+    };
   };
 
   home.sessionVariables = {
