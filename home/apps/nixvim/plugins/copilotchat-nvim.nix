@@ -39,7 +39,7 @@
           "n"
           "v"
         ];
-        action.__raw = ''function() require('CopilotChat').toggle() end'';
+        action.__raw = "function() require('CopilotChat').toggle() end";
       }
     ];
   };

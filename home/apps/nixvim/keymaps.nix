@@ -20,7 +20,7 @@
     { key = "<F4>"; mode = [ "n" ]; action = ":setlocal list! list?<CR>"; options.silent = true; options.desc = "Toggle list characters"; }
     { key = "<F5>"; mode = [ "n" ]; action = ":w<CR>:call system('tmux send-keys -t ' . shellescape(g:tmux_target) . ' \"q\"')<CR>:sleep 100m<CR>:call system('tmux send-keys -t ' . shellescape(g:tmux_target) . ' \"^C\"')<CR>:sleep 100m<CR>:call system('tmux send-keys -Rt ' . shellescape(g:tmux_target) . ' \"^U\" \"^L\" ' . shellescape(g:tmux_command) . ' \"Enter\"')<CR>"; options.silent = true; }
     { key = "<F5>"; mode = [ "i" ]; action = "<Esc><F5>a"; options.silent = true; }
-    { key = "<F6>"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.UndotreeToggle() end''; }
+    { key = "<F6>"; mode = [ "n" ]; action.__raw = "function() vim.cmd.UndotreeToggle() end"; }
     { key = "<F7>"; mode = [ "n" ]; action = ":TSHighlightCapturesUnderCursor<CR>"; options.silent = true; options.desc = "Show the stack of syntax highlighting classes affecting whatever is under the cursor"; }
     { key = "<leader>tn"; mode = [ "n" ]; action = ":tabnew<CR>"; options.desc = "Create a new tab"; }
     { key = "<leader>tm"; mode = [ "n" ]; action = ":tabmove"; options.desc = "Move the current tab"; }
