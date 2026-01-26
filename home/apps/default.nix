@@ -64,11 +64,13 @@ in
     wget
 
     # CLI
+    bun
     clipboard2markdown
     dconf2nix
     pkgs-unstable.deno
     ffmpeg
     (lib.hiPrio file-rename)
+    fx
     ghostscript
     imagemagick
     libsecret
