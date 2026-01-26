@@ -35,11 +35,8 @@ in
   ];
 
   home.file.".local/bin/x-www-browser" = {
+    source = "${lib.getExe brave}";
     executable = true;
-    text = ''
-      #!/bin/sh
-      exec "${lib.getExe brave}" "$@"
-    '';
   };
 
   # The below is needed for `slackdump` to find Brave (as `brave-browser`).

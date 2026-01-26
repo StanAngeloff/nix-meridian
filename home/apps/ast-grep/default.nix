@@ -6,10 +6,7 @@ in
   home.packages = [ ast-grep ];
 
   home.file.".local/bin/sg" = {
+    source = "${lib.getExe ast-grep}";
     executable = true;
-    text = ''
-      #!/bin/sh
-      exec "${lib.getExe ast-grep}" "$@"
-    '';
   };
 }
