@@ -42,6 +42,12 @@ in
     '';
   };
 
+  # The below is needed for `slackdump` to find Brave (as `brave-browser`).
+  home.file.".local/bin/brave-browser" = {
+    source = "${lib.getExe brave}";
+    executable = true;
+  };
+
   home.activation.updateBravePreferences =
     let
       jq = "${lib.getExe pkgs.jq}";
