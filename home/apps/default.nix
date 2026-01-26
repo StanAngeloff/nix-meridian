@@ -74,6 +74,7 @@ in
     ghostscript
     imagemagick
     libsecret
+    lsof
     nsx
     pkgs-unstable.ocrmypdf
     qemu
