@@ -23,6 +23,9 @@
       "text/plain"
       "text/x-log"
     ];
+    "org.gnome.gitlab.somas.Apostrophe.desktop" = [
+      "text/markdown"
+    ];
     "brave-browser.desktop" = [
       "text/html"
       "x-scheme-handler/http"
