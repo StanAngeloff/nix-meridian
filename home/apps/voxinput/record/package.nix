@@ -12,6 +12,7 @@
   systemd,
   tmux,
   zenity,
+  python313Packages,
 }:
 writeShellApplication {
   inherit name;
@@ -24,6 +25,7 @@ writeShellApplication {
 
       busctl = "${lib.getBin systemd}/bin/busctl";
       dotool = "${lib.getBin dotool}/bin/dotool";
+      llm = lib.getExe (python313Packages.llm.withPlugins { llm-anthropic = true; });
       notify-send = lib.getExe libnotify;
       pgrep = "${lib.getBin procps}/bin/pgrep";
       tmux = lib.getExe tmux;

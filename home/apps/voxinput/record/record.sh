@@ -188,6 +188,13 @@ while read -r -u "${voxinput_listen[0]}" line; do
 	fi
 done
 
+# At this point the transcription should be complete and in the clipboard.
+# However, Whisper isn't great at sentence prediction or punctuation, let's do a bit of post-processing via Haiku (not going to break the bank with that one).
+@llm@ -m claude-haiku-4.5 \
+	--key "$(secret-tool lookup service anthropic key api 2>/dev/null)" \
+	--system "$( echo -e "You will be given a transcription of the user's microphone.${VOXINPUT_PROMPT:+" The transcription agent was given the following additional context: <transcription_context>${VOXINPUT_PROMPT}</transcription_context>"}\nFix spelling mistakes, apply punctuation, correctly separate sentences and re-format as readable paragraphs.\nApply Markdown **bold** and _emphasis_, use CAPITALS sparingly ONLY when and where appropriate.\n\nDo not add any additional text or commentary.\nDo not modify the meaning of the transcription in any way - do not summarize.\n\nYour job is to fixup, not rewrite.\nAfter you are done, if certain parts do not make sense, remember the user is technical - attempt to replace one or two words which might have been mistranscribed with popular SaaS product names." )" \
+	"$(wl-paste)" |	wl-copy
+
 # Let's try and paste into the active window. If we call busctl just once, it doesn't correctly refresh the focused window PID, so we call it again.
 @busctl@ --user -j call org.gnome.Shell /org/gnome/Shell/Extensions/Windows org.gnome.Shell.Extensions.Windows List >/dev/null || true
 window_in_focus_pid=$(@busctl@ --user -j call org.gnome.Shell /org/gnome/Shell/Extensions/Windows org.gnome.Shell.Extensions.Windows List | jq -r '.data[0]' | jq '.[] | select(.focus == true) | .pid' || true)
