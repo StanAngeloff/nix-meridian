@@ -49,6 +49,7 @@
     { key = "<C-R>"; mode = [ "i" ]; action = "<C-G>u<C-R>"; }
     { key = "<C-J>"; mode = [ "i" ]; action = "<C-G>u<C-O>o"; }
     { key = "<C-K>"; mode = [ "i" ]; action = "<C-G>u<C-O>O"; }
+    { key = "<C-L>"; mode = [ "i" ]; action = "<C-O>:normal <C-L><CR>"; }
     { key = "<Return>"; mode = [ "i" ]; action = "<C-G>u<CR>"; }
     { key = "<leader>sip"; mode = [ "n" ]; action = "mZvip:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
