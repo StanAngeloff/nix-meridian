@@ -12,6 +12,7 @@
   systemd,
   tmux,
   zenity,
+  gawk,
   python313Packages,
 }:
 writeShellApplication {
@@ -25,6 +26,7 @@ writeShellApplication {
 
       busctl = "${lib.getBin systemd}/bin/busctl";
       dotool = "${lib.getBin dotool}/bin/dotool";
+      gawk = lib.getExe gawk;
       llm = lib.getExe (python313Packages.llm.withPlugins { llm-anthropic = true; });
       notify-send = lib.getExe libnotify;
       pgrep = "${lib.getBin procps}/bin/pgrep";
