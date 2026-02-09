@@ -4,6 +4,7 @@
     ./appindicator.nix
     ./bing-wallpaper-changer.nix
     ./bluetooth-battery-meter.nix
+    ./claude-usage-extension.nix
     ./clipboard-indicator.nix
     ./do-not-disturb-while-screen-sharing-or-recording.nix
     ./hide-universal-access.nix
