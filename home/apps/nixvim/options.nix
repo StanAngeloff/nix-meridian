@@ -29,7 +29,7 @@
       langmap = ( lib.concatStringsSep "," [ "ч`" "яq" "вw" "еe" "рr" "тt" "ъy" "уu" "иi" "оo" "пp" "ш[" "щ]" "аa" "сs" "дd" "фf" "гg" "хh" "йj" "кk" "лl" "зz" "ьx" "цc" "жv" "бb" "нn" "мm" "Ч~" "ЯQ" "ВW" "ЕE" "РR" "ТT" "ЪY" "УU" "ИI" "ОO" "ПP" "Ш{" "Щ}" "АA" "СS" "ДD" "ФF" "ГG" "ХH" "ЙJ" "КK" "ЛL" "ЗZ" "ѝX" "ЦC" "ЖV" "БB" "НN" "МM" "Ю|" "ю\\\\" ] );
       # nixfmt: on
       laststatus = 3;
-      lazyredraw = true;
+      lazyredraw = false;
       linebreak = true;
       listchars = "tab:→ ,eol:↵,extends:❯,precedes:❮,trail:␣";
       matchpairs = "(:),{:},[:],<:>";
