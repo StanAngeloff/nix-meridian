@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   gcloud-project-id = "stans-playground";
   gcloud-location = "europe-central2"; # Warsaw, Poland, Europe
@@ -8,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "57fe12d9eade02889064f2b261e2c70e8c654cbe";
-        hash = "sha256-5s/wcnXG6p4RBZaXz5U85PJsUkAnR+A7pc72jtp1kJs=";
+        rev = "v0.2.0";
+        hash = "sha256-4sY4TSorNQJhWPpD2ek6esfGhYfwXpZr+E5Q3YGF8eE=";
       };
 
       postInstall = ''
@@ -23,35 +28,39 @@ let
       "$gemini-2.5" = {
         provider = "vertex";
         model = "gemini-2.5-pro";
-        project_id = gcloud-project-id;
         location = gcloud-location;
-        max_tokens = 65536;
-        thinking_budget = 32768;
       };
       "$gemini-3" = {
         provider = "vertex";
         model = "gemini-3-pro-preview";
-        project_id = gcloud-project-id;
         location = "global";
-        max_tokens = 65536;
-        thinking_budget = 32768;
       };
-      "$opus-4-5" = {
+      "$sonnet-4-5" = {
         provider = "anthropic";
-        model = "claude-opus-4-5";
-        max_tokens = 64000;
-        reasoning = "high";
+        model = "claude-sonnet-4-5";
+      };
+      "$opus-4-6" = {
+        provider = "anthropic";
+        model = "claude-opus-4-6";
       };
     };
     provider = "vertex";
-    # model = "…"; # The latest Gemini Pro model will be used by default.
     parameters = {
-      max_tokens = 65536;
+      max_tokens = 64000;
+      thinking = "max";
       timeout = 300;
-      project_id = gcloud-project-id;
       vertex = {
         location = gcloud-location;
+        project_id = gcloud-project-id;
         thinking_budget = 32768;
+      };
+    };
+    sandbox = {
+      backend = "required";
+      backends = {
+        bwrap = {
+          path = lib.getExe pkgs.bubblewrap;
+        };
       };
     };
     editing = {
