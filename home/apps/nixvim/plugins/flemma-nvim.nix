@@ -13,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "f88449f35731acbaeb3026926855c42c5bd8f638";
-        hash = "sha256-hnX1lFKnLHFdNDyzvjefJbiyaiGjR1Ls/ZZsxD8PjJE=";
+        rev = "v0.3.0";
+        hash = "sha256-+xwc+zX06k45rdRPESb5SKzv4zmzzjewmLyzX1o+IPg=";
       };
 
       postInstall = ''
@@ -55,11 +55,11 @@ let
         model = "gemini-3-pro-preview";
         location = "global";
       };
-      "$sonnet-4-5" = {
+      "$sonnet" = {
         provider = "anthropic";
-        model = "claude-sonnet-4-5";
+        model = "claude-sonnet-4-6";
       };
-      "$opus-4-6" = {
+      "$opus" = {
         provider = "anthropic";
         model = "claude-opus-4-6";
       };
