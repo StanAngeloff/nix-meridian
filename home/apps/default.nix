@@ -67,7 +67,7 @@ in
     bun
     clipboard2markdown
     dconf2nix
-    pkgs-unstable.deno
+    deno
     ffmpeg
     (lib.hiPrio file-rename)
     fx
