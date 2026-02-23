@@ -52,7 +52,7 @@ let
       };
       "$gemini-3" = {
         provider = "vertex";
-        model = "gemini-3-pro-preview";
+        model = "gemini-3.1-pro-preview";
         location = "global";
       };
       "$sonnet" = {
