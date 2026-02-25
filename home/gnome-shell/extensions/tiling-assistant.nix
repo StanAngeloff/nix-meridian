@@ -46,8 +46,8 @@ in
 
   home.file.".config/tiling-assistant/layouts.json".text = builtins.toJSON [
     # nixfmt: off
-    (layout "3 : 1" [ [ 0 0 0.75 1 ] [ 0.75 0 0.25 1 ] ])
     (layout "N-Columns" [ [ 0 0 1 1 { loopType = "v"; } ] ])
+    (layout "3 : 1" [ [ 0 0 0.75 1 ] [ 0.75 0 0.25 1 ] ])
     (layout "Master and Stack" [ [ 0 0 0.5 1 ] [ 0.5 0 0.5 1 { loopType = "h"; } ] ])
     # nixfmt: on, as: list-of-calls
   ];
