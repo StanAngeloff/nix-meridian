@@ -13,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "v0.4.0";
-        hash = "sha256-iu1bVKm3Ci7KG3XBrzrsbrCJWBZWoWAaRlxG3F6z8Ok=";
+        rev = "v0.5.0";
+        hash = "sha256-Vo9GvdH0e4fhXUGf5RW0D1Oe6kLXc6AwhCillLrnHXE=";
       };
 
       postInstall = ''
@@ -26,7 +26,6 @@ let
   flemma-settings = {
     model = "$gemini-3";
     parameters = {
-      max_tokens = 64000;
       thinking = "max";
       timeout = 300;
       vertex = {
