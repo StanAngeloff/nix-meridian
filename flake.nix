@@ -24,13 +24,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    solaar-unstable = {
+    solaar-flake = {
       url = "github:Svenum/Solaar-Flake/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     voxinput-flake = {
       url = "github:richiejp/VoxInput/main";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    ghostty-flake = {
+      url = "github:ghostty-org/ghostty/v1.2.3";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -41,14 +46,16 @@
       nixpkgs-unstable,
       home-manager,
       nixvim,
-      solaar-unstable,
+      solaar-flake,
       voxinput-flake,
       ...
     }@inputs:
     let
       system = "x86_64-linux";
-      pkgs-overlay = final: prev: {
-        ghostty-meridian = final.callPackage ./pkgs/ghostty/default.nix { };
+      meridian-overlay = final: prev: {
+        ghostty = final.callPackage ./pkgs/ghostty/overlay.nix {
+          ghostty = inputs.ghostty-flake.packages.${system}.default;
+        };
       };
       pkgs-unstable = (
         import nixpkgs-unstable {
@@ -56,7 +63,6 @@
           config = {
             allowUnfree = true;
           };
-          overlays = [ pkgs-overlay ];
         }
       );
       voxinput-pkgs = voxinput-flake.packages.${system};
@@ -67,11 +73,11 @@
         specialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
         modules = [
           {
-            nixpkgs.overlays = [ pkgs-overlay ];
+            nixpkgs.overlays = [ meridian-overlay ];
           }
           ./modules/options
           ./configuration.nix
-          solaar-unstable.nixosModules.default
+          solaar-flake.nixosModules.default
           home-manager.nixosModules.home-manager
           {
             home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };

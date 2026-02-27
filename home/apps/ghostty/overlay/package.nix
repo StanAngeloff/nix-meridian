@@ -1,7 +1,7 @@
 {
   lib,
   writeShellApplication,
-  ghostty-meridian,
+  ghostty,
   name,
   command,
   runtimeEnv ? { },
@@ -12,8 +12,6 @@
   ...
 }@args:
 let
-  ghostty = ghostty-meridian;
-
   fromHex =
     hex:
     let
@@ -71,7 +69,7 @@ writeShellApplication {
               "name"
               "command"
               "runtimeEnv"
-              "ghostty-meridian"
+              "ghostty"
               "window-background"
               "window-width"
               "window-height"

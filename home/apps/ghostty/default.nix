@@ -1,10 +1,10 @@
 {
   config,
-  pkgs-unstable,
+  lib,
+  pkgs,
   ...
 }:
 let
-  ghostty = pkgs-unstable.ghostty-meridian;
   monospaceFontFamily = "${
     builtins.replaceStrings [ " " ] [ "" ] config.nix-meridian.fonts.monospace.name
   } Nerd Font Mono";
@@ -12,7 +12,6 @@ in
 {
   programs.ghostty = {
     enable = true;
-    package = ghostty;
 
     systemd.enable = false;
     enableZshIntegration = false;
@@ -102,8 +101,8 @@ in
   home.file.".config/ghostty/gtk.css".source = ./gtk.css;
 
   dconf.settings = {
-    "org/gnome/desktop/default-applications/terminal" = {
-      exec = "${ghostty}/bin/ghostty";
+    "org/gnome/desktop/default-applications/terminal" = with pkgs; {
+      exec = lib.getExe ghostty;
       exec-arg = "-e";
     };
   };

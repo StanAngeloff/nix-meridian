@@ -12,7 +12,7 @@ let
       done
     '';
 in
-runCommand "ghostty-meridian"
+runCommand "ghostty"
   {
     nativeBuildInputs = [ imagemagick ];
 

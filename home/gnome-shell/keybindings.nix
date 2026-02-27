@@ -1,7 +1,6 @@
 {
   lib,
   pkgs,
-  pkgs-unstable,
   voxinput-pkgs,
   ...
 }:
@@ -12,7 +11,6 @@ let
       binding = "<Super>t";
       command = "${pkgs.callPackage ../apps/ghostty/launch/package.nix {
         inherit name;
-        inherit (pkgs-unstable) ghostty-meridian;
       }}";
     }
     (
@@ -37,7 +35,6 @@ let
       command = lib.getExe (
         pkgs.callPackage ../apps/ghostty/overlay/package.nix {
           inherit name;
-          inherit (pkgs-unstable) ghostty-meridian;
           command = with pkgs; "${lib.getExe unipicker} --copy --copy-command wl-copy";
           window-width = 82;
           window-height = 24;
