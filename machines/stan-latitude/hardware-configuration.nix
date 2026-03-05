@@ -69,6 +69,10 @@
     enable = true; # Adds support for Samsung M2022W
   };
 
+  services.printing.drivers = with pkgs; [
+    epson-escpr # Adds support for Epson L3250
+  ];
+
   services.fprintd = {
     enable = true;
 
