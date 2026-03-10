@@ -13,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "v0.5.0";
-        hash = "sha256-Vo9GvdH0e4fhXUGf5RW0D1Oe6kLXc6AwhCillLrnHXE=";
+        rev = "0f68b6a59ba9d096f1791584dee6eec128921d49";
+        hash = "sha256-LTR+IPLv/shn4MNjalHChvEkHmBLG93T6cm5tb0GaOE=";
       };
 
       postInstall = ''
@@ -32,6 +32,9 @@ let
         location = gcloud-default-location;
         project_id = gcloud-project-id;
       };
+    };
+    diagnostics = {
+      enabled = true;
     };
     sandbox = {
       backend = "required";
@@ -71,8 +74,10 @@ in
       flemma-nvim
     ];
 
-    extraConfigLua = with config.lib.nixvim; ''
-      require("flemma").setup(${toLuaObject flemma-settings});
-    '';
+    extraConfigLua =
+      with config.lib.nixvim; # lua
+      ''
+        require("flemma").setup(${toLuaObject flemma-settings})
+      '';
   };
 }
