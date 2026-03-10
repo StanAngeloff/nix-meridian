@@ -30,7 +30,7 @@ in
       font-style-bold-italic = "ExtraBold Oblique";
 
       adjust-cell-width = "-10%";
-      adjust-cell-height = "2%";
+      adjust-cell-height = "0%";
       adjust-font-baseline = "0%";
       adjust-box-thickness = "-25%";
 

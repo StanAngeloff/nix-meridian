@@ -16,12 +16,22 @@ runCommand "ghostty"
   {
     nativeBuildInputs = [ imagemagick ];
 
+    outputs = [
+      "out"
+      "terminfo"
+      "shell_integration"
+      "vim"
+    ];
+
     meta = {
       mainProgram = "ghostty";
     };
   }
   ''
     cp -r ${ghostty} $out
+    cp -r ${ghostty.terminfo} $terminfo
+    cp -r ${ghostty.shell_integration} $shell_integration
+    cp -r ${ghostty.vim} $vim
 
     ${manipulateIconsAndHueRotateToOrange}
   ''

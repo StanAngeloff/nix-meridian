@@ -35,8 +35,8 @@
     };
 
     ghostty-flake = {
-      url = "github:ghostty-org/ghostty/v1.2.3";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:ghostty-org/ghostty/v1.3.0";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
   };
 
