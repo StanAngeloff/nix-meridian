@@ -10,9 +10,10 @@ set refresh-mode = auto
 #set refresh-mode = periodic
 #set refresh-interval = 1
 
-color cursor white color34 bold
-color cursor-blur white color34
-color title-focus white color56 bold
+color cursor white color34
+color cursor-blur white color34 bold
+
+color title-focus white color56
 color title-blur white color55
 
 source ~/.config/tig/vim.tigrc
