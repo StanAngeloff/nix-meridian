@@ -27,7 +27,7 @@ let
     model = "$gemini-3";
     parameters = {
       thinking = "max";
-      timeout = 300;
+      timeout = 600;
       vertex = {
         location = gcloud-default-location;
         project_id = gcloud-project-id;
