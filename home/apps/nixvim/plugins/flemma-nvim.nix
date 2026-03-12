@@ -48,22 +48,26 @@ let
       auto_write = true;
     };
     presets = {
-      "$gemini-2.5" = {
-        provider = "vertex";
-        model = "gemini-2.5-pro";
-      };
       "$gemini-3" = {
         provider = "vertex";
         model = "gemini-3.1-pro-preview";
         location = "global";
       };
-      "$sonnet" = {
-        provider = "anthropic";
-        model = "claude-sonnet-4-6";
+      "$gemini-2.5" = {
+        provider = "vertex";
+        model = "gemini-2.5-pro";
       };
       "$opus" = {
         provider = "anthropic";
         model = "claude-opus-4-6";
+      };
+      "$sonnet" = {
+        provider = "anthropic";
+        model = "claude-sonnet-4-6";
+      };
+      "$gpt" = {
+        provider = "openai";
+        model = "gpt-5.4";
       };
     };
   };
