@@ -4,6 +4,10 @@
 
     settings = {
       options = {
+        get_element_icon.__raw = ''
+          require("flemma.integrations.bufferline").get_element_icon
+        '';
+
         mode = "tabs";
         numbers = "none";
         style_preset.__raw = ''

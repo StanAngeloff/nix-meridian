@@ -13,13 +13,14 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "0f68b6a59ba9d096f1791584dee6eec128921d49";
-        hash = "sha256-LTR+IPLv/shn4MNjalHChvEkHmBLG93T6cm5tb0GaOE=";
+        rev = "fc95a9f9ec6d43527b27e5597eddfc501db8c560";
+        hash = "sha256-eyQFOfI4rg1JRJbNb/IVB6tgqlBkWBySBbwBxbnQ/ug=";
       };
 
       postInstall = ''
-        substituteInPlace $target/lua/flemma/provider/providers/vertex.lua \
-          --replace gcloud "${pkgs.google-cloud-sdk}/bin/gcloud"
+        substituteInPlace $target/lua/flemma/secrets/resolvers/gcloud.lua \
+          --replace "(\"gcloud\")" "(\"${pkgs.google-cloud-sdk}/bin/gcloud\")" \
+          --replace "\"gcloud\"," "\"${pkgs.google-cloud-sdk}/bin/gcloud\","
       '';
     }
   );
@@ -35,6 +36,10 @@ let
     };
     diagnostics = {
       enabled = true;
+    };
+    experimental = {
+      lsp = true;
+      tools = true;
     };
     sandbox = {
       backend = "required";
