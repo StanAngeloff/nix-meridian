@@ -7,11 +7,15 @@ let
     };
     claude = {
       package = "@anthropic-ai/claude-code";
+      # See "[BUG] Session keeps getting interrupted without any external interventions like pressing escape" https://github.com/anthropics/claude-code/issues/35643
+      version = "2.1.77";
       env = {
         DISABLE_AUTOUPDATER = 1;
         DISABLE_INSTALLATION_CHECKS = 1;
         FORCE_AUTOUPDATE_PLUGINS = 1;
         USE_BUILTIN_RIPGREP = 0;
+        # See "[BUG] Logo and "Thinking" animation colors are dull/washed-out inside tmux" https://github.com/anthropics/claude-code/issues/35148#issuecomment-4073207670
+        TMUX = "";
       };
     };
   };
@@ -29,8 +33,9 @@ let
           + " "
         else
           "";
+      version = if cfg ? version then cfg.version else "latest";
     in
-    "${envPrefix}pnpm --silent dlx ${cfg.package}@latest";
+    "${envPrefix}pnpm --silent dlx ${cfg.package}@${version}";
 in
 {
   programs.zsh.shellAliases = {
