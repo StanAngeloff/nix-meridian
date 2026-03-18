@@ -13,22 +13,15 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "fc95a9f9ec6d43527b27e5597eddfc501db8c560";
-        hash = "sha256-eyQFOfI4rg1JRJbNb/IVB6tgqlBkWBySBbwBxbnQ/ug=";
+        rev = "7864486bd547dec354efbdd6e726ca70e5eb3e29";
+        hash = "sha256-wVm9hVPnnvc1BBwqTsKa6BWbJXhflJ2vcnywwJbaJYM=";
       };
-
-      postInstall = ''
-        substituteInPlace $target/lua/flemma/secrets/resolvers/gcloud.lua \
-          --replace "(\"gcloud\")" "(\"${pkgs.google-cloud-sdk}/bin/gcloud\")" \
-          --replace "\"gcloud\"," "\"${pkgs.google-cloud-sdk}/bin/gcloud\","
-      '';
     }
   );
   flemma-settings = {
     model = "$gemini-3";
     parameters = {
       thinking = "max";
-      timeout = 600;
       vertex = {
         location = gcloud-default-location;
         project_id = gcloud-project-id;
@@ -41,6 +34,11 @@ let
       lsp = true;
       tools = true;
     };
+    secrets = {
+      gcloud = {
+        path = "${pkgs.google-cloud-sdk}/bin/gcloud";
+      };
+    };
     sandbox = {
       backend = "required";
       backends = {
@@ -51,6 +49,9 @@ let
     };
     editing = {
       auto_write = true;
+    };
+    statusline = {
+      format = "#{model}#{?#{thinking}, (#{thinking}),}#{?#{booting}, ⏳,}#{?#{session.cost},  │  Σ#{session.requests}  #{session.cost},}";
     };
     presets = {
       "$gemini-3" = {
