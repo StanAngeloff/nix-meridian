@@ -1,16 +1,6 @@
 { pkgs, pkgs-unstable, ... }:
 let
-  blade = pkgs.tree-sitter.buildGrammar rec {
-    language = "blade";
-    version = "0.11.0";
-    src = pkgs.fetchFromGitHub {
-      owner = "EmranMR";
-      repo = "tree-sitter-blade";
-      rev = "v${version}";
-      hash = "sha256-PTGdsXlLoE+xlU0uWOU6LQalX4fhJ/qhpyEKmTAazLU=";
-    };
-    meta.homepage = "https://github.com/EmranMR/tree-sitter-blade";
-  };
+  blade = pkgs-unstable.tree-sitter-grammars.tree-sitter-blade;
   terraform = pkgs-unstable.vimPlugins.nvim-treesitter-parsers.terraform;
 in
 {

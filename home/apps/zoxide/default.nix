@@ -1,10 +1,10 @@
-{ lib, pkgs, ... }:
+{ lib, pkgs-unstable, ... }:
 {
   programs.zoxide = {
     enable = true;
     enableZshIntegration = true;
 
-    package = pkgs.callPackage ./package.nix {
+    package = pkgs-unstable.zoxide.override {
       withFzf = true;
     };
   };

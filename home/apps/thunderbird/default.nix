@@ -1,6 +1,5 @@
 {
   imports = [
-    #./themes/thunderbird-gnome-theme.nix.nix
   ];
 
   programs.thunderbird = {

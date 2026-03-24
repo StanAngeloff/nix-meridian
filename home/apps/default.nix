@@ -79,7 +79,7 @@ in
     nsx
     pkgs-unstable.ocrmypdf
     qemu
-    rclone
+    pkgs-unstable.rclone
     scrcpy
     tesseract
     trash-cli

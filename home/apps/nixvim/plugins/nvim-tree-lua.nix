@@ -1,23 +1,10 @@
-{ pkgs, ... }:
 let
-  nvim-tree-lua = (
-    pkgs.vimPlugins.nvim-tree-lua.overrideAttrs (prev: rec {
-      version = "1.14.0";
-      src = pkgs.fetchFromGitHub {
-        owner = "nvim-tree";
-        repo = "nvim-tree.lua";
-        rev = "v${version}";
-        hash = "sha256-68KXPF1bALan+rkHxIkSt0DDT1pWB3+g73imwSHVafg=";
-      };
-    })
-  );
   nvimTreeViewWidth = 48;
 in
 {
   programs.nixvim = {
     plugins.nvim-tree = {
       enable = true;
-      package = nvim-tree-lua;
 
       settings = {
         reload_on_bufenter = true;
