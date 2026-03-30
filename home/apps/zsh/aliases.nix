@@ -8,7 +8,8 @@ let
     claude = {
       package = "@anthropic-ai/claude-code";
       # See "[BUG] Session keeps getting interrupted without any external interventions like pressing escape" https://github.com/anthropics/claude-code/issues/35643
-      version = "2.1.81";
+      version = "2.1.86";
+      args = "--effort max";
       env = {
         DISABLE_AUTOUPDATER = 1;
         DISABLE_INSTALLATION_CHECKS = 1;
@@ -34,8 +35,9 @@ let
         else
           "";
       version = if cfg ? version then cfg.version else "latest";
+      argsSuffix = if cfg ? args then " ${cfg.args}" else "";
     in
-    "${envPrefix}pnpm --silent dlx ${cfg.package}@${version}";
+    "${envPrefix}pnpm --silent dlx ${cfg.package}@${version}${argsSuffix}";
 in
 {
   programs.zsh.shellAliases = {
