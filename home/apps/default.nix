@@ -35,7 +35,7 @@ in
     ./tig
     ./tmux
     ./unicode-tussle
-    ./voxinput
+    ./voxize
     ./zoxide
     ./zsh
 

@@ -290,8 +290,7 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "nixvim": "nixvim",
-        "solaar-flake": "solaar-flake",
-        "voxinput-flake": "voxinput-flake"
+        "solaar-flake": "solaar-flake"
       }
     },
     "solaar-flake": {
@@ -392,27 +391,6 @@
         "owner": "gytis-ivaskevicius",
         "repo": "flake-utils-plus",
         "rev": "afcb15b845e74ac5e998358709b2b5fe42a948d1",
-        "type": "github"
-      }
-    },
-    "voxinput-flake": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1773395512,
-        "narHash": "sha256-iqCRtshItQdDLuAZAbVdN5x+4zDoGr2Hgev5aPmjQEQ=",
-        "owner": "richiejp",
-        "repo": "VoxInput",
-        "rev": "27ecd1a4505037ae9782c0fa2c8413a29723e99c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "richiejp",
-        "ref": "main",
-        "repo": "VoxInput",
         "type": "github"
       }
     },

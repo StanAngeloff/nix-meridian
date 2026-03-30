@@ -29,11 +29,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    voxinput-flake = {
-      url = "github:richiejp/VoxInput/main";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     ghostty-flake = {
       url = "github:ghostty-org/ghostty/v1.3.0";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
@@ -47,7 +42,6 @@
       home-manager,
       nixvim,
       solaar-flake,
-      voxinput-flake,
       ...
     }@inputs:
     let
@@ -65,12 +59,11 @@
           };
         }
       );
-      voxinput-pkgs = voxinput-flake.packages.${system};
     in
     {
       nixosConfigurations.stan-latitude = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
+        specialArgs = { inherit inputs pkgs-unstable; };
         modules = [
           {
             nixpkgs.overlays = [ meridian-overlay ];
@@ -80,7 +73,7 @@
           solaar-flake.nixosModules.default
           home-manager.nixosModules.home-manager
           {
-            home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable voxinput-pkgs; };
+            home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable; };
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.stan.imports = [

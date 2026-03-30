@@ -1,7 +1,6 @@
 {
   lib,
   pkgs,
-  voxinput-pkgs,
   ...
 }:
 let
@@ -15,18 +14,13 @@ let
     }
     (
       let
-        name = "voxinput-record";
-        voxinput = pkgs.callPackage ../apps/voxinput/package.nix {
-          voxinput = voxinput-pkgs.default;
-        };
-        voxinput-record = pkgs.callPackage ../apps/voxinput/record/package.nix {
-          inherit name voxinput;
-        };
+        name = "voxize";
+        voxize = pkgs.callPackage ../apps/voxize/package.nix { };
       in
       {
         inherit name;
         binding = "<Super>s";
-        command = lib.getExe voxinput-record;
+        command = lib.getExe voxize;
       }
     )
     rec {
