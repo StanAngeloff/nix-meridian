@@ -20,13 +20,14 @@ let
 in
 python.pkgs.buildPythonApplication rec {
   pname = "voxize";
-  version = "main@{2026-03-30T12:00:00Z}";
+  version = "main@{2026-03-30T13:00:00Z}";
+  name = pname;
 
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
     rev = builtins.replaceStrings [ "@" "{" "}" ":" ] [ "%40" "%7B" "%7D" "%3A" ] version;
-    hash = "sha256-Dd9Q64U5XSiKrbXwQBpdSPLsaxwMcHkvCjE9jx27HXU=";
+    hash = "sha256-jPfi8LnRRX9aFtuC6HUw6JPeyD+3AE5dNHABI9+bNv8=";
   };
 
   buildInputs = runtimeDeps;
