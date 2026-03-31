@@ -55,7 +55,10 @@ with lib.lists;
     allowedTCPPorts = [ ];
     allowedTCPPortRanges = [
       # nixfmt: off
+      { from = 3000; to = 3001; } # Next.js, et al.
+      { from = 5173; to = 5173; } # Vite
       { from = 8080; to = 8081; } # Expo Go
+      { from = 8787; to = 8787; } # Wrangler
       { from = 54321; to = 54324; } # Supabase
       # nixfmt: on
     ];
