@@ -6,7 +6,6 @@
     ./committia.nix
     ./copilot.nix
     ./copilot-lualine.nix
-    ./copilotchat-nvim.nix
     ./csc-nvim.nix
     ./dadbod.nix
     ./flemma-nvim.nix
