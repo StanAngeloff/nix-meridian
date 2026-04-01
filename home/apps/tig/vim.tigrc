@@ -6,7 +6,7 @@
 #	$ cp contrib/vim.tigrc ~/.tigrc.vim
 #	$ echo "source ~/.tigrc.vim" >> ~/.tigrc
 #
-# See https://github.com/jonas/tig/blob/tig-2.5.10/contrib/vim.tigrc
+# See https://github.com/jonas/tig/blob/tig-2.6.0/contrib/vim.tigrc
 
 bind generic h scroll-left
 bind generic j move-down
@@ -26,9 +26,6 @@ bind generic G move-last-line
 
 bind generic <C-f> move-page-down
 bind generic <C-b> move-page-up
-
-bind generic <C-j> next
-bind generic <C-k> previous
 
 bind generic v  none
 bind generic vm view-main
@@ -65,7 +62,7 @@ bind generic @k :?^@@
 bind generic @- :toggle diff-context -1
 bind generic @+ :toggle diff-context +1
 
-bind generic u status-update
+bind generic u  status-update
 bind generic s  none
 bind generic sr status-revert
 bind generic sm status-merge

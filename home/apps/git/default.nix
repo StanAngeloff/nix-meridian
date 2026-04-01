@@ -3,17 +3,7 @@
   programs.git = {
     enable = true;
     lfs.enable = true;
-  };
 
-  programs.mergiraf = {
-    enable = true;
-  };
-
-  programs.diff-so-fancy = {
-    enable = true;
-  };
-
-  programs.git = {
     signing = {
       key = "595EA753";
       signByDefault = true;
@@ -26,6 +16,10 @@
         email = "stanimir@angeloff.name";
       };
 
+      github = {
+        user = "StanAngeloff";
+      };
+
       alias =
         let
           gitLogFormat = "%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)%cr (%cd) %C(blue)%an%C(reset) ▸ %C(cyan)%cn%C(reset)";
@@ -36,24 +30,16 @@
           br = "branch -r";
           c = "commit";
           co = "checkout";
-          df = "diff --no-ext-diff --ignore-space-change --ignore-blank-lines --color-moved-ws=ignore-space-change";
+          df = "diff --no-ext-diff --ignore-space-change --ignore-blank-lines";
           f = "fetch --verbose";
           fa = "fetch --all --verbose";
-          l = "log --graph --date=human --pretty=format:'${gitLogFormat}'";
-          la = "log --all --tags --graph --date=human --pretty=format:'${gitLogFormat}'";
+          l = "!tig";
+          la = "!tig --all";
           s = "status --short --branch";
 
           au = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; git add `f`";
           eu = "!f() { git ls-files --unmerged | cut -f2 | sort -u ; }; nvim -p `f`";
-
-          ig = "!git ls-files -v | grep \"^[[:lower:]]\"";
-
-          ro = "!sh -c 'git rebase --interactive origin/\"$( git symbolic-ref --short HEAD )\"'";
         };
-
-      github = {
-        user = "StanAngeloff";
-      };
 
       # Appearance
       color = {
@@ -131,10 +117,7 @@
     };
   };
 
-  programs.diff-so-fancy = {
-    settings = {
-      changeHunkIndicators = false;
-      stripLeadingSymbols = false;
-    };
+  programs.mergiraf = {
+    enable = true;
   };
 }

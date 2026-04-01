@@ -1,14 +1,9 @@
-bind status A !git commit --amend
-bind status P !git push
-bind status T @trash %(file)
-
 set diff-highlight = true
 set ignore-case = smart-case
 set line-graphics = utf-8
 set truncation-delimiter = utf-8
 set refresh-mode = auto
-#set refresh-mode = periodic
-#set refresh-interval = 1
+set main-view-date = relative
 
 color cursor white color34
 color cursor-blur white color34 bold
@@ -17,3 +12,14 @@ color title-focus white color56
 color title-blur white color55
 
 source ~/.config/tig/vim.tigrc
+
+bind generic <C-j> next
+bind generic <C-k> previous
+
+bind status A !git commit --amend
+bind status P !git push
+bind status T @trash %(file)
+
+# Hunk navigation in `git diff`
+bind pager ] :/^diff --(git|cc)
+bind pager [ :?^diff --(git|cc)
