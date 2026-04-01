@@ -7,8 +7,6 @@ let
     };
     claude = {
       package = "@anthropic-ai/claude-code";
-      # See "[BUG] Session keeps getting interrupted without any external interventions like pressing escape" https://github.com/anthropics/claude-code/issues/35643
-      version = "2.1.86";
       args = "--effort max";
       env = {
         DISABLE_AUTOUPDATER = 1;
