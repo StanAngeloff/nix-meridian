@@ -78,7 +78,7 @@ with lib.hm.gvariant;
     "org/gnome/shell" = {
       favorite-apps = [
         "brave-browser.desktop"
-        "code.desktop"
+        "com.mitchellh.ghostty.desktop"
         "slack.desktop"
         "thunderbird.desktop"
         "org.gnome.Nautilus.desktop"
