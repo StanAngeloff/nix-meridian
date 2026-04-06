@@ -13,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "b8ad1a906cbe58b0c4a34e782e6e0da42cd2b962";
-        hash = "sha256-3D5IV3JcaqG9hiuJr39YUotZ9OmTkXctrKUBGeJKdGo=";
+        rev = "589b45f0911944e6f0833c23137186acca36b469";
+        hash = "sha256-iGSgIyGQRI+lMAFV2QEnZ6UZ5ovPzclTY48v/0BbX+U=";
       };
     }
   );
@@ -22,18 +22,18 @@ let
     model = "$gemini-3";
     parameters = {
       thinking = "max";
-      temperature = 0.7;
       vertex = {
         location = gcloud-default-location;
         project_id = gcloud-project-id;
       };
     };
+    tools = {
+      mcporter = {
+        enabled = true;
+      };
+    };
     diagnostics = {
       enabled = true;
-    };
-    experimental = {
-      lsp = true;
-      tools = true;
     };
     secrets = {
       gcloud = {
