@@ -17,6 +17,7 @@ in
   imports = [
     # CLI
     ./ast-grep
+    ./claude-code
     ./direnv
     ./eza
     ./fzf

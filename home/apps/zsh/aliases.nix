@@ -1,42 +1,3 @@
-let
-  # List of packages from the npm registry I use often, but can't be bothered to install them system-wide. ( ͡° ͜ʖ ͡°)
-  # Having them aliased to "@latest" also keeps them up-to-date automatically on each use.
-  npm_registry_apps = {
-    amp = {
-      package = "@sourcegraph/amp";
-    };
-    claude = {
-      package = "@anthropic-ai/claude-code";
-      args = "--effort max";
-      env = {
-        DISABLE_AUTOUPDATER = 1;
-        DISABLE_INSTALLATION_CHECKS = 1;
-        FORCE_AUTOUPDATE_PLUGINS = 1;
-        USE_BUILTIN_RIPGREP = 0;
-        # See "[BUG] Logo and "Thinking" animation colors are dull/washed-out inside tmux" https://github.com/anthropics/claude-code/issues/35148#issuecomment-4073207670
-        TMUX = "";
-      };
-    };
-  };
-
-  # Builds an alias string for an npm_registry_apps entry.
-  # Prepends "KEY=value …" pairs when an `env` attrset is present.
-  mkNpmAlias =
-    name: cfg:
-    let
-      envPrefix =
-        if cfg ? env then
-          builtins.concatStringsSep " " (
-            builtins.attrValues (builtins.mapAttrs (k: v: "${k}=${builtins.toString v}") cfg.env)
-          )
-          + " "
-        else
-          "";
-      version = if cfg ? version then cfg.version else "latest";
-      argsSuffix = if cfg ? args then " ${cfg.args}" else "";
-    in
-    "${envPrefix}pnpm --silent dlx ${cfg.package}@${version}${argsSuffix}";
-in
 {
   programs.zsh.shellAliases = {
     g = "git";
@@ -45,6 +6,5 @@ in
     t = "tig status";
     v = "nvim -p";
     vim = "nvim -p";
-  }
-  // builtins.mapAttrs mkNpmAlias npm_registry_apps;
+  };
 }
