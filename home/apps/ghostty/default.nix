@@ -28,6 +28,7 @@ in
       font-style-bold = "ExtraBold";
       font-style-italic = "Oblique";
       font-style-bold-italic = "ExtraBold Oblique";
+      font-codepoint-map = "U+2591-U+2593=${monospaceFontFamily}"; # ░▒▓ | See https://github.com/ghostty-org/ghostty/discussions/9501
 
       adjust-cell-width = "-10%";
       adjust-cell-height = "0%";
