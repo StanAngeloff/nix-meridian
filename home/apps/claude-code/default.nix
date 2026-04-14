@@ -21,10 +21,29 @@ let
       CLAUDE_CODE_EFFORT_LEVEL = "max"; # This one is ignored in favor of settings.json, but I'm _hoping_ has some influence on sub-agents.
     };
     settings = {
+      "$schema" = "https://json.schemastore.org/claude-code-settings.json";
       alwaysThinkingEnabled = true;
       effortLevel = "high";
       showThinkingSummaries = true;
       spinnerTipsEnabled = false;
+    };
+    # See "[BUG] v2.1.94 silently changed Ctrl+L default" https://github.com/anthropics/claude-code/issues/45364
+    keybindings = {
+      "$schema" = "https://json.schemastore.org/claude-code-keybindings.json";
+      bindings = [
+        {
+          context = "Global";
+          bindings = {
+            "ctrl+l" = "app:redraw";
+          };
+        }
+        {
+          context = "Chat";
+          bindings = {
+            "ctrl+l" = null;
+          };
+        }
+      ];
     };
   };
 
@@ -54,6 +73,10 @@ in
     cc = mkNpmAlias claude-code;
   };
 
+  home.file.".claude/keybindings.json".source =
+    (pkgs.formats.json { }).generate "claude-code-keybindings.json"
+      claude-code.keybindings;
+
   home.activation.updateClaudeCodeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     settingsFile="${config.home.homeDirectory}/.claude/settings.json"
 
@@ -65,6 +88,6 @@ in
       chmod 644 "$settingsFile"
     fi
 
-    ${jq} ${lib.strings.escapeShellArg ". + ${builtins.toJSON claude-code.settings}"} "$settingsFile" | ${sponge} "$settingsFile"
+    ${jq} ${lib.strings.escapeShellArg ''. + ${builtins.toJSON claude-code.settings} | {"$schema": .["$schema"]} + del(.["$schema"])''} "$settingsFile" | ${sponge} "$settingsFile"
   '';
 }
