@@ -7,6 +7,7 @@
 let
   claude-code = {
     package = "@anthropic-ai/claude-code";
+    version = "latest";
     args = "--effort max"; # This one wins over settings.json.
     env = {
       DISABLE_AUTOUPDATER = 1;
@@ -51,26 +52,20 @@ let
   jq = lib.getExe pkgs.jq;
   sponge = "${lib.getBin pkgs.moreutils}/bin/sponge";
 
-  # Builds an alias string for an npm registry package, with optional env, version and arguments.
-  mkNpmAlias =
-    cfg:
-    let
-      envPrefix =
-        if cfg ? env then
-          builtins.concatStringsSep " " (
-            builtins.attrValues (builtins.mapAttrs (k: v: "${k}=${builtins.toString v}") cfg.env)
-          )
-          + " "
-        else
-          "";
-      version = if cfg ? version then cfg.version else "latest";
-      argsSuffix = if cfg ? args then " ${cfg.args}" else "";
-    in
-    "${envPrefix}${lib.getBin bun}/bin/bunx --silent ${cfg.package}@${version}${argsSuffix}";
+  claude-code-bunx = pkgs.writeShellApplication {
+    name = "claude-code-bunx";
+    runtimeInputs = [ bun ];
+    runtimeEnv = claude-code.env;
+    text = builtins.readFile (
+      pkgs.replaceVars ./claude-code-bunx.sh {
+        inherit (claude-code) package version args;
+      }
+    );
+  };
 in
 {
   programs.zsh.shellAliases = {
-    cc = mkNpmAlias claude-code;
+    cc = lib.getExe claude-code-bunx;
   };
 
   home.file.".claude/keybindings.json".source =
