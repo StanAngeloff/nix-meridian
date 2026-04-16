@@ -37,7 +37,10 @@ let
         enabled = true;
         failIfUnavailable = true;
         autoAllowBashIfSandboxed = true;
-        excludedCommands = [ ];
+        excludedCommands = [
+          # GPG signing needs write access to ~/.gnupg.
+          "git commit *"
+        ];
         allowUnsandboxedCommands = true;
       };
       # Learn more at https://code.claude.com/docs/en/settings#attribution-settings
