@@ -27,9 +27,9 @@ if [ -n "$model_id" ]; then
 	ctx_label=""
 	if [ -n "$ctx_size" ]; then
 		if [ "$ctx_size" -ge 1000000 ] 2>/dev/null; then
-			ctx_label=" ($(echo "scale=0; $ctx_size / 1000000" | bc)M)"
+			ctx_label=" ($(echo "scale=0; $ctx_size / 1000000" | bc)m)"
 		elif [ "$ctx_size" -ge 1000 ] 2>/dev/null; then
-			ctx_label=" ($(echo "scale=0; $ctx_size / 1000" | bc)K)"
+			ctx_label=" ($(echo "scale=0; $ctx_size / 1000" | bc)k)"
 		fi
 	fi
 	model_id="${model_id%%\[*}"
@@ -67,11 +67,16 @@ if [ "$has_current" = "yes" ]; then
 	in_tok=$(echo "$input" | jq -r '.context_window.current_usage.input_tokens                    // 0')
 	out_tok=$(echo "$input" | jq -r '.context_window.current_usage.output_tokens                   // 0')
 	think_tok=$(echo "$input" | jq -r '.context_window.current_usage.cache_creation_input_tokens     // 0')
-	tot_tok=$((in_tok + out_tok + think_tok))
+	# Session-level totals for Σ
+	total_in=$(echo "$input" | jq -r '.context_window.total_input_tokens  // 0')
+	total_out=$(echo "$input" | jq -r '.context_window.total_output_tokens // 0')
+	tot_tok=$((total_in + total_out))
 	# Format numbers with k suffix when >= 1000
 	fmt_num() {
 		local n=$1
-		if [ "$n" -ge 1000 ] 2>/dev/null; then
+		if [ "$n" -ge 1000000 ] 2>/dev/null; then
+			printf '%.1fm' "$(echo "scale=1; $n / 1000000" | bc)"
+		elif [ "$n" -ge 1000 ] 2>/dev/null; then
 			printf '%.1fk' "$(echo "scale=1; $n / 1000" | bc)"
 		else
 			echo "$n"
