@@ -27,6 +27,11 @@ let
       effortLevel = "high";
       showThinkingSummaries = true;
       spinnerTipsEnabled = false;
+      statusLine = {
+        type = "command";
+        command = lib.getExe claude-code-statusline;
+        padding = 0;
+      };
     };
     # See "[BUG] v2.1.94 silently changed Ctrl+L default" https://github.com/anthropics/claude-code/issues/45364
     keybindings = {
@@ -61,6 +66,18 @@ let
         inherit (claude-code) package version args;
       }
     );
+  };
+
+  claude-code-statusline = pkgs.writeShellApplication {
+    name = "claude-code-statusline";
+    runtimeInputs = with pkgs; [
+      jq
+      bc
+      git
+      gnused
+      coreutils
+    ];
+    text = builtins.readFile ./statusline.sh;
   };
 in
 {
