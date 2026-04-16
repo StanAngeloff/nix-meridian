@@ -4,6 +4,7 @@ set line-graphics = utf-8
 set truncation-delimiter = utf-8
 set refresh-mode = auto
 set main-view-date = relative
+set main-view-id-display = yes
 
 color cursor white color34
 color cursor-blur white color34 bold
