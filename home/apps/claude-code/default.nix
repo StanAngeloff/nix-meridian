@@ -20,6 +20,11 @@ let
       # See "[MODEL] Claude Code is unusable for complex engineering tasks with the Feb updates" https://github.com/anthropics/claude-code/issues/42796
       CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
       CLAUDE_CODE_EFFORT_LEVEL = "max"; # This one is ignored in favor of settings.json, but I'm _hoping_ has some influence on sub-agents.
+      # Learn more at https://code.claude.com/docs/en/data-usage
+      DISABLE_TELEMETRY = 1;
+      DISABLE_ERROR_REPORTING = 1;
+      CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = 1;
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = 1;
     };
     settings = {
       "$schema" = "https://json.schemastore.org/claude-code-settings.json";
@@ -27,6 +32,19 @@ let
       effortLevel = "high";
       showThinkingSummaries = true;
       spinnerTipsEnabled = false;
+      # Learn more at https://code.claude.com/docs/en/settings#sandbox-settings
+      sandbox = {
+        enabled = true;
+        failIfUnavailable = true;
+        autoAllowBashIfSandboxed = true;
+        excludedCommands = [ ];
+        allowUnsandboxedCommands = true;
+      };
+      # Learn more at https://code.claude.com/docs/en/settings#attribution-settings
+      attribution = {
+        commit = "";
+        pr = "";
+      };
       statusLine = {
         type = "command";
         command = lib.getExe claude-code-statusline;
@@ -53,13 +71,13 @@ let
     };
   };
 
-  bun = pkgs.bun;
-  jq = lib.getExe pkgs.jq;
-  sponge = "${lib.getBin pkgs.moreutils}/bin/sponge";
-
   claude-code-bunx = pkgs.writeShellApplication {
     name = "claude-code-bunx";
-    runtimeInputs = [ bun ];
+    runtimeInputs = with pkgs; [
+      bun
+      bubblewrap
+      socat
+    ];
     runtimeEnv = claude-code.env;
     text = builtins.readFile (
       pkgs.replaceVars ./claude-code-bunx.sh {
@@ -89,17 +107,22 @@ in
     (pkgs.formats.json { }).generate "claude-code-keybindings.json"
       claude-code.keybindings;
 
-  home.activation.updateClaudeCodeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    settingsFile="${config.home.homeDirectory}/.claude/settings.json"
+  home.activation.updateClaudeCodeSettings =
+    let
+      jq = lib.getExe pkgs.jq;
+      sponge = "${lib.getBin pkgs.moreutils}/bin/sponge";
+    in
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      settingsFile="${config.home.homeDirectory}/.claude/settings.json"
 
-    if [[ ! -f "$settingsFile" ]]; then
-      echo "Creating Claude Code settings file..."
+      if [[ ! -f "$settingsFile" ]]; then
+        echo "Creating Claude Code settings file..."
 
-      mkdir -p "$(dirname "$settingsFile")"
-      echo "{}" > "$settingsFile"
-      chmod 644 "$settingsFile"
-    fi
+        mkdir -p "$(dirname "$settingsFile")"
+        echo "{}" > "$settingsFile"
+        chmod 644 "$settingsFile"
+      fi
 
-    ${jq} ${lib.strings.escapeShellArg ''. + ${builtins.toJSON claude-code.settings} | {"$schema": .["$schema"]} + del(.["$schema"])''} "$settingsFile" | ${sponge} "$settingsFile"
-  '';
+      ${jq} ${lib.strings.escapeShellArg ''. + ${builtins.toJSON claude-code.settings} | {"$schema": .["$schema"]} + del(.["$schema"])''} "$settingsFile" | ${sponge} "$settingsFile"
+    '';
 }
