@@ -5,6 +5,8 @@
   ...
 }:
 let
+  nodejs = pkgs.nodejs_24;
+
   claude-code = {
     package = "@anthropic-ai/claude-code";
     version = "latest";
@@ -74,16 +76,16 @@ let
     };
   };
 
-  claude-code-bunx = pkgs.writeShellApplication {
-    name = "claude-code-bunx";
-    runtimeInputs = with pkgs; [
-      bun
-      bubblewrap
-      socat
+  claude-code-npx = pkgs.writeShellApplication {
+    name = "claude-code-npx";
+    runtimeInputs = [
+      nodejs
+      pkgs.bubblewrap
+      pkgs.socat
     ];
     runtimeEnv = claude-code.env;
     text = builtins.readFile (
-      pkgs.replaceVars ./claude-code-bunx.sh {
+      pkgs.replaceVars ./claude-code-npx.sh {
         inherit (claude-code) package version args;
       }
     );
@@ -103,7 +105,7 @@ let
 in
 {
   programs.zsh.shellAliases = {
-    cc = lib.getExe claude-code-bunx;
+    cc = lib.getExe claude-code-npx;
   };
 
   home.file.".claude/keybindings.json".source =
