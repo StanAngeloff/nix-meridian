@@ -12,7 +12,9 @@
       mode = "cursor";
       separator = null;
       zindex = 20;
-      on_attach = null;
+      on_attach.__raw = ''
+        require("flemma.integrations.nvim-treesitter-context").on_attach
+      '';
     };
   };
 }
