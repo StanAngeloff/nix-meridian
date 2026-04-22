@@ -35,6 +35,20 @@ let
       effortLevel = "high";
       showThinkingSummaries = true;
       spinnerTipsEnabled = false;
+      hooks = {
+        Notification = [
+          {
+            matcher = "permission_prompt";
+            hooks = [
+              {
+                type = "command";
+                command = "${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3}";
+                timeout = 5;
+              }
+            ];
+          }
+        ];
+      };
       # Learn more at https://code.claude.com/docs/en/settings#sandbox-settings
       sandbox = {
         enabled = true;
