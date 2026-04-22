@@ -52,7 +52,7 @@ let
       auto_write = true;
     };
     statusline = {
-      format = "#{model}#{?#{thinking}, (#{thinking}),}#{?#{booting}, ⏳,}#{?#{session.cost},  │  Σ#{session.requests}  #{session.cost},}";
+      format = "#{?#{booting},⏳,}#{model}#{?#{thinking}, (#{thinking}),}#{?#{session.cost}, | Σ#{session.requests} #{session.cost},}#{?#{buffer.tokens.input}, | #{buffer.tokens.input}↑,}";
     };
     presets = {
       "$gemini-3" = {
