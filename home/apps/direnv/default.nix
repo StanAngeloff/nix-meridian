@@ -1,4 +1,4 @@
-{ pkgs-unstable, ... }:
+{ pkgs, ... }:
 {
   programs.direnv = {
     enable = true;
@@ -9,7 +9,7 @@
 
     mise = {
       enable = true;
-      package = pkgs-unstable.mise;
+      package = pkgs.mise;
     };
   };
 }

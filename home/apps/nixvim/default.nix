@@ -1,6 +1,6 @@
-{ pkgs-unstable, ... }:
+{ pkgs, ... }:
 let
-  neovim-wrapped = pkgs-unstable.neovim-unwrapped.overrideAttrs (prev: {
+  neovim-wrapped = pkgs.neovim-unwrapped.overrideAttrs (prev: {
     meta = (prev.meta or { }) // {
       maintainers = prev.maintainers or [ ];
     };

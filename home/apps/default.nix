@@ -7,7 +7,7 @@
 let
   bruno = pkgs.callPackage ./bruno/package.nix { };
   clipboard2markdown = pkgs.callPackage ./clipboard2markdown/package.nix {
-    inherit (pkgs-unstable) pandoc;
+    inherit (pkgs) pandoc;
   };
   nsx = pkgs.callPackage ./nsx/package.nix { };
   slack = pkgs.callPackage ./slack/package.nix { };
@@ -80,7 +80,7 @@ in
     nsx
     pkgs-unstable.ocrmypdf
     qemu
-    pkgs-unstable.rclone
+    rclone
     scrcpy
     tesseract
     trash-cli

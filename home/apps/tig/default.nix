@@ -1,11 +1,10 @@
 {
   lib,
   pkgs,
-  pkgs-unstable,
   ...
 }:
 let
-  tig = pkgs-unstable.tig;
+  tig = pkgs.tig;
   ansiless = cmd: "${lib.getExe pkgs.perl} -pe 's/\\e\\[[0-9;]*m//g' | ${cmd}";
 in
 {
