@@ -81,7 +81,7 @@
         lualine_x = [
           {
             __unkeyed = "flemma";
-            icon = "🧠";
+            icon = "∴";
           }
           {
             __unkeyed = "copilot";

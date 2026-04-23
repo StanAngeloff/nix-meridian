@@ -13,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "ee446b47d5a6b547403bedb9d4d1c468a9db4a77";
-        hash = "sha256-DnAkyBLh4HKcgR8nOIu91t/pYdlrt2+xP0HlOHO0z9s=";
+        rev = "7d9e429cf1c792e84f6466da5636ce5d9615bd5a";
+        hash = "sha256-qFELcDTwWPH7s9nFSoIDG5DiNqOlccopRvqx4WWWgTQ=";
       };
     }
   );
@@ -50,9 +50,6 @@ let
     };
     editing = {
       auto_write = true;
-    };
-    statusline = {
-      format = "#{?#{booting},⏳,}#{model}#{?#{thinking}, (#{thinking}),}#{?#{session.cost}, | Σ#{session.requests} #{session.cost},}#{?#{buffer.tokens.input}, | #{buffer.tokens.input}↑,}";
     };
     presets = {
       "$gemini-3" = {
