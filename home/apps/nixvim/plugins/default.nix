@@ -16,7 +16,7 @@
     ./lsp.nix
     ./lspsaga.nix
     ./lualine.nix
-    ./markdown-preview-nvim.nix
+    ./markdown-preview-nvim
     ./nvim-autopairs.nix
     ./nvim-tree-lua.nix
     ./quickfix-reflector-vim.nix

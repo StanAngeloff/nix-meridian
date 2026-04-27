@@ -1,0 +1,26 @@
+@markdowncss@
+
+/* ------------------------------------------------------------------ */
+
+.markdown-body {
+  font-family: "@fontsSansSerif@";
+
+  & :is(h1, h2, h3, h4, h5, h6) {
+    font-family: "@fontsSerif@";
+  }
+
+  & code {
+    font-family: "@fontsMonospace@";
+  }
+
+  /* Metadata */
+  & hr:first-child + h2 {
+    font-family: "@fontsMonospace@";
+    font-size: 85%;
+    font-weight: inherit;
+  }
+}
+
+#page-header {
+  font-family: "@fontsSansSerif@";
+}

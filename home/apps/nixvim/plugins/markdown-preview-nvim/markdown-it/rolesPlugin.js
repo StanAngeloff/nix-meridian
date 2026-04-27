@@ -1,5 +1,5 @@
-function mentionsPlugin(md) {
-  md.core.ruler.push("x_mention", function (state) {
+function rolesPlugin(md) {
+  md.core.ruler.push("x_role", function (state) {
     const Token = state.Token;
     const tokens = state.tokens;
 
@@ -38,10 +38,10 @@ function mentionsPlugin(md) {
             const hasColon = trailing.length > 0;
 
             let inner = "@" + role;
-            if (hasColon) inner += '<span class="mention-colon">:</span>';
+            if (hasColon) inner += '<span class="role-colon">:</span>';
 
             const html = new Token("html_inline", "", 0);
-            html.content = `<x-mention role="${role}">${inner}</x-mention>`;
+            html.content = `<x-role role="${role}">${inner}</x-role>`;
             newChildren.push(html);
 
             const rest = child.content.slice(m[0].length);

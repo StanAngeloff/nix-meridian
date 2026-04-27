@@ -1,0 +1,19 @@
+x-file-ref {
+  --accent: #ff00ff;
+
+  font-family: monospace;
+  display: inline-block;
+  position: relative;
+  color: var(--accent);
+
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: -1px -2px;
+    background-color: color-mix(in srgb, var(--accent), transparent 96.25%);
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 90%);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+}
