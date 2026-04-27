@@ -27,6 +27,8 @@ let
       DISABLE_ERROR_REPORTING = 1;
       CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = 1;
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = 1;
+      # Learn more at https://code.claude.com/docs/en/sub-agents#fork-the-current-conversation
+      CLAUDE_CODE_FORK_SUBAGENT = 1;
     };
     settings = {
       "$schema" = "https://json.schemastore.org/claude-code-settings.json";
