@@ -22,3 +22,15 @@ command = "uvx"
 options = [ "ruff", "check", "--fix" ]
 includes = [ "*.py" ]
 priority = 200
+
+[formatter.shfmt]
+command = "shfmt"
+options = [ "-w" ]
+includes = [ "*.sh" ]
+priority = 100
+
+[formatter.stylua]
+command = "stylua"
+options = [ "--indent-type", "Spaces", "--indent-width", "2" ]
+includes = [ "*.lua" ]
+priority = 100

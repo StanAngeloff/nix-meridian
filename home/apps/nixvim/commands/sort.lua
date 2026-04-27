@@ -42,12 +42,12 @@ local function sort_compare_strings(a, b)
   return a_mid < b_mid
 end
 
-vim.api.nvim_create_user_command('Sort', function(opts)
+vim.api.nvim_create_user_command("Sort", function(opts)
   local start_line = opts.line1 - 1
   local end_line = opts.line2
   local lines = vim.api.nvim_buf_get_lines(0, start_line, end_line, false)
   table.sort(lines, sort_compare_strings)
   vim.api.nvim_buf_set_lines(0, start_line, end_line, false, lines)
 end, {
-  range = true
+  range = true,
 })
