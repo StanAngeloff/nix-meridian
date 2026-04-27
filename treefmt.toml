@@ -10,3 +10,15 @@ command = "awk"
 options = ["-f", "contrib/nixfmt-pretty.awk", "-i", "inplace"]
 includes = [ "*.nix" ]
 priority = 200
+
+[formatter.black]
+command = "uvx"
+options = [ "black" ]
+includes = [ "*.py" ]
+priority = 100
+
+[formatter.ruff]
+command = "uvx"
+options = [ "ruff", "check", "--fix" ]
+includes = [ "*.py" ]
+priority = 200

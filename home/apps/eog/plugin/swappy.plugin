@@ -1,0 +1,7 @@
+[Plugin]
+Module=swappy
+Loader=python3
+IAge=3
+Name=Edit in Swappy
+Description=Send the current image to Swappy for annotation
+Authors=Stan Angeloff

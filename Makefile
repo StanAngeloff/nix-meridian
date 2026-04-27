@@ -9,4 +9,4 @@ switch:
 	nix shell 'nixpkgs#nh' --command nh os switch --ask .
 
 format:
-	nix shell 'nixpkgs#treefmt' 'nixpkgs#nixfmt-rfc-style' 'nixpkgs#gawk' --command treefmt .
+	nix shell 'nixpkgs#treefmt' 'nixpkgs#nixfmt-rfc-style' 'nixpkgs#gawk' 'nixpkgs#uv' --command treefmt .

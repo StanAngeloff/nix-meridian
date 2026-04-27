@@ -43,6 +43,7 @@ in
     # GUI
     ./brave
     ./dropbox
+    ./eog
     ./firefox
     ./swappy
     ./thunderbird
@@ -94,7 +95,6 @@ in
     apostrophe
     bottles
     bruno
-    eog
     gnome-firmware
     gnome-tweaks
     google-chrome
