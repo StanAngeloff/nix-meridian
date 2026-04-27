@@ -9,8 +9,7 @@ let
 
   claude-code = {
     package = "@anthropic-ai/claude-code";
-    # NOTE: Pinned due to "[BUG] v2.1.117 regression: parallel Bash tool calls corrupt fd 3 in nested-Docker sandbox" https://github.com/anthropics/claude-code/issues/51837
-    version = "2.1.116";
+    version = "latest";
     args = "--effort max"; # This one wins over settings.json.
     env = {
       DISABLE_AUTOUPDATER = 1;
