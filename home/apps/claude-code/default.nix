@@ -10,7 +10,9 @@ let
   claude-code = {
     package = "@anthropic-ai/claude-code";
     version = "latest";
-    args = "--effort max"; # This one wins over settings.json.
+    # nixfmt: off
+    args = [ "--effort" "max" ] ++ [ "--model" "claude-opus-4-6[1m]" ];
+    # nixfmt: on
     env = {
       DISABLE_AUTOUPDATER = 1;
       FORCE_AUTOUPDATE_PLUGINS = 1;
@@ -102,7 +104,10 @@ let
     runtimeEnv = claude-code.env;
     text = builtins.readFile (
       pkgs.replaceVars ./claude-code-npx.sh {
-        inherit (claude-code) package version args;
+        inherit (claude-code) package version;
+        args = lib.strings.concatMapStringsSep " " (
+          s: if lib.strings.hasPrefix "-" s then s else lib.strings.escapeShellArg s
+        ) claude-code.args;
       }
     );
   };
