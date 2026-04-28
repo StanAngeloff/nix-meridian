@@ -71,7 +71,7 @@ let
     runtimeInputs = [ pkgs.coreutils ];
     text = builtins.readFile (
       pkgs.replaceVars ./preview.sh {
-        nvim = lib.getExe config.programs.nixvim.finalPackage;
+        nvim = lib.getExe config.programs.nixvim.build.package;
       }
     );
   };
