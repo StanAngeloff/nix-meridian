@@ -2,7 +2,8 @@ set diff-highlight = true
 set ignore-case = smart-case
 set line-graphics = utf-8
 set truncation-delimiter = utf-8
-set refresh-mode = auto
+set refresh-mode = periodic
+set refresh-interval = 1
 set main-view-date = relative
 set main-view-id-display = yes
 
