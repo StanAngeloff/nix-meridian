@@ -50,6 +50,7 @@
         ghostty = final.callPackage ./pkgs/ghostty/overlay.nix {
           ghostty = inputs.ghostty-flake.packages.${system}.default;
         };
+        n8n-cli = final.callPackage ./pkgs/n8n-cli/package.nix { };
       };
       pkgs-unstable = (
         import nixpkgs-unstable {

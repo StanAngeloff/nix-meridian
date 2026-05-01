@@ -78,6 +78,7 @@ in
     imagemagick
     libsecret
     lsof
+    n8n-cli
     nsx
     pkgs-unstable.ocrmypdf
     qemu
