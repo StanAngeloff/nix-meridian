@@ -73,6 +73,8 @@ let
         command = lib.getExe claude-code-statusline;
         padding = 0;
       };
+      # Learn more at https://code.claude.com/docs/en/claude-directory#cleaned-up-automatically
+      cleanupPeriodDays = 18250; # 50 years, effectively never
     };
     # See "[BUG] v2.1.94 silently changed Ctrl+L default" https://github.com/anthropics/claude-code/issues/45364
     keybindings = {
