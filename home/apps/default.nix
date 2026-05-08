@@ -78,7 +78,6 @@ in
     imagemagick
     libsecret
     lsof
-    n8n-cli
     nsx
     pkgs-unstable.ocrmypdf
     qemu
@@ -91,6 +90,10 @@ in
     wineWowPackages.stable
     wl-clipboard
     yt-dlp
+
+    # Cross-project tools
+    gh
+    n8n-cli
 
     # GUI
     apostrophe
