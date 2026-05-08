@@ -21,6 +21,7 @@ bind generic <C-k> previous
 bind status A !git commit --amend
 bind status P !git push
 bind status T @trash %(file)
+bind status y +sh -c "printf '%s' '%(file)' | wl-copy && echo 'Copied: %(file)'"
 
 # Hunk navigation in `git diff`
 bind pager ] :/^diff --(git|cc)
