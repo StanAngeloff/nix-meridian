@@ -1,0 +1,97 @@
+diff --git i/include/tig/request.h w/include/tig/request.h
+index 68d83a95..d534ac56 100644
+--- i/include/tig/request.h
++++ w/include/tig/request.h
+@@ -56,10 +56,12 @@
+ 	REQ_(MOVE_HALF_PAGE_DOWN,	"Move cursor half a page down"), \
+ 	REQ_(MOVE_FIRST_LINE,	"Move cursor to first line"), \
+ 	REQ_(MOVE_LAST_LINE,	"Move cursor to last line"), \
+ 	REQ_(MOVE_NEXT_MERGE,	"Move cursor to next merge commit"), \
+ 	REQ_(MOVE_PREV_MERGE,	"Move cursor to previous merge commit"), \
++	REQ_(MOVE_NEXT_DIFF,	"Move cursor to next diff header"), \
++	REQ_(MOVE_PREV_DIFF,	"Move cursor to previous diff header"), \
+ 	\
+ 	REQ_GROUP("Scrolling") \
+ 	REQ_(SCROLL_LINE_UP,	"Scroll one line up"), \
+ 	REQ_(SCROLL_LINE_DOWN,	"Scroll one line down"), \
+ 	REQ_(SCROLL_PAGE_UP,	"Scroll one page up"), \
+diff --git i/include/tig/search.h w/include/tig/search.h
+index a7cf9de6..03ec0396 100644
+--- i/include/tig/search.h
++++ w/include/tig/search.h
+@@ -18,9 +18,10 @@
+ 
+ void reset_search(struct view *view);
+ void search_view(struct view *view, enum request request);
+ void find_next(struct view *view, enum request request);
+ void find_merge(struct view *view, enum request request);
++void find_diff(struct view *view, enum request request);
+ bool grep_text(struct view *view, const char *text[]);
+ 
+ #endif
+ /* vim: set ts=8 sw=8 noexpandtab: */
+diff --git i/src/search.c w/src/search.c
+index 8795cbde..6d03e1f1 100644
+--- i/src/search.c
++++ w/src/search.c
+@@ -229,10 +229,40 @@ find_merge(struct view *view, enum request request)
+ 	enum status_code code = find_next_merge(view, request);
+ 
+ 	report("%s", get_status_message(code));
+ }
+ 
++static enum status_code
++find_next_diff_line(struct view *view, int direction)
++{
++	int lineno;
++
++	for (lineno = view->pos.lineno + direction;
++	     0 <= lineno && lineno < view->lines;
++	     lineno += direction) {
++		if (view->line[lineno].type == LINE_DIFF_HEADER) {
++			select_view_line(view, lineno);
++			return SUCCESS;
++		}
++	}
++
++	return success(direction > 0 ? "Already at last diff" : "Already at first diff");
++}
++
++void
++find_diff(struct view *view, enum request request)
++{
++	enum status_code code;
++
++	if (request == REQ_MOVE_NEXT_DIFF)
++		code = find_next_diff_line(view, 1);
++	else
++		code = find_next_diff_line(view, -1);
++
++	report("%s", get_status_message(code));
++}
++
+ void
+ reset_search(struct view *view)
+ {
+ 	free(view->matched_line);
+ 	view->matched_line = NULL;
+diff --git i/src/tig.c w/src/tig.c
+index 63591167..02541d31 100644
+--- i/src/tig.c
++++ w/src/tig.c
+@@ -299,10 +299,15 @@ view_driver(struct view *view, enum request request)
+ 	case REQ_MOVE_NEXT_MERGE:
+ 	case REQ_MOVE_PREV_MERGE:
+ 		report("Moving between merge commits is not supported by the %s view", view->name);
+ 		break;
+ 
++	case REQ_MOVE_NEXT_DIFF:
++	case REQ_MOVE_PREV_DIFF:
++		find_diff(view, request);
++		break;
++
+ 	case REQ_STOP_LOADING:
+ 		foreach_view(view, i) {
+ 			if (view->pipe)
+ 				report("Stopped loading the %s view", view->name),
+ 			end_update(view, true);

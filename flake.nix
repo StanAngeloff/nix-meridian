@@ -51,6 +51,9 @@
           ghostty = inputs.ghostty-flake.packages.${system}.default;
         };
         n8n-cli = final.callPackage ./pkgs/n8n-cli/package.nix { };
+        tig = final.callPackage ./pkgs/tig/overlay.nix {
+          tig = prev.tig;
+        };
       };
       pkgs-unstable = (
         import nixpkgs-unstable {

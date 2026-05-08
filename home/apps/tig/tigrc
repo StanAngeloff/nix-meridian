@@ -10,6 +10,8 @@ set main-view-id-display = yes
 color cursor white color34
 color cursor-blur white color34 bold
 
+color diff-header yellow color58
+
 color title-focus white color56
 color title-blur white color55
 
@@ -23,6 +25,7 @@ bind status P !git push
 bind status T @trash %(file)
 bind status y +sh -c "printf '%s' '%(file)' | wl-copy && echo 'Copied: %(file)'"
 
-# Hunk navigation in `git diff`
-bind pager ] :/^diff --(git|cc)
-bind pager [ :?^diff --(git|cc)
+bind pager ] move-next-diff
+bind pager [ move-prev-diff
+bind diff ] move-next-diff
+bind diff [ move-prev-diff

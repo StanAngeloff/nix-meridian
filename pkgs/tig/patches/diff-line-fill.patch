@@ -1,0 +1,23 @@
+diff --git i/src/draw.c w/src/draw.c
+index 39600c4f..a8287058 100644
+--- i/src/draw.c
++++ w/src/draw.c
+@@ -694,10 +694,18 @@ draw_view_line(struct view *view, unsigned int lineno)
+ 	ok = view->ops->draw(view, line, lineno);
+ 
+ 	if (ok && line->search_result && *view->grep)
+ 		draw_view_line_search_result(view, lineno);
+ 
++	if (!line->selected &&
++	    (line->type == LINE_DIFF_HEADER ||
++	     line->type == LINE_DIFF_CHUNK ||
++	     line->type == LINE_DIFF_INDEX)) {
++		wclrtoeol(view->win);
++		wchgat(view->win, -1, 0, get_view_color(view, line->type), NULL);
++	}
++
+ 	return ok;
+ }
+ 
+ void
+ redraw_view_dirty(struct view *view)
