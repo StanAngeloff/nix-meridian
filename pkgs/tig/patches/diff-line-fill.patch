@@ -1,19 +1,43 @@
+diff --git i/include/tig/line.h w/include/tig/line.h
+index 939dc3cd..cff74612 100644
+--- i/include/tig/line.h
++++ w/include/tig/line.h
+@@ -38,10 +38,11 @@ struct ref;
+ 	_(DIFF_DELFMODE,	"deleted file mode "), \
+ 	_(DIFF_SIMILARITY,	"similarity "), \
+ 	_(DIFF_NO_NEWLINE,	"\\ No newline at end of file"), \
+ 	_(DIFF_ADD_HIGHLIGHT,	""), \
+ 	_(DIFF_DEL_HIGHLIGHT,	""), \
++	_(DIFF_HEADER_FILL,	""), \
+ 	_(PP_MERGE,		"Merge: "), \
+ 	_(PP_REFS,		"Refs: "), \
+ 	_(PP_REFLOG,		"Reflog: "), \
+ 	_(PP_REFLOGMSG,		"Reflog message: "), \
+ 	_(COMMIT,		"commit "), \
 diff --git i/src/draw.c w/src/draw.c
-index 39600c4f..a8287058 100644
+index 39600c4f..399a10bd 100644
 --- i/src/draw.c
 +++ w/src/draw.c
-@@ -694,10 +694,18 @@ draw_view_line(struct view *view, unsigned int lineno)
+@@ -694,10 +694,26 @@ draw_view_line(struct view *view, unsigned int lineno)
  	ok = view->ops->draw(view, line, lineno);
  
  	if (ok && line->search_result && *view->grep)
  		draw_view_line_search_result(view, lineno);
  
-+	if (!line->selected &&
-+	    (line->type == LINE_DIFF_HEADER ||
-+	     line->type == LINE_DIFF_CHUNK ||
-+	     line->type == LINE_DIFF_INDEX)) {
-+		wclrtoeol(view->win);
-+		wchgat(view->win, -1, 0, get_view_color(view, line->type), NULL);
++	if (!line->selected && line->type == LINE_DIFF_HEADER) {
++		int y, x;
++		const char *fill = opt_line_graphics == GRAPHIC_UTF_8
++			? "\xe2\x94\x80" : "-";
++
++		getyx(view->win, y, x);
++		int remaining = getmaxx(view->win) - x;
++
++		if (y == (int) lineno && x > 0 && remaining > 1) {
++			(void) wattrset(view->win, get_view_attr(view, LINE_DIFF_HEADER_FILL));
++			waddch(view->win, ' ');
++			for (int i = 1; i < remaining; i++)
++				waddstr(view->win, fill);
++		}
 +	}
 +
  	return ok;

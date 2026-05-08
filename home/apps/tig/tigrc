@@ -10,7 +10,8 @@ set main-view-id-display = yes
 color cursor white color34
 color cursor-blur white color34 bold
 
-color diff-header yellow color58
+color diff-header yellow default
+color diff-header-fill color240 default
 
 color title-focus white color56
 color title-blur white color55
