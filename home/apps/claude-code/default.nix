@@ -7,6 +7,17 @@
 let
   nodejs = pkgs.nodejs_24;
 
+  tmux-claude-state =
+    let
+      tmux = "${lib.getBin pkgs.tmux}/bin/tmux";
+    in
+    {
+      set =
+        state: "[ -n \"$TMUX_PANE\" ] && ${tmux} set -w -t \"$TMUX_PANE\" @claude-state ${state} || true";
+      reset = "[ -n \"$TMUX_PANE\" ] && ${tmux} set -wu -t \"$TMUX_PANE\" @claude-state || true";
+      reset-blocked = "[ -n \"$TMUX_PANE\" ] && case \"$(${tmux} show -wv -t \"$TMUX_PANE\" @claude-state 2>/dev/null)\" in permission|elicitation) ${tmux} set -wu -t \"$TMUX_PANE\" @claude-state;; esac; true";
+    };
+
   claude-code = {
     package = "@anthropic-ai/claude-code";
     version = "latest";
@@ -20,7 +31,7 @@ let
       USE_BUILTIN_RIPGREP = 0;
       MAX_THINKING_TOKENS = 64000;
       # See "[BUG] Logo and "Thinking" animation colors are dull/washed-out inside tmux" https://github.com/anthropics/claude-code/issues/35148#issuecomment-4073207670
-      TMUX = "";
+      # TMUX = "";
       # See "[MODEL] Claude Code is unusable for complex engineering tasks with the Feb updates" https://github.com/anthropics/claude-code/issues/42796
       CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
       CLAUDE_CODE_EFFORT_LEVEL = "max"; # This one is ignored in favor of settings.json, but I'm _hoping_ has some influence on sub-agents.
@@ -39,14 +50,84 @@ let
       showThinkingSummaries = true;
       spinnerTipsEnabled = false;
       hooks = {
-        Notification = [
+        PermissionRequest = [
           {
-            matcher = "permission_prompt";
             hooks = [
               {
                 type = "command";
                 command = "${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3}";
                 timeout = 5;
+              }
+              {
+                type = "command";
+                command = tmux-claude-state.set "permission";
+                timeout = 2;
+              }
+            ];
+          }
+        ];
+        Elicitation = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = tmux-claude-state.set "elicitation";
+                timeout = 2;
+              }
+            ];
+          }
+        ];
+        Stop = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = tmux-claude-state.set "idle";
+                timeout = 2;
+              }
+            ];
+          }
+        ];
+        StopFailure = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = tmux-claude-state.set "idle";
+                timeout = 2;
+              }
+            ];
+          }
+        ];
+        PostToolUse = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = tmux-claude-state.reset-blocked;
+                timeout = 2;
+              }
+            ];
+          }
+        ];
+        UserPromptSubmit = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = tmux-claude-state.reset;
+                timeout = 2;
+              }
+            ];
+          }
+        ];
+        SessionEnd = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = tmux-claude-state.reset;
+                timeout = 2;
               }
             ];
           }
