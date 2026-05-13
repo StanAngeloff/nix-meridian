@@ -5,7 +5,32 @@
   ...
 }:
 let
-  brave = pkgs.brave;
+  enabledFeatures = [
+    # Next-generation Skia rendering backend, replacing GaneshGL.
+    "SkiaGraphite"
+  ];
+  enabledBlinkFeatures = [
+    # Enables autoscrolling when the middle mouse button is clicked – Mac, Linux.
+    "MiddleClickAutoscroll"
+  ];
+  disabledFeatures = [
+    # "GlobalShortcutsPortal feature is misbehaving on Gnome 48" https://issues.chromium.org/issues/404298968
+    "GlobalShortcutsPortal"
+  ];
+
+  brave = pkgs.brave.overrideAttrs (prev: {
+    # Learn more at https://github.com/NixOS/nixpkgs/pull/378184
+    preFixup = (prev.preFixup or "") + ''
+      gappsWrapperArgs+=(
+        --prefix LD_LIBRARY_PATH : "${pkgs.vulkan-loader}/lib"
+      )
+    '';
+    postFixup = (prev.postFixup or "") + ''
+      substituteInPlace $out/bin/brave \
+        --replace-fail "--enable-features=" "--enable-features=${builtins.concatStringsSep "," enabledFeatures}," \
+        --replace-fail "--disable-features=" "--disable-features=${builtins.concatStringsSep "," disabledFeatures},"
+    '';
+  });
 in
 {
   ## Brave uses system-wide policies which are linked outside of Home Manager, see /system/apps/annoyances.nix
@@ -14,24 +39,11 @@ in
   #];
 
   home.packages = [
-    (brave.override (
-      let
-        enabledBlinkFeatures = [
-          # Enables autoscrolling when the middle mouse button is clicked – Mac, Linux.
-          "MiddleClickAutoscroll"
-        ];
-        disabledFeatures = [
-          # "GlobalShortcutsPortal feature is misbehaving on Gnome 48" https://issues.chromium.org/issues/404298968
-          "GlobalShortcutsPortal"
-        ];
-      in
-      {
-        commandLineArgs = builtins.replaceStrings [ "\n" ] [ " " ] ''
-          --enable-blink-features=${builtins.concatStringsSep "," enabledBlinkFeatures}
-          --disable-features=${builtins.concatStringsSep "," disabledFeatures}
-        '';
-      }
-    ))
+    (brave.override {
+      # Brave defaults Vulkan to off unlike Chrome, causing sluggish CSS/canvas animations on Intel Iris Xe.
+      enableVulkan = true;
+      commandLineArgs = "--enable-blink-features=${builtins.concatStringsSep "," enabledBlinkFeatures}";
+    })
   ];
 
   home.file.".local/bin/x-www-browser" = {
