@@ -6,8 +6,14 @@
 }:
 let
   enabledFeatures = [
-    # Next-generation Skia rendering backend, replacing GaneshGL.
-    "SkiaGraphite"
+    # Route ANGLE through Vulkan instead of OpenGL. All three must be enabled together on Linux
+    # (per ANGLE Vulkan backend developer). Eliminates 80-150ms GPU stalls on animation-heavy pages
+    # while keeping hardware video decode working (unlike raw --enable-features=Vulkan alone).
+    "Vulkan"
+    "DefaultANGLEVulkan"
+    "VulkanFromANGLE"
+    # Bypass VA-API driver version checks that can reject working Intel/AMD drivers.
+    "VaapiIgnoreDriverChecks"
   ];
   enabledBlinkFeatures = [
     # Enables autoscrolling when the middle mouse button is clicked – Mac, Linux.
@@ -29,6 +35,15 @@ let
       substituteInPlace $out/bin/brave \
         --replace-fail "--enable-features=" "--enable-features=${builtins.concatStringsSep "," enabledFeatures}," \
         --replace-fail "--disable-features=" "--disable-features=${builtins.concatStringsSep "," disabledFeatures},"
+
+      # Brave bundles a libvulkan.so.1 that only finds SwiftShader (Vulkan 1.0.5), but ANGLE
+      # requires Vulkan 1.1+. Replace it with the real loader so ANGLE discovers the Mesa driver.
+      # Chrome's Nix package (google-chrome/package.nix) does the same thing.
+      ln -sf "${pkgs.vulkan-loader}/lib/libvulkan.so.1" "$out/opt/brave.com/brave/libvulkan.so.1"
+
+      # Give ANGLE's libraries (libEGL.so, libGLESv2.so) the same rpath as the main binary so
+      # they can find libvulkan and libGL at runtime. Also borrowed from Chrome's Nix package.
+      ${pkgs.patchelf}/bin/patchelf --set-rpath "$(${pkgs.patchelf}/bin/patchelf --print-rpath $out/opt/brave.com/brave/brave)" $out/opt/brave.com/brave/lib*GL*
     '';
   });
 in
@@ -40,9 +55,10 @@ in
 
   home.packages = [
     (brave.override {
-      # Brave defaults Vulkan to off unlike Chrome, causing sluggish CSS/canvas animations on Intel Iris Xe.
-      enableVulkan = true;
-      commandLineArgs = "--enable-blink-features=${builtins.concatStringsSep "," enabledBlinkFeatures}";
+      ## NOTE: Not needed — Vulkan is enabled via ANGLE flags in enabledFeatures above.
+      ## The package-level enableVulkan only adds "Vulkan" to features, which we already do.
+      #enableVulkan = true;
+      commandLineArgs = "--ignore-gpu-blocklist --enable-blink-features=${builtins.concatStringsSep "," enabledBlinkFeatures}";
     })
   ];
 
