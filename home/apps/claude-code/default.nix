@@ -30,8 +30,8 @@ let
       DISABLE_INSTALLATION_CHECKS = 1;
       USE_BUILTIN_RIPGREP = 0;
       MAX_THINKING_TOKENS = 64000;
-      # See "[BUG] Logo and "Thinking" animation colors are dull/washed-out inside tmux" https://github.com/anthropics/claude-code/issues/35148#issuecomment-4073207670
-      # TMUX = "";
+      # See "[BUG] Logo and "Thinking" animation colors are dull/washed-out inside tmux" https://github.com/anthropics/claude-code/issues/35148#issuecomment-4355935411
+      CLAUDE_CODE_TMUX_TRUECOLOR = 1;
       # See "[MODEL] Claude Code is unusable for complex engineering tasks with the Feb updates" https://github.com/anthropics/claude-code/issues/42796
       CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
       CLAUDE_CODE_EFFORT_LEVEL = "max"; # This one is ignored in favor of settings.json, but I'm _hoping_ has some influence on sub-agents.
