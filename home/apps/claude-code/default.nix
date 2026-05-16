@@ -35,6 +35,8 @@ let
       # See "[MODEL] Claude Code is unusable for complex engineering tasks with the Feb updates" https://github.com/anthropics/claude-code/issues/42796
       CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1;
       CLAUDE_CODE_EFFORT_LEVEL = "max"; # This one is ignored in favor of settings.json, but I'm _hoping_ has some influence on sub-agents.
+      # Learn more at https://code.claude.com/docs/en/agent-teams
+      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
       # Learn more at https://code.claude.com/docs/en/data-usage
       DISABLE_TELEMETRY = 1;
       DISABLE_ERROR_REPORTING = 1;
