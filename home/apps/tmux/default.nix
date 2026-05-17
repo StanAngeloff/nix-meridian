@@ -9,6 +9,7 @@
     baseIndex = 1;
     clock24 = true;
     escapeTime = 0;
+    focusEvents = true;
     historyLimit = 102400;
     keyMode = "vi";
     mouse = true;
