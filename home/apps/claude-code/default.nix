@@ -212,6 +212,7 @@ in
 {
   programs.zsh.shellAliases = {
     cc = lib.getExe claude-code-npx;
+    ccc = "${lib.getExe claude-code-npx} --dangerously-skip-permissions";
   };
 
   home.file.".claude/keybindings.json".source =
