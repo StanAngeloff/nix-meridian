@@ -9,9 +9,18 @@ let
     mcpServers = {
       slack = {
         command = lib.getExe pkgs.slack-mcp-server;
+        # Learn more at https://github.com/korotovsky/slack-mcp-server/blob/v1.3.0/docs/01-authentication-setup.md#option-1-using-slack_mcp_xoxc_tokenslack_mcp_xoxd_token-browser-session
         env = {
           SLACK_MCP_XOXC_TOKEN = "\${SLACK_MCP_XOXC_TOKEN}";
           SLACK_MCP_XOXD_TOKEN = "\${SLACK_MCP_XOXD_TOKEN}";
+        };
+      };
+      trello = {
+        command = lib.getExe pkgs.mcp-server-trello;
+        # Learn more at https://github.com/delorenj/mcp-server-trello/tree/v1.6.1#environment-variables
+        env = {
+          TRELLO_API_KEY = "\${TRELLO_API_KEY}";
+          TRELLO_TOKEN = "\${TRELLO_TOKEN}";
         };
       };
     };

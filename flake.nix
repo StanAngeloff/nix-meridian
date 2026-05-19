@@ -53,6 +53,7 @@
         curlconverter = final.callPackage ./pkgs/curlconverter/package.nix { };
         mcporter = final.callPackage ./pkgs/mcporter/package.nix { };
         n8n-cli = final.callPackage ./pkgs/n8n-cli/package.nix { };
+        mcp-server-trello = final.callPackage ./pkgs/mcp-server-trello/package.nix { };
         slack-mcp-server = final.callPackage ./pkgs/slack-mcp-server/package.nix { };
         tig = final.callPackage ./pkgs/tig/overlay.nix {
           tig = prev.tig;
