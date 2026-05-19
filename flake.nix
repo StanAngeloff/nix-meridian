@@ -50,6 +50,7 @@
         ghostty = final.callPackage ./pkgs/ghostty/overlay.nix {
           ghostty = inputs.ghostty-flake.packages.${system}.default;
         };
+        mcporter = final.callPackage ./pkgs/mcporter/package.nix { };
         n8n-cli = final.callPackage ./pkgs/n8n-cli/package.nix { };
         tig = final.callPackage ./pkgs/tig/overlay.nix {
           tig = prev.tig;

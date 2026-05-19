@@ -91,8 +91,9 @@ in
     wl-clipboard
     yt-dlp
 
-    # Cross-project tools
+    # AI era tools
     gh
+    mcporter
     n8n-cli
 
     # GUI

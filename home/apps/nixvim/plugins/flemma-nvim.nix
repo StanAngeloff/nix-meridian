@@ -30,6 +30,7 @@ let
     tools = {
       mcporter = {
         enabled = true;
+        path = lib.getExe pkgs.mcporter;
       };
     };
     diagnostics = {
