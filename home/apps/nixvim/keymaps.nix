@@ -127,6 +127,15 @@
     }
     {
       event = [ "FileType" ];
+      pattern = "markdown,chat";
+      callback.__raw = ''
+        function()
+          vim.keymap.set("n", "<leader>m", ":MarkdownPreview<CR>", { buffer = true, silent = true, desc = "Open Markdown preview" })
+        end
+      '';
+    }
+    {
+      event = [ "FileType" ];
       pattern = "qf";
       callback.__raw = ''
         function()
