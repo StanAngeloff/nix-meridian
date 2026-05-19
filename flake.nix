@@ -50,6 +50,7 @@
         ghostty = final.callPackage ./pkgs/ghostty/overlay.nix {
           ghostty = inputs.ghostty-flake.packages.${system}.default;
         };
+        curlconverter = final.callPackage ./pkgs/curlconverter/package.nix { };
         mcporter = final.callPackage ./pkgs/mcporter/package.nix { };
         n8n-cli = final.callPackage ./pkgs/n8n-cli/package.nix { };
         slack-mcp-server = final.callPackage ./pkgs/slack-mcp-server/package.nix { };

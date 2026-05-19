@@ -1,8 +1,7 @@
 {
   writeShellApplication,
   name ? "curl2httpie",
-  curlconverterVersion ? "4.12",
-  pnpm,
+  curlconverter,
   coreutils,
   gnugrep,
   perl,
@@ -27,7 +26,7 @@ writeShellApplication {
   inherit name;
 
   runtimeInputs = [
-    pnpm
+    curlconverter
     coreutils
     gnugrep
     perl
@@ -41,8 +40,7 @@ writeShellApplication {
     fi
 
     echo -ne "👉 \033[0;36m"
-    pnpm --silent --package=curlconverter@${curlconverterVersion} dlx -- \
-        curlconverter --language httpie "$@" \
+    curlconverter --language httpie "$@" \
       | grep -viE '^\s+[[:punct:]]?(${builtins.concatStringsSep "|" excludeHeaders}):' \
       | perl -p -e 's/\s*\\\s*[\r\n]+\s*/ /' \
       | tee >(wl-copy)
