@@ -26,6 +26,7 @@ in
     ./httpie
     ./jq
     ./less
+    ./mcporter
     ./mise
     ./nh
     ./nixvim
