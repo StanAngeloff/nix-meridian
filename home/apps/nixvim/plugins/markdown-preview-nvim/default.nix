@@ -15,6 +15,7 @@ let
     "attrsPlugin"
     "fileRefPlugin"
     "githubAlertsPlugin"
+    "indeterminateTaskPlugin"
     "rolesPlugin"
     "thinkingBlockPlugin"
   ];
