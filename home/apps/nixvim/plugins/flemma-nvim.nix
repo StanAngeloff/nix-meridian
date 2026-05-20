@@ -74,6 +74,10 @@ let
         provider = "openai";
         model = "gpt-5.4";
       };
+      "$kimi" = {
+        provider = "moonshot";
+        model = "kimi-k2.6";
+      };
     };
   };
 in
