@@ -46,22 +46,6 @@
     }@inputs:
     let
       system = "x86_64-linux";
-      meridian-overlay = final: prev: {
-        ghostty = final.callPackage ./pkgs/ghostty/overlay.nix {
-          ghostty = inputs.ghostty-flake.packages.${system}.default;
-        };
-        curlconverter = final.callPackage ./pkgs/curlconverter/package.nix { };
-        mcporter = final.callPackage ./pkgs/mcporter/package.nix { };
-        n8n-cli = final.callPackage ./pkgs/n8n-cli/package.nix { };
-        mcp-server-trello = final.callPackage ./pkgs/mcp-server-trello/package.nix { };
-        otter-mcp = final.callPackage ./pkgs/otter-mcp/package.nix {
-          python313 = pkgs-unstable.python313;
-        };
-        slack-mcp-server = final.callPackage ./pkgs/slack-mcp-server/package.nix { };
-        tig = final.callPackage ./pkgs/tig/overlay.nix {
-          tig = prev.tig;
-        };
-      };
       pkgs-unstable = (
         import nixpkgs-unstable {
           inherit system;
@@ -77,7 +61,9 @@
         specialArgs = { inherit inputs pkgs-unstable; };
         modules = [
           {
-            nixpkgs.overlays = [ meridian-overlay ];
+            nixpkgs.overlays = [
+              (import ./pkgs/overlays.nix { inherit inputs system pkgs-unstable; })
+            ];
           }
           ./modules/options
           ./configuration.nix
