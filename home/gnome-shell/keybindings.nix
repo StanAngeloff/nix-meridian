@@ -12,17 +12,11 @@ let
         inherit name;
       }}";
     }
-    (
-      let
-        name = "voxize";
-        voxize = pkgs.callPackage ../apps/voxize/package.nix { };
-      in
-      {
-        inherit name;
-        binding = "<Super>s";
-        command = lib.getExe voxize;
-      }
-    )
+    {
+      name = "voxize";
+      binding = "<Super>s";
+      command = lib.getExe pkgs.voxize;
+    }
     rec {
       name = "unipicker";
       binding = "<Control><Shift>e";
