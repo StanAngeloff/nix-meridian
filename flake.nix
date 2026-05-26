@@ -28,11 +28,6 @@
       url = "github:Svenum/Solaar-Flake/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    ghostty-flake = {
-      url = "github:ghostty-org/ghostty/v1.3.0";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
   };
 
   outputs =

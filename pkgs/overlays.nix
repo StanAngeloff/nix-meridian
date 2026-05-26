@@ -5,7 +5,7 @@
 }:
 final: prev: {
   ghostty = final.callPackage ./ghostty/overlay.nix {
-    ghostty = inputs.ghostty-flake.packages.${system}.default;
+    ghostty = pkgs-unstable.ghostty;
   };
   curlconverter = final.callPackage ./curlconverter/package.nix { };
   mcporter = final.callPackage ./mcporter/package.nix { };
