@@ -1,6 +1,6 @@
-{ pkgs, ... }:
+{ pkgs-unstable, ... }:
 {
-  programs.gnome-shell.extensions = with pkgs.gnomeExtensions; [
+  programs.gnome-shell.extensions = with pkgs-unstable.gnomeExtensions; [
     { package = window-calls; }
   ];
 }
