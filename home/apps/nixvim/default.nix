@@ -20,11 +20,17 @@ in
     # All Home Manager options are mirrored by nixvim.
   };
 
+  # Propagate EDITOR to systemd and graphical sessions via environment.d/,
+  # not just shell sessions via hm-session-vars.sh.
+  systemd.user.sessionVariables.EDITOR = "nvim";
+
   programs.nixvim = {
     enable = true;
 
     package = neovim-wrapped;
 
+    # Only covers shell sessions (hm-session-vars.sh), not graphical ones (environment.d/).
+    # Kept for TTY logins where the shell is not a child of the systemd user manager.
     defaultEditor = true;
 
     viAlias = true;
