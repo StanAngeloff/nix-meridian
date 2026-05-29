@@ -13,8 +13,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "aab70e6ba89a2e75ee799a24d2a77a2b2942c6cd";
-        hash = "sha256-3zTm+VQfKAYbyzuN66+3Hks/Mt4PWVwHzpdF3PLm/3s=";
+        rev = "53ff34275db381b491ee82fa9238c348dabaea7c";
+        hash = "sha256-6Sk/J1CLg4NOwW0ouQIh0u1IPbtZR+anKtD5ENDRmmg=";
       };
     }
   );
