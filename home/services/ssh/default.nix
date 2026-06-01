@@ -3,12 +3,12 @@
     enable = true;
     enableDefaultConfig = false;
 
-    matchBlocks."*" = {
-      addKeysToAgent = "yes";
+    settings."*" = {
+      AddKeysToAgent = "yes";
 
-      controlMaster = "auto";
-      controlPath = "/tmp/ssh_mux_%h_%p_%r";
-      controlPersist = "1h";
+      ControlMaster = "auto";
+      ControlPath = "/tmp/ssh_mux_%h_%p_%r";
+      ControlPersist = "1h";
     };
 
     githubAccounts."StanAngeloff" = {

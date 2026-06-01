@@ -26,7 +26,7 @@ with lib.lists;
 
     # Learn more at https://news.ycombinator.com/item?id=44581619
     # > If you were using systemd-resolved however, it retries all servers in the order they were specified, so it's important to interleave upstreams.
-    fallbackDns = [
+    settings.Resolve.FallbackDNS = [
       "1.1.1.1" # Cloudflare DNS
       "9.9.9.9" # Quad9 DNS
       "8.8.8.8" # Google DNS

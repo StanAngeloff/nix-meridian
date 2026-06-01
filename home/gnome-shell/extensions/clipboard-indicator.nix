@@ -14,6 +14,9 @@
     next-entry = [ ];
     prev-entry = [ ];
     private-mode-binding = [ ];
+    show-edit-button = false;
+    show-pin-button = false;
+    show-tag-button = false;
     toggle-menu = [ "<Super>c" ];
   };
 }

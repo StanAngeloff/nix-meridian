@@ -89,7 +89,7 @@ in
     trash-cli
     tree
     unp
-    wineWowPackages.stable
+    wineWow64Packages.stable
     wl-clipboard
     yt-dlp
 
@@ -110,7 +110,7 @@ in
     onlyoffice-desktopeditors
     papers
     pkgs-unstable.proton-pass
-    protonvpn-gui
+    proton-vpn
     remmina
     slack
     viber

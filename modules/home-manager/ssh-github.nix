@@ -31,11 +31,11 @@ let
     };
   };
 
-  sshMatchBlock = {
+  sshSettingsBlock = {
     "github.com" = {
-      hostname = "github.com";
-      user = "git";
-      identityFile = map (username: "~/.ssh/github_${username}") (builtins.attrNames cfg);
+      HostName = "github.com";
+      User = "git";
+      IdentityFile = map (username: "~/.ssh/github_${username}") (builtins.attrNames cfg);
     };
   };
 in
@@ -47,7 +47,7 @@ in
   };
 
   config = mkIf (cfg != { }) {
-    programs.ssh.matchBlocks = sshMatchBlock;
+    programs.ssh.settings = sshSettingsBlock;
 
     home.activation.generateSshKeys =
       let

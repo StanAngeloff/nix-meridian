@@ -7,6 +7,7 @@ with pkgs;
       name = "adw-gtk3-dark";
       package = adw-gtk3;
     };
+    gtk4.theme = null;
     cursorTheme = {
       name = "DMZ-White";
       size = 24;

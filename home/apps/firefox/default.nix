@@ -1,6 +1,7 @@
 {
   programs.firefox = {
     enable = true;
+    configPath = ".config/mozilla/firefox";
 
     languagePacks = [
       "en-GB"

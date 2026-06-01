@@ -22,7 +22,14 @@
   nss,
   pango,
   udev,
-  xorg,
+  libx11,
+  libxcb,
+  libxcomposite,
+  libxdamage,
+  libxext,
+  libxfixes,
+  libxi,
+  libxrandr,
 }:
 stdenv.mkDerivation rec {
   pname = "bruno";
@@ -52,14 +59,14 @@ stdenv.mkDerivation rec {
     nss
     pango
     udev
-    xorg.libX11
-    xorg.libXcomposite
-    xorg.libXdamage
-    xorg.libXext
-    xorg.libXfixes
-    xorg.libXi
-    xorg.libXrandr
-    xorg.libxcb
+    libx11
+    libxcomposite
+    libxdamage
+    libxext
+    libxfixes
+    libxi
+    libxrandr
+    libxcb
   ];
 
   nativeBuildInputs = [
