@@ -1,0 +1,54 @@
+From cde3577ab8deaa85801428d7f42dfe1ffb8f6fc9 Mon Sep 17 00:00:00 2001
+From: muzaffarmhd <mdmuzaffarprof@gmail.com>
+Date: Mon, 16 Mar 2026 10:38:15 +0530
+Subject: [PATCH] backends: Prevent modifier release from stopping key repeat
+
+- On key release, only cancel the repeat if the released key is the one
+  currently driving the repeat.
+
+- If the pressed key is non-repeating, return without disturbing the
+  ongoing repeat.
+
+Closes: https://gitlab.gnome.org/GNOME/mutter/-/issues/4675
+---
+ src/backends/native/meta-seat-impl.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/backends/native/meta-seat-impl.c b/src/backends/native/meta-seat-impl.c
+index 2376682db48..515cf7dc26c 100644
+--- a/src/backends/native/meta-seat-impl.c
++++ b/src/backends/native/meta-seat-impl.c
+@@ -687,16 +687,26 @@ meta_seat_impl_notify_key_in_impl (MetaSeatImpl       *seat_impl,
+       queue_event (seat_impl, state_event);
+     }
+ 
+-  if (state == 0 ||             /* key release */
+-      !seat_impl->repeat ||
+-      !xkb_keymap_key_repeats (xkb_state_get_keymap (seat_impl->xkb),
+-                               keycode))
++  if (state == 0)              /* key release */
++    {
++      if (seat_impl->repeat_key == key)
++        {
++          seat_impl->repeat_count = 0;
++          meta_seat_impl_clear_repeat_source (seat_impl);
++        }
++      return;
++    }
++
++  if (!seat_impl->repeat)
+     {
+       seat_impl->repeat_count = 0;
+       meta_seat_impl_clear_repeat_source (seat_impl);
+       return;
+     }
+ 
++  if (!xkb_keymap_key_repeats (xkb_state_get_keymap (seat_impl->xkb), keycode))
++    return;
++
+   if (state == 1)               /* key press */
+     seat_impl->repeat_count = 0;
+ 
+-- 
+GitLab
+
