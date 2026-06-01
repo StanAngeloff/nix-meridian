@@ -1,11 +1,12 @@
 { pkgs, ... }:
 let
   nodejs = pkgs.nodejs_24;
+  pnpm = pkgs.pnpm.override { inherit nodejs; };
 in
 {
   home.packages = [
     nodejs
-    nodejs.pkgs.pnpm
+    pnpm
   ];
 
   home.file.".config/pnpm/rc".text = ''

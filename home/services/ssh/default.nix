@@ -17,6 +17,7 @@
   };
 
   services.ssh-agent = {
-    enable = true;
+    # NOTE: gpg-agent handles SSH via enableSshSupport; both cannot set SSH_AUTH_SOCK
+    enable = false;
   };
 }

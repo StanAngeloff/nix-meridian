@@ -58,7 +58,7 @@ The source tree is the source of truth. Rather than maintaining a parallel inven
 
 ## Requirements
 
-- NixOS 25.11 or later
+- NixOS 26.05 or later
 - Private fonts:
   - Berkeley Mono™ (TX-02) — primary monospace font
 

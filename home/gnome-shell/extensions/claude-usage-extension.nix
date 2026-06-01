@@ -1,6 +1,6 @@
 { inputs, pkgs, ... }:
 let
-  # See https://github.com/NixOS/nixpkgs/blob/nixos-25.11/pkgs/desktops/gnome/extensions/buildGnomeExtension.nix#L11
+  # See https://github.com/NixOS/nixpkgs/blob/nixos-26.05/pkgs/desktops/gnome/extensions/buildGnomeExtension.nix#L11
   buildShellExtension =
     pkgs.callPackage (import "${inputs.nixpkgs}/pkgs/desktops/gnome/extensions/buildGnomeExtension.nix")
       { };

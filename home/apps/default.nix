@@ -67,6 +67,7 @@ in
     wget
 
     # CLI
+    android-tools
     bun
     clipboard2markdown
     dconf2nix

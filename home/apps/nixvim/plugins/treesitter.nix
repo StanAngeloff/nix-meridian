@@ -1,4 +1,4 @@
-{ pkgs, pkgs-unstable, ... }:
+{ config, pkgs-unstable, ... }:
 let
   terraform = pkgs-unstable.vimPlugins.nvim-treesitter-parsers.terraform;
 in
@@ -7,32 +7,21 @@ in
     plugins.treesitter = {
       enable = true;
 
-      folding = true;
+      folding.enable = true;
 
-      settings = {
-        highlight = {
-          enable = true;
-        };
-        indent = {
-          enable = true;
-        };
-      };
+      highlight.enable = true;
+      indent.enable = true;
 
-      # See https://github.com/nix-community/nixvim/blob/nixos-25.11/plugins/by-name/treesitter/default.nix#L85
-      grammarPackages = pkgs.vimPlugins.nvim-treesitter.passthru.allGrammars ++ [
+      # See https://github.com/nix-community/nixvim/blob/nixos-26.05/plugins/by-name/treesitter/default.nix#L51
+      grammarPackages = config.programs.nixvim.plugins.treesitter.package.allGrammars ++ [
         terraform
       ];
+
+      languageRegister.terraform = "tf";
     };
 
     extraPlugins = [
       terraform
     ];
-
-    extraConfigLua = # lua
-      ''
-        local parser_configs = require("nvim-treesitter.parsers").get_parser_configs();
-
-        parser_configs.terraform = { install_info = { url = "${terraform}", files = {"src/parser.c"} }, filetype = "tf" }
-      '';
   };
 }
