@@ -6,4 +6,4 @@ mkdir -p "$CLAUDE_TMPDIR"
 export TMP="${TMP:-$CLAUDE_TMPDIR}"
 export TMPDIR="${TMPDIR:-/tmp}"
 
-exec npx --yes --silent @package@@@version@ @args@ "$@"
+exec npx --yes --silent @package@@@version@ "$@"
