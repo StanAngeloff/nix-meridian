@@ -105,6 +105,7 @@ in
     gnome-firmware
     gnome-tweaks
     google-chrome
+    heidisql
     inkscape
     keepassxc
     onlyoffice-desktopeditors

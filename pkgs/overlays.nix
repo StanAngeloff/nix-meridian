@@ -1,6 +1,7 @@
 { inputs, system }:
 final: prev: {
   curlconverter = final.callPackage ./curlconverter/package.nix { };
+  heidisql = final.qt6Packages.callPackage ./heidisql/package.nix { };
   ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = prev.ghostty; };
   mcp-server-trello = final.callPackage ./mcp-server-trello/package.nix { };
   mutter = final.callPackage ./mutter/overlay.nix { mutter = prev.mutter; };
