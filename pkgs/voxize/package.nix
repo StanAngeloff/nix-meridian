@@ -34,8 +34,8 @@ python.pkgs.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
-    rev = "b42766bee746114c6197fa72cef6e7e3c1bd9333";
-    hash = "sha256-wapwlPvyfKa/9pYEC0H+vHjSPFqUNRyYDoz0DNN7Syw=";
+    rev = "45bb06ad333dbad69c8fdd2d796f73407848251b";
+    hash = "sha256-BOiDO/mALOK5AMAOpRqY20PD9MMxMERigoVaidlGvNs=";
   };
 
   buildInputs = runtimeDeps;
