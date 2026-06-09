@@ -28,6 +28,7 @@ let
       commit = "";
       pr = "";
     };
+    viewMode = "verbose";
     statusLine = {
       type = "command";
       command = lib.getExe claude-code-statusline;
