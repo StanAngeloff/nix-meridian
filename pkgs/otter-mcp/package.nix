@@ -26,8 +26,8 @@ python.pkgs.buildPythonApplication {
   src = fetchFromGitHub {
     owner = "StanAngeloff";
     repo = "otter-mcp";
-    rev = "5836300d66adb31a16aa8d922a272a07bc3060e2";
-    hash = "sha256-luEh3y0UfiAtS8FKtxCs3kmKWV/lkUmtl05+vDNGWFY=";
+    rev = "09d96353ecdaf63c35732b53d1fc5b5e773cec54";
+    hash = "sha256-434PdnAJAQ2m4a9iA/0ftANXEDjHeNrK0J2cyaGvqMQ=";
   };
 
   pyproject = true;
