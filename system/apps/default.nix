@@ -19,6 +19,8 @@
 
   # List packages to exclude from the default Gnome desktop environment.
   environment.gnome.excludePackages = with pkgs; [
-    evince
+    evince # replaced by Papers
+    showtime # replaced by Cine
+    totem # replaced by Cine
   ];
 }

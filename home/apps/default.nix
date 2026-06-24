@@ -46,6 +46,7 @@ in
     ./dropbox
     ./eog
     ./firefox
+    ./mpv
     ./swappy
     ./thunderbird
     ./vscode
