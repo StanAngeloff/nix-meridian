@@ -5,6 +5,8 @@
   ...
 }:
 let
+  chime = "${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3}";
+
   tmux-claude-state =
     let
       tmux = "${lib.getBin pkgs.tmux}/bin/tmux";
@@ -22,7 +24,7 @@ let
         hooks = [
           {
             type = "command";
-            command = "${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3}";
+            command = chime;
             timeout = 5;
           }
           {
@@ -36,6 +38,23 @@ let
     Elicitation = [
       {
         hooks = [
+          {
+            type = "command";
+            command = tmux-claude-state.set "elicitation";
+            timeout = 2;
+          }
+        ];
+      }
+    ];
+    PreToolUse = [
+      {
+        matcher = "AskUserQuestion";
+        hooks = [
+          {
+            type = "command";
+            command = chime;
+            timeout = 5;
+          }
           {
             type = "command";
             command = tmux-claude-state.set "elicitation";
