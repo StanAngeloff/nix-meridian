@@ -44,7 +44,9 @@ in
     ];
 
     extraConfig = ''
-      ${builtins.replaceStrings [ "@dismissClaudeIdle@" ] [ "${dismissClaudeIdle}" ] (builtins.readFile ./tmux.conf)}
+      ${builtins.replaceStrings [ "@dismissClaudeIdle@" ] [ "${dismissClaudeIdle}" ] (
+        builtins.readFile ./tmux.conf
+      )}
       ${builtins.readFile ./abilities/tmux.tig.conf}
       ${builtins.readFile ./abilities/tmux.nix-diff.conf}
     '';
