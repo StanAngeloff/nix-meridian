@@ -54,11 +54,12 @@
           };
         }
       );
+      machineName = "stan-latitude";
     in
     {
-      nixosConfigurations.stan-latitude = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.${machineName} = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs pkgs-unstable; };
+        specialArgs = { inherit inputs pkgs-unstable machineName; };
         modules = [
           {
             nixpkgs.overlays = [

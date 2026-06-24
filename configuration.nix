@@ -1,9 +1,16 @@
-{ config, lib, ... }:
+{
+  config,
+  machineName,
+  lib,
+  ...
+}:
 {
   imports = [
-    ./machines/stan-latitude/hardware-configuration.nix
+    ./machines/${machineName}
     ./system
   ];
+
+  networking.hostName = machineName;
 
   # Enable the Flakes feature and the accompanying new nix command-line tool.
   nix.settings.experimental-features = [

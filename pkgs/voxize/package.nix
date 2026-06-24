@@ -9,6 +9,7 @@
   gtk4,
   libadwaita,
   libsecret,
+  pipewire,
   portaudio,
 }:
 let
@@ -17,6 +18,7 @@ let
     gtk4
     libadwaita
     libsecret
+    pipewire
     portaudio
   ];
   pythonDeps = with python.pkgs; [
@@ -34,8 +36,8 @@ python.pkgs.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
-    rev = "45bb06ad333dbad69c8fdd2d796f73407848251b";
-    hash = "sha256-BOiDO/mALOK5AMAOpRqY20PD9MMxMERigoVaidlGvNs=";
+    rev = "1e9354ff58981242a0212e173130ed8b9b1a7134";
+    hash = "sha256-kVnhekDXZT7i8m+WIgXDHhpKJntqk8fdMNeSy59UulM=";
   };
 
   buildInputs = runtimeDeps;
@@ -60,6 +62,7 @@ python.pkgs.buildPythonApplication rec {
       makeWrapperArgs+=(
         "''${gappsWrapperArgs[@]}"
         --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeDeps}
+        --set ALSA_PLUGIN_DIR ${pipewire}/lib/alsa-lib
         --prefix PYTHONPATH : "$out/${python.sitePackages}:${pyPath}"
       )
     '';
