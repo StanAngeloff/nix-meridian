@@ -5,7 +5,9 @@
   ...
 }:
 let
-  chime = "${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3}";
+  # Detach into its own session so the chime never blocks the hook: PreToolUse
+  # gates the tool call, so a synchronous player would delay the prompt render.
+  chime = "${lib.getBin pkgs.util-linux}/bin/setsid --fork ${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3} >/dev/null 2>&1";
 
   tmux-claude-state =
     let
