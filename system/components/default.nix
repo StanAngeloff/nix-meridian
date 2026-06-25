@@ -18,6 +18,7 @@
     ./regional.nix
     ./security.nix
     ./shell.nix
+    ./smartcard.nix
     ./udev.nix
     ./upgrades.nix
   ];
