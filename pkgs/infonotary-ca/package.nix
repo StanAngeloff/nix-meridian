@@ -8,9 +8,9 @@ stdenvNoCC.mkDerivation {
   version = "eidas-2026";
 
   src = fetchurl {
-    # Official InfoNotary qualified eIDAS certification chain: PKCS#12, empty password, public
-    # certificates only (no private keys). Holds "InfoNotary TSP Root" plus the qualified
-    # intermediate CAs. Bump version and hash when InfoNotary rotates the chain.
+    # Official InfoNotary qualified eIDAS certification chain: PKCS#12, empty password, public certificates only
+    # (no private keys). Holds "InfoNotary TSP Root" plus the qualified intermediate CAs. Bump version and hash when
+    # InfoNotary rotates the chain.
     url = "https://repository.infonotary.com/ra/InfoNotary_Qualified_eIDAS.p12";
     hash = "sha256-KIIWp9Vf3/oVvb9zg7v9oBSZCIGXI36hG/ukLMQWlQ8=";
   };
@@ -24,13 +24,12 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out/share/ca/pem"
 
     # Public certificates only; the .p12 has an empty password and carries no private keys.
-    # openssl prints human-readable "Bag Attributes"/subject/issuer headers before each
-    # certificate, so the raw output is not a clean PEM bundle.
+    # openssl prints human-readable "Bag Attributes"/subject/issuer headers
+    # before each certificate, so the raw output is not a clean PEM bundle.
     openssl pkcs12 -in "$src" -nokeys -passin pass: -out chain-raw.pem
 
-    # Split on certificate boundaries. The first piece is openssl's leading header text (no
-    # certificate at all); re-emitting every piece through `openssl x509` drops the headers and
-    # lets us skip any piece that is not a real certificate.
+    # Split on certificate boundaries. The first piece is openssl's leading header text (no certificate at all); re-emitting
+    # every piece through `openssl x509` drops the headers and lets us skip any piece that is not a real certificate.
     csplit -sz -f piece- -b "%03d" chain-raw.pem "/-----BEGIN CERTIFICATE-----/" "{*}"
 
     : > "$out/share/ca/InfoNotary-chain.pem"
@@ -38,12 +37,11 @@ stdenvNoCC.mkDerivation {
     for piece in piece-*; do
       openssl x509 -in "$piece" -noout 2>/dev/null || continue # skip non-certificate pieces
 
-      # Name each file after the certificate's Common Name with non-alphanumeric characters
-      # removed, so the chain is self-documenting (for example "InfoNotary TSP Root" becomes
-      # InfoNotaryTSPRoot.pem). Firefox's Certificates.Install imports only the first certificate
-      # from a bundle file, so every certificate is written on its own and trusted individually.
-      # A numeric suffix disambiguates the rare case of two certificates sharing a Common Name, so
-      # none is ever silently overwritten.
+      # Name each file after the certificate's Common Name with non-alphanumeric characters removed, so the chain is
+      # self-documenting (for example "InfoNotary TSP Root" becomes InfoNotaryTSPRoot.pem). Firefox's Certificates.Install
+      # imports only the first certificate from a bundle file, so every certificate is written on its own and trusted
+      # individually. A numeric suffix disambiguates the rare case of two certificates sharing a Common Name, so none
+      # is ever silently overwritten.
       cn="$(openssl x509 -in "$piece" -noout -subject -nameopt multiline \
         | sed -n 's/^ *commonName *= *//p' | tr -cd 'A-Za-z0-9')"
       [ -n "$cn" ] || cn="InfoNotaryCA"

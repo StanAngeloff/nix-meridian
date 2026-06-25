@@ -19,6 +19,10 @@ let
   p11KitProxy = "${pkgs.p11-kit}/lib/p11-kit-proxy.so";
 in
 {
+  # InfoNotary e-Doc Signer + Smart Card Manager. FHS-wrapped so the apps' hard-coded /usr/lib/infonotary plugin
+  # directory resolves at sign time — see pkgs/infonotary-client-software-fhs.
+  home.packages = [ pkgs.infonotary-client-software-fhs ];
+
   # ── Firefox: smart-card module + InfoNotary CA trust (fully declarative) ──────────────────────
   # These keys merge into home/apps/firefox/default.nix's policies through the home-manager module
   # system; the keys defined there (DisableTelemetry and friends) are disjoint from these.

@@ -1,7 +1,11 @@
 { inputs, system }:
 final: prev: {
+  # nixfmt: off
   curlconverter = final.callPackage ./curlconverter/package.nix { };
   infonotary-ca = final.callPackage ./infonotary-ca/package.nix { };
+  infonotary-idprime = final.callPackage ./infonotary-idprime/package.nix { };
+  infonotary-client-software = final.libsForQt5.callPackage ./infonotary-client-software/package.nix { };
+  infonotary-client-software-fhs = final.callPackage ./infonotary-client-software-fhs/package.nix { };
   heidisql = final.qt6Packages.callPackage ./heidisql/package.nix { };
   ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = prev.ghostty; };
   mcp-server-trello = final.callPackage ./mcp-server-trello/package.nix { };
@@ -12,4 +16,5 @@ final: prev: {
   slack-mcp-server = final.callPackage ./slack-mcp-server/package.nix { };
   tig = final.callPackage ./tig/overlay.nix { tig = prev.tig; };
   voxize = final.callPackage ./voxize/package.nix { };
+  # nixfmt: on, as: statements
 }
