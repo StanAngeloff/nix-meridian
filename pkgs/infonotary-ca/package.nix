@@ -35,21 +35,32 @@ stdenvNoCC.mkDerivation {
 
     : > "$out/share/ca/InfoNotary-chain.pem"
     : > "$out/share/ca/der-base64.txt"
-    i=0
     for piece in piece-*; do
       openssl x509 -in "$piece" -noout 2>/dev/null || continue # skip non-certificate pieces
 
-      # Firefox's Certificates.Install imports only the first certificate from a bundle file, so
-      # write one clean PEM per certificate; every CA is then listed and trusted on its own.
-      cert="$(printf '%s/share/ca/pem/cert-%02d.pem' "$out" "$i")"
+      # Name each file after the certificate's Common Name with non-alphanumeric characters
+      # removed, so the chain is self-documenting (for example "InfoNotary TSP Root" becomes
+      # InfoNotaryTSPRoot.pem). Firefox's Certificates.Install imports only the first certificate
+      # from a bundle file, so every certificate is written on its own and trusted individually.
+      # A numeric suffix disambiguates the rare case of two certificates sharing a Common Name, so
+      # none is ever silently overwritten.
+      cn="$(openssl x509 -in "$piece" -noout -subject -nameopt multiline \
+        | sed -n 's/^ *commonName *= *//p' | tr -cd 'A-Za-z0-9')"
+      [ -n "$cn" ] || cn="InfoNotaryCA"
+      name="$cn"
+      suffix=2
+      while [ -e "$out/share/ca/pem/$name.pem" ]; do
+        name="$cn-$suffix"
+        suffix=$((suffix + 1))
+      done
+      cert="$out/share/ca/pem/$name.pem"
+
       openssl x509 -in "$piece" -out "$cert"
       cat "$cert" >> "$out/share/ca/InfoNotary-chain.pem"
 
       # Brave's CACertificates policy wants base64-encoded DER, one certificate per line.
       openssl x509 -in "$piece" -outform der | base64 -w0 >> "$out/share/ca/der-base64.txt"
       printf '\n' >> "$out/share/ca/der-base64.txt"
-
-      i=$((i + 1))
     done
 
     runHook postInstall
