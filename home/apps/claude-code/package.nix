@@ -25,7 +25,7 @@ symlinkJoin {
         export TMPDIR="''${TMPDIR:-/tmp}"
       ' \
       ${lib.concatStringsSep " \\\n      " (
-        lib.mapAttrsToList (name: value: "--set ${name} ${lib.escapeShellArg (toString value)}") env
+        lib.mapAttrsToList (name: value: "--set-default ${name} ${lib.escapeShellArg (toString value)}") env
       )}
   '';
   meta.mainProgram = "claude";

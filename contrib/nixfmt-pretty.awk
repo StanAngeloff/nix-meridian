@@ -48,6 +48,49 @@ function get_brace_delta(line, i, char, in_string, delta) {
     return delta
 }
 
+# A function to split a single collapsed line into top-level statements.
+# It cuts on every ";" that sits at bracket-depth zero and outside a string,
+# so a ";" nested inside "{ ... }" (e.g. "{ ghostty = prev.ghostty; }") stays
+# attached to its statement. Each returned part keeps its trailing ";".
+# Returns the number of parts and fills the `parts` array (1-indexed).
+function split_top_level_statements(text, parts, i, char, in_string, depth, n, current) {
+    delete parts
+    in_string = 0
+    depth = 0
+    n = 0
+    current = ""
+
+    for (i = 1; i <= length(text); ++i) {
+        char = substr(text, i, 1)
+
+        # Track string state so brackets/semicolons inside strings are ignored.
+        if (char == "\"") {
+            if (i == 1 || substr(text, i - 1, 1) != "\\") { in_string = !in_string }
+            current = current char
+            continue
+        }
+
+        if (!in_string) {
+            if (char == "{" || char == "(" || char == "[") { depth++ }
+            else if (char == "}" || char == ")" || char == "]") { depth-- }
+
+            # A semicolon at the top level closes the current statement.
+            if (char == ";" && depth == 0) {
+                parts[++n] = current char
+                current = ""
+                continue
+            }
+        }
+
+        current = current char
+    }
+
+    # Keep any trailing remainder that was not terminated by a top-level ";".
+    if (current ~ /\S/) { parts[++n] = current }
+
+    return n
+}
+
 # Rule 1: Handle the "nixfmt: on" directive.
 # This pattern has the highest priority to ensure it can turn off the active state.
 /#\s*nixfmt:\s*on\>/ {
@@ -98,6 +141,25 @@ function get_brace_delta(line, i, char, in_string, delta) {
                 if (lines[i] ~ /\S/) {
                     print section_indent lines[i]
                 }
+            }
+        }
+        else if (fmt_options["as"] == "statements") {
+            # Behavior: one statement per line. First collapse the whole buffer
+            # into a single spaced line (re-joining anything nixfmt wrapped
+            # within a statement), then split on top-level ";" so each
+            # ";"-terminated statement — e.g. each attribute binding — lands on
+            # its own line at the section indent.
+            gsub(RS, " ", section_buffer)
+            gsub(/\s+/, " ", section_buffer)
+            sub(/^\s*/, "", section_buffer)
+            sub(/\s*$/, "", section_buffer)
+
+            statement_count = split_top_level_statements(section_buffer, statements)
+            for (i = 1; i <= statement_count; i++) {
+                statement = statements[i]
+                sub(/^\s*/, "", statement)
+                sub(/\s*$/, "", statement)
+                if (statement ~ /\S/) { print section_indent statement }
             }
         }
         else {
