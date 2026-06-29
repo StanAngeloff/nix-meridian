@@ -23,6 +23,15 @@
 
             vim.keymap.set('n', '[e', '<cmd>Lspsaga diagnostic_jump_prev<CR>', bufopts)
             vim.keymap.set('n', ']e', '<cmd>Lspsaga diagnostic_jump_next<CR>', bufopts)
+
+            -- BUG: terraform-ls's semantic tokens drive Neovim 0.12's semantic_tokens.lua
+            --      into an unbounded loop on files whose tokens run past the end of the
+            --      buffer (for example a trailing heredoc), which hangs the editor.
+            --      The treesitter highlighter still covers terraform, so disable only the
+            --      semantic-token capability for this server.
+            if client.name == 'terraformls' then
+              client.server_capabilities.semanticTokensProvider = nil
+            end
           '';
 
         servers = {
