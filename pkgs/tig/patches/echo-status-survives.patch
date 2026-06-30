@@ -1,0 +1,21 @@
+diff --git i/src/display.c w/src/display.c
+index 9dfada2..fefc1f4 100644
+--- i/src/display.c
++++ w/src/display.c
+@@ -103,11 +103,15 @@ open_external_viewer(const char *argv[], const char *dir, bool silent, bool conf
+ 		tcsetattr(opt_tty.fd, TCSAFLUSH, opt_tty.attr);
+ 		set_terminal_modes();
+ 		signal(SIGINT, SIG_DFL);
+ 	}
+ 
+-	if (watch_update(WATCH_EVENT_AFTER_COMMAND) && do_refresh) {
++	/* The '+' (echo) flag runs a command solely to print a line to the
++	 * status bar, so skip the post-command watch refresh: it would clear
++	 * that message immediately, and for an untracked entry it also closes
++	 * the stage view. */
++	if (!echo && watch_update(WATCH_EVENT_AFTER_COMMAND) && do_refresh) {
+ 		struct view *view;
+ 		int i;
+ 
+ 		foreach_displayed_view (view, i) {
+ 			if (watch_dirty(&view->watch))
