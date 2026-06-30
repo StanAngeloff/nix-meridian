@@ -21,12 +21,27 @@ source ~/.config/tig/vim.tigrc
 bind generic <C-j> next
 bind generic <C-k> previous
 
+# Route every view switch through the `v` prefix (chords defined in vim.tigrc) by unbinding tig's default single-key view shortcuts.
+# Keys repurposed by vim.tigrc (h, l, g, s, c) are left untouched; reflog has no `v` chord upstream, so add one.
+bind generic m none
+bind generic d none
+bind generic L none
+bind generic t none
+bind generic f none
+bind generic b none
+bind generic r none
+bind generic p none
+bind generic S none
+bind generic vL view-reflog
+
 bind status A !git commit --amend
 bind status P !git push
 bind status T @trash %(file)
-# Mirror Neovim tree explorer copy bindings: y = file name, Y = relative path
-bind status y +sh -c "n=\"$(basename '%(file)')\"; printf '%s' \"$n\" | wl-copy && echo \"Copied name: $n\""
-bind status Y +sh -c "printf '%s' '%(file)' | wl-copy && echo 'Copied path: %(file)'"
+# Mirror Neovim's tree explorer: y copies the file name, Y the relative path.
+# Bound generic so they also work in the stage and diff views (not just status);
+# guarded so an empty %(file) in commit-list views cannot clobber the clipboard.
+bind generic y +sh -c "f='%(file)'; [ -n \"$f\" ] && n=$(basename \"$f\") && printf '%s' \"$n\" | wl-copy && echo \"Copied name: $n\""
+bind generic Y +sh -c "f='%(file)'; [ -n \"$f\" ] && printf '%s' \"$f\" | wl-copy && echo \"Copied path: $f\""
 
 bind pager ] move-next-diff
 bind pager [ move-prev-diff
