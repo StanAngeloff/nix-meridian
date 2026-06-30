@@ -24,7 +24,9 @@ bind generic <C-k> previous
 bind status A !git commit --amend
 bind status P !git push
 bind status T @trash %(file)
-bind status y +sh -c "printf '%s' '%(file)' | wl-copy && echo 'Copied: %(file)'"
+# Mirror Neovim tree explorer copy bindings: y = file name, Y = relative path
+bind status y +sh -c "n=\"$(basename '%(file)')\"; printf '%s' \"$n\" | wl-copy && echo \"Copied name: $n\""
+bind status Y +sh -c "printf '%s' '%(file)' | wl-copy && echo 'Copied path: %(file)'"
 
 bind pager ] move-next-diff
 bind pager [ move-prev-diff
