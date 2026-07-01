@@ -2,17 +2,17 @@
 let
   tmux = "${pkgs.tmux}/bin/tmux";
 
-  # Debounced clear of the Claude Code "idle" (green) status dot.
+  # Debounced dim of the Claude Code idle status dot: bright green (idle-unread) fades to dim green (idle-read).
   #
   # The after-select-window hook launches this in the background with the just-selected window ID as $1.
-  # After a short dwell it clears the dot only if that window is STILL focused and STILL idle,
-  # so cycling past a window with Ctrl+Tab leaves before the dwell elapses and nothing is wiped.
+  # After a short dwell it dims the dot only if that window is STILL focused and STILL idle-unread,
+  # so cycling past a window with Ctrl+Tab (which leaves before the dwell elapses) keeps the bright dot.
   dismissClaudeIdle = pkgs.writeShellScript "tmux-dismiss-claude-idle" ''
     expected="$1"
     sleep 2
     [ "$(${tmux} display-message -p -t "$expected" '#{window_active}')" = 1 ] || exit 0
-    [ "$(${tmux} show-options -wqv -t "$expected" @claude-state)" = idle ] || exit 0
-    ${tmux} set-option -wu -t "$expected" @claude-state
+    [ "$(${tmux} show-options -wqv -t "$expected" @claude-state)" = idle-unread ] || exit 0
+    ${tmux} set-option -w -t "$expected" @claude-state idle-read
     ${tmux} refresh-client -S 2>/dev/null || true
   '';
 in

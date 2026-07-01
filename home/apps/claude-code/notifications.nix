@@ -5,121 +5,45 @@
   ...
 }:
 let
-  # Detach into its own session so the chime never blocks the hook: PreToolUse
-  # gates the tool call, so a synchronous player would delay the prompt render.
-  chime = "${lib.getBin pkgs.util-linux}/bin/setsid --fork ${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3} >/dev/null 2>&1";
+  # NOTE: setsid detaches into its own session so the chime never blocks the hook;
+  # PreToolUse blocks the tool prompt, so a synchronous audio player would delay the prompt appearing.
+  chimeCmd = "${lib.getBin pkgs.util-linux}/bin/setsid --fork ${lib.getBin pkgs.pipewire}/bin/pw-play ${./audio/notifications/mixkit-clear-announce-tones-2861.mp3} >/dev/null 2>&1";
 
-  tmux-claude-state =
-    let
-      tmux = "${lib.getBin pkgs.tmux}/bin/tmux";
-    in
-    {
-      set =
-        state: "[ -n \"$TMUX_PANE\" ] && ${tmux} set -w -t \"$TMUX_PANE\" @claude-state ${state} || true";
-      reset = "[ -n \"$TMUX_PANE\" ] && ${tmux} set -wu -t \"$TMUX_PANE\" @claude-state || true";
-      reset-blocked = "[ -n \"$TMUX_PANE\" ] && case \"$(${tmux} show -wv -t \"$TMUX_PANE\" @claude-state 2>/dev/null)\" in permission|elicitation) ${tmux} set -wu -t \"$TMUX_PANE\" @claude-state;; esac; true";
-    };
+  stateCmd = pkgs.callPackage ./hooks/package.nix { };
+
+  # Every state-changing event pipes its JSON to the dispatch script, which decides the state and ignores subagent-originated events;
+  # it reads stdin and takes no arguments.
+  stateHook = {
+    type = "command";
+    command = lib.getExe stateCmd;
+    timeout = 5;
+  };
+
+  chimeHook = {
+    type = "command";
+    command = chimeCmd;
+    timeout = 5;
+  };
 
   hooks = {
-    PermissionRequest = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = chime;
-            timeout = 5;
-          }
-          {
-            type = "command";
-            command = tmux-claude-state.set "permission";
-            timeout = 2;
-          }
-        ];
-      }
-    ];
-    Elicitation = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = tmux-claude-state.set "elicitation";
-            timeout = 2;
-          }
-        ];
-      }
-    ];
+    # nixfmt: off
+    SessionStart = [ { hooks = [ stateHook ]; } ];
+    UserPromptSubmit = [ { hooks = [ stateHook ]; } ];
     PreToolUse = [
-      {
-        matcher = "AskUserQuestion";
-        hooks = [
-          {
-            type = "command";
-            command = chime;
-            timeout = 5;
-          }
-          {
-            type = "command";
-            command = tmux-claude-state.set "elicitation";
-            timeout = 2;
-          }
-        ];
-      }
+      # All tools go to the dispatch script; it decides working or blocked from tool_name.
+      { hooks = [ stateHook ]; }
+      # Chime for the question prompt only.
+      { matcher = "AskUserQuestion"; hooks = [ chimeHook ]; }
     ];
-    Stop = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = tmux-claude-state.set "idle";
-            timeout = 2;
-          }
-        ];
-      }
+    PostToolUse = [ { hooks = [ stateHook ]; } ];
+    PermissionRequest = [
+      { hooks = [ chimeHook stateHook ]; }
     ];
-    StopFailure = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = tmux-claude-state.set "idle";
-            timeout = 2;
-          }
-        ];
-      }
-    ];
-    PostToolUse = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = tmux-claude-state.reset-blocked;
-            timeout = 2;
-          }
-        ];
-      }
-    ];
-    UserPromptSubmit = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = tmux-claude-state.reset;
-            timeout = 2;
-          }
-        ];
-      }
-    ];
-    SessionEnd = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = tmux-claude-state.reset;
-            timeout = 2;
-          }
-        ];
-      }
-    ];
+    Elicitation = [ { hooks = [ stateHook ]; } ];
+    Stop = [ { hooks = [ stateHook ]; } ];
+    StopFailure = [ { hooks = [ stateHook ]; } ];
+    SessionEnd = [ { hooks = [ stateHook ]; } ];
+    # nixfmt: on, as: statements
   };
 in
 {
