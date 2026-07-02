@@ -16,15 +16,18 @@ Colours 0-15 are overridden by Ghostty (defined in `home/apps/ghostty/default.ni
 
 ## Tailwind-like shade system
 
-Each hue has shades from 50 (near-white) to 950 (near-black), varying only lightness. Three shades are used:
+Each hue has shades from 50 (near-white) to 950 (near-black), varying only lightness. Two dot shades are used, one per focus state:
 
-| Role                         | Shade | Lightness | Where it appears                     |
-| :--------------------------- | :---- | :-------- | :----------------------------------- |
-| Unfocused dot                | 500   | 50%       | Coloured dot on dark (#080808) bar   |
-| Focused tab background       | 500   | 50%       | Full tab tint, black text            |
-| Focused dot (on coloured bg) | 700   | 30%       | Darker dot visible against bright bg |
+| Role          | Shade | Lightness | Where it appears                                        |
+| :------------ | :---- | :-------- | :------------------------------------------------------ |
+| Unfocused dot | 500   | 50%       | Bright coloured dot on the dark (#080808) bar           |
+| Focused dot   | 600   | 40%       | Darkened coloured dot on the cyan (#00afff) focused tab |
 
-The 700-shade dot was chosen over 300 (too washed out), 800/900 (indistinguishable from black), and white (loses hue information). It sits at the sweet spot where the dot reads as a distinct element against its own-hue background without fighting the text for attention.
+The focused tab keeps its familiar cyan background (the anchor) — the dot alone carries the state. Because cyan is bright, a _darkened_ dot (shade 600, L=40%) reads against it — the inverse of the unfocused case, where a _bright_ dot (shade 500) pops against the dark bar. L40 was chosen deliberately: L30 reads better but drifts muddy, and L50 blends into the cyan tab. L40 trades a little legibility to stay faithful to the original hue.
+
+### An abandoned detour: state-coloured backgrounds
+
+An earlier iteration tinted the whole focused tab with the state colour (red/amber/green background, dark dot on top). It worked and tested clean, but in daily use it read as _too different_ — the familiar cyan tab was gone. Reverted to the uniform cyan background above; the dot does the signalling.
 
 ## State hues
 
@@ -40,17 +43,19 @@ The 700-shade dot was chosen over 300 (too washed out), 800/900 (indistinguishab
 
 Two options were tested: (A) shifting read to hue 150 (spring green, distinct from 120) and (B) keeping hue 120 but dropping saturation to 40%. Option A introduced a bluish tint that looked off next to the other pure-hue states. Option B felt natural — same green family, just quieter — and matched the original colour108 (`hsl(120, 20%, 60%)`) in spirit.
 
+The desaturation does double duty: it keeps read distinct from unread on the focused tab too, where both are darkened greens (unread #00cc00 full-sat vs read #3d8e3d muted). Without it the two focused states would be near-identical.
+
 ## Final colour table
 
-| State       | Dot (unfocused) | Background (focused) | Dot (focused) |
-| :---------- | :-------------- | :------------------- | :------------ |
-| blocked     | #ff0000         | #ff0000              | #990000       |
-| working     | #ff9300         | #ff9300              | #995900       |
-| idle-unread | #00ff00         | #00ff00              | #009900       |
-| idle-read   | #4cb24c         | #4cb24c              | #009900       |
-| no-state    | (none)          | #00afff              | (none)        |
+| State       | Dot (unfocused) | Dot (focused) | Focused tab bg |
+| :---------- | :-------------- | :------------ | :------------- |
+| blocked     | #ff0000         | #cc0000       | #00afff        |
+| working     | #ff9300         | #cc7500       | #00afff        |
+| idle-unread | #00ff00         | #00cc00       | #00afff        |
+| idle-read   | #4cb24c         | #3d8e3d       | #00afff        |
+| no-state    | (none)          | (none)        | #00afff        |
 
-Text: #000000 (black) on focused tabs, #9e9e9e (grey) on unfocused. Bar background: #080808.
+Text: #000000 (black) on focused tabs, #9e9e9e (grey) on unfocused. Bar background: #080808. The focused tab background is always #00afff regardless of state.
 
 ## Dot rules
 
@@ -58,7 +63,7 @@ Text: #000000 (black) on focused tabs, #9e9e9e (grey) on unfocused. Bar backgrou
 - No dot means Claude Code is not running — just the tab background (cyan for focused, dark for unfocused).
 - The dot sits after the window index, before the name: `5| ● Claude 1`.
 - On unfocused tabs the dot is shade 500 (bright) against the dark bar.
-- On focused tabs the dot is shade 700 (darker) against the shade-500 background.
+- On focused tabs the dot is shade 600 (darkened) against the cyan tab background.
 
 ---
 
