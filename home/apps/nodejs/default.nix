@@ -1,7 +1,7 @@
 { pkgs, ... }:
 let
   nodejs = pkgs.nodejs_24;
-  pnpm = pkgs.pnpm.override { inherit nodejs; };
+  pnpm = pkgs.pnpm.override { nodejs-slim = nodejs; };
 in
 {
   home.packages = [

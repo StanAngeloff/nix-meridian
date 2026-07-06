@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 let
   neovim-wrapped = pkgs.neovim-unwrapped.overrideAttrs (prev: {
     meta = (prev.meta or { }) // {
@@ -39,6 +39,10 @@ in
 
     # NOTE: Don't re-use global packages as nixvim constructs its own instance of nixpkgs.
     #nixpkgs.useGlobalPackages = true;
+
+    # Point nixvim's private nixpkgs instance at the flake input it already follows.
+    # This makes the default explicit and silences the follows-mismatch warning; the revision is unchanged.
+    nixpkgs.source = inputs.nixpkgs;
 
     colorscheme = "vim-zend55";
 
