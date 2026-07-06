@@ -1,4 +1,9 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 # InfoNotary КЕП (qualified electronic signature) — all home-side wiring in one place.
 # System-side stack (pcscd + OpenSC + the p11-kit module registration) lives in
 # system/components/smartcard.nix; the CA chain is packaged in pkgs/infonotary-ca.
@@ -21,7 +26,21 @@ in
 {
   # InfoNotary e-Doc Signer + Smart Card Manager. FHS-wrapped so the apps' hard-coded /usr/lib/infonotary plugin
   # directory resolves at sign time — see pkgs/infonotary-client-software-fhs.
-  home.packages = [ pkgs.infonotary-client-software-fhs ];
+  #
+  # StampIT Local Services — the Bulgarian Revenue Agency (НАП) local signing bridge that portal.nra.bg drives
+  # over a localhost HTTP server. Same FHS technique so its hard-coded PKCS#11 module scan finds OpenSC — see
+  # pkgs/stampit-local-services.
+  home.packages = [
+    pkgs.infonotary-client-software-fhs
+    # StampIT's Swing dialogs in the user's configured UI font (IBM Plex Sans), enlarged for this HiDPI display.
+    # The PIN prompt keeps a bytecode-hardcoded size, so it stays small — a known Java 8 limit; bump uiFontPt if
+    # the rest is still too small.
+    (pkgs.stampit-local-services.override {
+      uiFont = config.nix-meridian.fonts.sansSerif.name;
+      uiFontPackage = config.nix-meridian.fonts.sansSerif.package;
+      uiFontPt = 28;
+    })
+  ];
 
   # ── Firefox: smart-card module + InfoNotary CA trust (fully declarative) ──────────────────────
   # These keys merge into home/apps/firefox/default.nix's policies through the home-manager module

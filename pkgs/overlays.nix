@@ -14,6 +14,7 @@ final: prev: {
   n8n-cli = final.callPackage ./n8n-cli/package.nix { };
   otter-mcp = final.callPackage ./otter-mcp/package.nix { };
   slack-mcp-server = final.callPackage ./slack-mcp-server/package.nix { };
+  stampit-local-services = final.callPackage ./stampit-local-services/package.nix { };
   tig = final.callPackage ./tig/overlay.nix { tig = prev.tig; };
   voxize = final.callPackage ./voxize/package.nix { };
   # nixfmt: on, as: statements
