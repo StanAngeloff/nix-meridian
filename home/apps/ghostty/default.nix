@@ -21,13 +21,27 @@ in
     settings = {
       font-family = [
         monospaceFontFamily
+        "IBM Plex Mono"
+        "Adwaita Mono"
+      ];
+      font-family-bold = [
+        "${monospaceFontFamily} ExtraBold" # sub-family so fontconfig weight-matches without font-style-bold
+        monospaceFontFamily
+        "IBM Plex Mono"
+        "Adwaita Mono"
+      ];
+      font-family-italic = [
+        monospaceFontFamily
+        "IBM Plex Mono"
+        "Adwaita Mono"
+      ];
+      font-family-bold-italic = [
+        "${monospaceFontFamily} ExtraBold"
+        monospaceFontFamily
+        "IBM Plex Mono"
         "Adwaita Mono"
       ];
       font-size = 14;
-      font-style = "Regular";
-      font-style-bold = "ExtraBold";
-      font-style-italic = "Oblique";
-      font-style-bold-italic = "ExtraBold Oblique";
       font-codepoint-map = "U+2591-U+2593=${monospaceFontFamily}"; # ░▒▓ | See https://github.com/ghostty-org/ghostty/discussions/9501
 
       adjust-cell-width = "-10%";
