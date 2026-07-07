@@ -70,11 +70,13 @@ let
   preview = pkgs.writeShellApplication {
     name = "preview";
     runtimeInputs = [ pkgs.coreutils ];
-    text = builtins.readFile (
-      pkgs.replaceVars ./preview.sh {
-        nvim = lib.getExe config.programs.nixvim.build.package;
-      }
-    );
+    text =
+      builtins.replaceStrings
+        [ "@nvim@" ]
+        [
+          (lib.getExe config.programs.nixvim.build.package)
+        ]
+        (builtins.readFile ./preview.sh);
   };
 in
 {
