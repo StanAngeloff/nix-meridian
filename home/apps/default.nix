@@ -82,7 +82,7 @@ in
     libsecret
     lsof
     nsx
-    pkgs-unstable.ocrmypdf
+    ocrmypdf
     qemu
     rclone
     scrcpy

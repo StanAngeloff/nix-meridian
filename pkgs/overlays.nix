@@ -15,6 +15,8 @@ final: prev: {
   otter-mcp = final.callPackage ./otter-mcp/package.nix { };
   slack-mcp-server = final.callPackage ./slack-mcp-server/package.nix { };
   stampit-local-services = final.callPackage ./stampit-local-services/package.nix { };
+  tesseract5 = final.callPackage ./tesseract/overlay.nix { tesseract = prev.tesseract5; };
+  tesseract = final.tesseract5;
   tig = final.callPackage ./tig/overlay.nix { tig = prev.tig; };
   voxize = final.callPackage ./voxize/package.nix { };
   # nixfmt: on, as: statements
