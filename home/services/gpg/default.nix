@@ -16,7 +16,7 @@
     enable = true;
     enableZshIntegration = true;
     enableSshSupport = true;
-    # Restricted socket (S.gpg-agent.extra) for forwarding into sandboxes — the Claude Code fence binds it as the in-fence agent socket.
+    # Restricted socket (S.gpg-agent.extra) for forwarding into sandboxes — the Claude Code bubble binds it as the in-bubble agent socket.
     # Clients on it can sign/decrypt (pinentry-gated as usual) but key management (delete/export/passwd) is refused, and secret key material never crosses.
     enableExtraSocket = true;
     defaultCacheTtl = 3600;

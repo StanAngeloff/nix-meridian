@@ -52,6 +52,19 @@ get_state() {
 state="$(get_state)"
 [ -n "$state" ] || exit 0
 
+# Inside the bubble there is no tmux or PipeWire socket. Forward the raw semantic state to the
+# host-side relay (bubble/relay.sh), which owns all tmux rendering — including resolving
+# idle -> idle-read/idle-unread from the pane's live window focus, which the bubble cannot see.
+# chime=1 marks events that block on the user; the relay plays the sound host-side.
+if [ -n "${CLAUDE_BUBBLE_EVENT_FILE:-}" ]; then
+	chime=0
+	case "${state}" in
+	blocked) chime=1 ;;
+	esac
+	printf '%s\t%s\n' "$state" "$chime" >>"$CLAUDE_BUBBLE_EVENT_FILE"
+	exit 0
+fi
+
 # Is this pane's window currently focused? (Used only for the idle born-read rule.)
 is_window_active() {
 	if [ -n "${CLAUDE_TMUX_WINDOW_ACTIVE:-}" ]; then

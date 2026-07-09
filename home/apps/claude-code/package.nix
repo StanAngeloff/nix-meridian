@@ -24,6 +24,9 @@ symlinkJoin {
         mkdir -p "$CLAUDE_TMPDIR"
         export TMP="''${TMP:-$CLAUDE_TMPDIR}"
         export TMPDIR="''${TMPDIR:-/tmp}"
+        # Relocate ~/.claude.json into ~/.claude so it rides the bubble directory bind and Claude Code owns it live (never a single-file bind — EBUSY on rename).
+        # Set host-wide so bare claude and the bubble agree on one inode.
+        export CLAUDE_CONFIG_DIR="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
       ' \
       --run '
         # Resolve the GitHub MCP token from the keyring at launch: ~/.claude.json carries only a "Bearer ''${GH_TOKEN}" placeholder
