@@ -3,7 +3,7 @@ desktop_prepare() {
 	local xauth_path="${XAUTHORITY:-}"
 	if [[ -n "$xauth_path" ]]; then
 		case "$xauth_path" in
-		"$home_path/.claude"/*|"$project_path"/*)
+		"$home_path/.claude"/* | "$project_path"/*)
 			printf '%sclaude-bubble: refusing to launch — XAUTHORITY points inside a bubble-writable path (%s).\nA reachable X cookie + the shared network namespace = full desktop control. Move the cookie out or unset XAUTHORITY.%s\n' "$highlight_on" "$xauth_path" "$highlight_off" >&2
 			exit 1
 			;;
