@@ -7,6 +7,7 @@
 }:
 let
   env = import ./env.nix;
+  keyring = import ./keyring.nix { inherit lib libsecret; };
 in
 symlinkJoin {
   name = "claude-code";
@@ -32,11 +33,10 @@ symlinkJoin {
         # Resolve the GitHub MCP token from the keyring at launch: ~/.claude.json carries only a "Bearer ''${GH_TOKEN}" placeholder
         # (Claude Code expands environment variables in MCP headers), so the literal PAT never sits on disk.
         # The same variable authenticates the gh CLI, which prefers GH_TOKEN over its own stored OAuth.
-        # Stored via `envchain --set mcp_keys GH_TOKEN` (libsecret attributes: name=mcp_keys, key=GH_TOKEN).
         # Never clobber a caller-provided GH_TOKEN (callers may resolve it themselves, e.g. a sandbox wrapper running without keyring access),
-        # and fail silent so keyring-less contexts still start.
+        # and fail silent so keyring-less contexts still start. Lookup command shared with the bubble — see keyring.nix.
         if [ -z "''${GH_TOKEN:-}" ]; then
-          GH_TOKEN="$(${lib.getExe' libsecret "secret-tool"} lookup name mcp_keys key GH_TOKEN 2>/dev/null || true)"
+          GH_TOKEN="$(${keyring.lookupCommand "GH_TOKEN"} 2>/dev/null || true)"
           if [ -n "$GH_TOKEN" ]; then
             export GH_TOKEN
           fi
