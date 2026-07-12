@@ -20,7 +20,7 @@
 # shellcheck (via writeShellApplication) gates the fully assembled script, so cross-module breakage fails the build.
 let
   # Assembly order = bwrap argument order (later mounts layer over earlier ones). Hard edges:
-  #  - home before every module that binds under $HOME (claude, git, gpg, ssh, github, nvim);
+  #  - home before every module that binds under $HOME (claude, git, gpg, ssh, github, nvim, pnpm);
   #  - xdg before gpg, ssh and podman (their sockets re-expose into its tmpfs mask);
   #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into).
   moduleNames = [
@@ -35,6 +35,7 @@ let
     "github"
     "secrets"
     "nvim"
+    "pnpm"
     "desktop"
     "podman"
     "notifications"
