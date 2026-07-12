@@ -25,18 +25,26 @@ if [[ -t 2 ]]; then
 	highlight_off=$'\033[0m'
 fi
 
-# Arguments the bubble owns: tokens exactly matching --with-<grant>, where <grant> is declared by a module (see package.nix), are consumed here and announced on stderr; every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
+# Arguments the bubble owns: --with-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
 declare -A bubble_grants=()
+bubble_volumes=()
 claude_args=()
 help_requested=""
-for argument in "$@"; do
+args=("$@")
+index=0
+while [[ $index -lt ${#args[@]} ]]; do
+	argument="${args[$index]}"
 	if [[ "$argument" == --with-?* && " @grantNames@ " == *" ${argument#--with-} "* ]]; then
 		bubble_grants["${argument#--with-}"]=1
 		echo "${highlight_on}claude-bubble: grant '${argument#--with-}' active${highlight_off}" >&2
+	elif [[ ("$argument" == "-v" || "$argument" == "--volume") && $((index + 1)) -lt ${#args[@]} && "${args[$((index + 1))]}" == /* ]]; then
+		index=$((index + 1))
+		bubble_volumes+=("${args[$index]}")
 	else
 		if [[ "$argument" == "--help" || "$argument" == "-h" ]]; then help_requested=1; fi
 		claude_args+=("$argument")
 	fi
+	index=$((index + 1))
 done
 
 # Per-session scratch bound in as a guaranteed-writable $TMPDIR (mining found empty $TMPDIR silently collapsing paths to /wayback etc.).
@@ -60,6 +68,26 @@ bwrap_args=()
 
 @environmentCalls@
 
+# User-requested volumes (-v/--volume): parsed as host[:container[:mode]] following Docker semantics.
+for volume_spec in "${bubble_volumes[@]}"; do
+	volume_host="" volume_container="" volume_mode="rw"
+	IFS=: read -r volume_host volume_container volume_mode_or_empty <<<"$volume_spec"
+	if [[ -z "$volume_container" ]]; then
+		volume_container="$volume_host"
+	elif [[ "$volume_container" == "ro" || "$volume_container" == "rw" ]]; then
+		volume_mode="$volume_container"
+		volume_container="$volume_host"
+	fi
+	if [[ -n "$volume_mode_or_empty" ]]; then
+		volume_mode="$volume_mode_or_empty"
+	fi
+	case "$volume_mode" in
+	ro) bwrap_args+=(--ro-bind "$volume_host" "$volume_container") ;;
+	*) bwrap_args+=(--bind "$volume_host" "$volume_container") ;;
+	esac
+	echo "${highlight_on}claude-bubble: volume '$volume_host' → '$volume_container' ($volume_mode)${highlight_off}" >&2
+done
+
 bwrap_args+=(--chdir "$project_path")
 
 @beforeRunCalls@
@@ -74,6 +102,7 @@ set -e
 # Claude Code has printed its own help by now; document the bubble-owned flags after it.
 if [[ -n "$help_requested" ]]; then
 	printf '%s' '@grantsHelp@'
+	printf '\n  -v, --volume HOST[:CONTAINER[:MODE]]\n        Bind-mount HOST into the bubble at CONTAINER (default: same path).\n        MODE is rw (default) or ro. May be repeated.\n'
 fi
 
 # Not redundant with the trap: without a direct call shellcheck cannot see the cleanup hooks invoked (SC2329).
