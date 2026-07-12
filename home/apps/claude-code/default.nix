@@ -34,9 +34,7 @@ in
     claude-bubble
   ];
 
-  # The bubble's pnpm module (bubble/modules/pnpm) redirects the pnpm store into <project>/.pnpm-store; keep it out of every repository.
   programs.git.ignores = [
-    ".pnpm-store/"
     ".claude/settings.local.json"
   ];
 
