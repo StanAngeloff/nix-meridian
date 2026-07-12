@@ -39,4 +39,11 @@ in
     ".pnpm-store/"
     ".claude/settings.local.json"
   ];
+
+  # The bubble is headless (no Wayland/X11 socket), so wl-copy/xclip cannot reach the compositor. OSC 52 terminal escapes pass clipboard data through tmux to the outer terminal instead.
+  programs.nixvim.extraConfigLua = ''
+    if vim.env.CLAUDE_BUBBLE then
+      vim.g.clipboard = "osc52"
+    end
+  '';
 }
