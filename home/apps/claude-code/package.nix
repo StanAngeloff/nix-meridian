@@ -33,13 +33,18 @@ symlinkJoin {
         export CLAUDE_CONFIG_DIR="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
       ' \
       --run '
-        # Resolve the GitHub MCP token from the keyring at launch: ~/.claude.json carries only a "Bearer ''${GH_TOKEN}" placeholder
-        # (Claude Code expands environment variables in MCP headers), so the literal PAT never sits on disk.
+        # Resolve the GitHub token at launch: ~/.claude.json carries only a "Bearer ''${GH_TOKEN}" placeholder
+        # (Claude Code expands environment variables in MCP headers), so the literal token never sits on disk.
         # The same variable authenticates the gh CLI, which prefers GH_TOKEN over its own stored OAuth.
         # Never clobber a caller-provided GH_TOKEN (callers may resolve it themselves, e.g. a sandbox wrapper running without keyring access),
-        # and fail silent so keyring-less contexts still start. Lookup command shared with the bubble — see keyring.nix.
+        # and fail silent so keyring-less contexts still start.
+        # Resolution order: caller-provided > keyring PAT (envchain) > gh OAuth token.
+        # Note: a gh OAuth token can be rotated (gh auth refresh, expiry); it is captured at launch, so a mid-session rotation is only picked up on the next launch.
         if [ -z "''${GH_TOKEN:-}" ]; then
           GH_TOKEN="$(${keyring.lookupCommand "GH_TOKEN"} 2>/dev/null || true)"
+          if [ -z "$GH_TOKEN" ]; then
+            GH_TOKEN="$(gh auth token 2>/dev/null || true)"
+          fi
           if [ -n "$GH_TOKEN" ]; then
             export GH_TOKEN
           fi
