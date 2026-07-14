@@ -25,8 +25,9 @@ if [[ -t 2 ]]; then
 	highlight_off=$'\033[0m'
 fi
 
-# Arguments the bubble owns: --with-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
+# Arguments the bubble owns: --with-<grant>/--without-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
 declare -A bubble_grants=()
+@defaultGrantInitializers@
 bubble_volumes=()
 claude_args=()
 help_requested=""
@@ -37,6 +38,9 @@ while [[ $index -lt ${#args[@]} ]]; do
 	if [[ "$argument" == --with-?* && " @grantNames@ " == *" ${argument#--with-} "* ]]; then
 		bubble_grants["${argument#--with-}"]=1
 		echo "${highlight_on}claude-bubble: grant '${argument#--with-}' active${highlight_off}" >&2
+	elif [[ "$argument" == --without-?* && " @grantNames@ " == *" ${argument#--without-} "* ]]; then
+		unset "bubble_grants[${argument#--without-}]"
+		echo "${highlight_on}claude-bubble: grant '${argument#--without-}' disabled${highlight_off}" >&2
 	elif [[ ("$argument" == "-v" || "$argument" == "--volume") && $((index + 1)) -lt ${#args[@]} && "${args[$((index + 1))]}" == /* ]]; then
 		index=$((index + 1))
 		bubble_volumes+=("${args[$index]}")
