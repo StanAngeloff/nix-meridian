@@ -51,7 +51,6 @@ while [[ $index -lt ${#args[@]} ]]; do
 	index=$((index + 1))
 done
 
-# Per-session scratch bound in as a guaranteed-writable $TMPDIR (mining found empty $TMPDIR silently collapsing paths to /wayback etc.).
 scratch_path="$(mktemp -d "/tmp/claude-bubble.$user_id.XXXXXX")"
 
 @moduleFunctions@

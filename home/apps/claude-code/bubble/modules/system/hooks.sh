@@ -1,10 +1,14 @@
+system_prepare() {
+	mkdir -p "$scratch_path/tmp"
+}
+
 system_mount() {
 	bwrap_args+=(
 		--die-with-parent
 		# No --unshare-net / --unshare-pid: loopback dev services and host `ps` must work.
 		--proc /proc
 		--dev /dev
-		--tmpfs /tmp
+		--bind "$scratch_path/tmp" /tmp
 		# System, read-only.
 		--ro-bind /nix /nix
 		--ro-bind /etc /etc
