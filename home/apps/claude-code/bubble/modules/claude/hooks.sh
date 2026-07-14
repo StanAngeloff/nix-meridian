@@ -38,7 +38,10 @@ claude_after_run() {
 		fi
 		mv "$stray" "$rescue_target"
 		local red_on="" red_off=""
-		if [[ -t 2 ]]; then red_on=$'\033[1;31m'; red_off=$'\033[0m'; fi
+		if [[ -t 2 ]]; then
+			red_on=$'\033[1;31m'
+			red_off=$'\033[0m'
+		fi
 		echo "" >&2
 		echo "${red_on}  ╔══════════════════════════════════════════════════════╗${red_off}" >&2
 		echo "${red_on}  ║  ⚠  SESSION DATA RESCUED                             ║${red_off}" >&2

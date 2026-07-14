@@ -3,7 +3,7 @@ ssh_prepare() {
 	ssh_config_path="$scratch_path/ssh_config"
 	ssh_config_target=""
 	if [[ -r /etc/ssh/ssh_config ]]; then
-		grep -v '^Include /nix/store/' /etc/ssh/ssh_config > "$ssh_config_path"
+		grep -v '^Include /nix/store/' /etc/ssh/ssh_config >"$ssh_config_path"
 		# On NixOS /etc/ssh/ssh_config is a symlink into the nix store; bwrap cannot overlay a symlink on a read-only mount. Resolve to the real path and bind there instead — a later, more specific --ro-bind layers on top of the broad --ro-bind /nix /nix.
 		ssh_config_target="$(readlink -f /etc/ssh/ssh_config)"
 	fi
