@@ -40,8 +40,8 @@ in
 
   # --without-clipboard keeps the bubble headless, so wl-copy/wl-paste cannot reach the compositor. OSC52 remains the fallback for that stricter mode.
   programs.nixvim.extraConfigLua = ''
-    if vim.env.CLAUDE_BUBBLE and not vim.env.CLAUDE_BUBBLE_CLIPBOARD then
-      vim.g.clipboard = "osc52"
+    if vim.env.CLAUDE_BUBBLE then
+      vim.g.clipboard = vim.env.CLAUDE_BUBBLE_CLIPBOARD and "wl-copy" or "osc52"
     end
   '';
 }
