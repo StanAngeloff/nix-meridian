@@ -9,6 +9,7 @@ in
 {
   imports = [
     ./abbreviations.nix
+    ./clipboard.nix
     ./commands.nix
     ./issues.nix
     ./keymaps.nix
