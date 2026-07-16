@@ -9,7 +9,6 @@ in
 
   home.sessionVariables.RIPGREP_CONFIG_PATH = configPath;
 
-  # NOTE: See home/apps/nixvim/plugins/fzf-lua.nix - the default ripgrep configuration is duplicated for fzf.
   home.file."${configPath}".text = ''
     --hidden
     --ignore-vcs

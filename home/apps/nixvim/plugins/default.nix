@@ -10,7 +10,7 @@
     ./dadbod.nix
     ./flemma-nvim.nix
     ./fugitive.nix
-    ./fzf-lua.nix
+    ./fff.nix
     ./git-conflict-nvim.nix
     ./gitsigns-nvim.nix
     ./lsp.nix
