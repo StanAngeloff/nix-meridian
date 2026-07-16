@@ -37,6 +37,7 @@ let
     "clipboard"
     "github"
     "secrets"
+    "tools"
     "nvim"
     "fff"
     "pnpm"
