@@ -20,6 +20,9 @@
         show_scrollbar = true;
       };
 
+      # fff's prompt defaults to a goose emoji; match the fzf --prompt from home/apps/fzf/default.nix.
+      prompt = "→ ";
+
       # Open content grep in fuzzy mode; <S-Tab> cycles fuzzy -> plain -> regex.
       grep.modes = [
         "regex"
@@ -71,11 +74,15 @@
   # Disable fff's live-grep -> filename "suggestion": a no-match grep shows "No results" instead of switching to file mode; see the module.
   programs.nixvim.extraFiles."lua/nix-meridian/fff-disable-grep-suggestion.lua".source =
     ../contrib/fff-disable-grep-suggestion.lua;
+  # Blank the live-grep empty state instead of showing fff's "Start typing..." help banner and tips; see the module.
+  programs.nixvim.extraFiles."lua/nix-meridian/fff-hide-grep-help.lua".source =
+    ../contrib/fff-hide-grep-help.lua;
   programs.nixvim.extraConfigLua = ''
     require("nix-meridian/fff-multiselect").setup()
     require("nix-meridian/fff-scrollbar").setup()
     require("nix-meridian/fff-match-highlight").setup()
     require("nix-meridian/fff-disable-grep-suggestion").setup()
+    require("nix-meridian/fff-hide-grep-help").setup()
   '';
 
   # fff renders its own popup content; strip the global BadWhitespace trailing-whitespace
@@ -88,6 +95,16 @@
       callback.__raw = ''
         function(args)
           if vim.startswith(vim.bo[args.buf].filetype, "fff_") then
+            local win = vim.fn.bufwinid(args.buf)
+            if win ~= -1 then
+              local whl = vim.wo[win].winhighlight
+              local extra = "Search:None,CurSearch:None"
+              if whl ~= "" then
+                vim.wo[win].winhighlight = whl .. "," .. extra
+              else
+                vim.wo[win].winhighlight = extra
+              end
+            end
             vim.schedule(function()
               if vim.api.nvim_buf_is_valid(args.buf) then
                 vim.api.nvim_buf_call(args.buf, function()
