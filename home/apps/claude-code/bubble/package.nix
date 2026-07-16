@@ -23,8 +23,7 @@ let
   # Assembly order = bwrap argument order (later mounts layer over earlier ones). Hard edges:
   #  - home before every module that binds under $HOME (claude, git, gpg, ssh, github, nvim, pnpm);
   #  - xdg before gpg, ssh, clipboard and podman (their sockets re-expose into its tmpfs mask);
-  #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into);
-  #  - nvim before fff (fff layers a writable bind on top of nvim's ro-bound data directory).
+  #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into).
   moduleNames = [
     "system"
     "home"
@@ -39,7 +38,6 @@ let
     "secrets"
     "tools"
     "nvim"
-    "fff"
     "pnpm"
     "desktop"
     "podman"
