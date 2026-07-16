@@ -24,9 +24,6 @@ in
         calm_down = false,
         nearest_only = true,
         override_lens = function(render, posList, nearest, idx, relIdx)
-          if vim.startswith(vim.bo.filetype, 'fff_') then
-            return
-          end
           local sfw = vim.v.searchforward == 1
           local indicator, text, chunks
           local absRelIdx = math.abs(relIdx)
