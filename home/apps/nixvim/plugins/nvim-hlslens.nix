@@ -21,8 +21,39 @@ in
     extraConfigLua = ''
       require('hlslens').setup({
         enable_incsearch = false,
-        calm_down = true,
-        nearest_only = true
+        calm_down = false,
+        nearest_only = true,
+        override_lens = function(render, posList, nearest, idx, relIdx)
+          if vim.startswith(vim.bo.filetype, 'fff_') then
+            return
+          end
+          local sfw = vim.v.searchforward == 1
+          local indicator, text, chunks
+          local absRelIdx = math.abs(relIdx)
+          if absRelIdx > 1 then
+            -- indicator = ('%d%s'):format(absRelIdx, sfw ~= (relIdx > 1) and 'N' or 'n')
+            return
+          elseif absRelIdx == 1 then
+            -- indicator = sfw ~= (relIdx == 1) and 'N' or 'n'
+            return
+          else
+            indicator = ""
+          end
+          local lnum, col = unpack(posList[idx])
+          if nearest then
+            local cnt = #posList
+            if indicator ~= "" then
+              text = ('❬%s %d/%d❭'):format(indicator, idx, cnt)
+            else
+              text = ('❬%d/%d❭'):format(idx, cnt)
+            end
+            chunks = {{' '}, {text, 'HlSearchLensNear'}}
+          else
+            text = ('❬%s %d❭'):format(indicator, idx)
+            chunks = {{' '}, {text, 'HlSearchLens'}}
+          end
+          render.setVirt(0, lnum - 1, col - 1, chunks, nearest)
+        end
       })
 
       -- Mappings
@@ -31,8 +62,8 @@ in
 
       vim.api.nvim_set_keymap('n', 'n', [[<Cmd>execute('normal! ' . v:count1 . 'n')<CR><Cmd>lua require('hlslens').start()<CR>]], kopts)
       vim.api.nvim_set_keymap('n', 'N', [[<Cmd>execute('normal! ' . v:count1 . 'N')<CR><Cmd>lua require('hlslens').start()<CR>]], kopts)
-      vim.api.nvim_set_keymap('n', '*', [[*<Cmd>lua require('hlslens').start()<CR>]], kopts)
-      vim.api.nvim_set_keymap('n', '#', [[#<Cmd>lua require('hlslens').start()<CR>]], kopts)
+      vim.api.nvim_set_keymap('n', '*', [[<Cmd>keepjumps normal! mi*`i<CR><Cmd>lua require('hlslens').start()<CR>]], kopts)
+      vim.api.nvim_set_keymap('n', '#', [[<Cmd>keepjumps normal! mi#`i<CR><Cmd>lua require('hlslens').start()<CR>]], kopts)
       vim.api.nvim_set_keymap('n', 'g*', [[g*<Cmd>lua require('hlslens').start()<CR>]], kopts)
       vim.api.nvim_set_keymap('n', 'g#', [[g#<Cmd>lua require('hlslens').start()<CR>]], kopts)
 

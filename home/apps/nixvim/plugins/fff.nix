@@ -95,17 +95,23 @@
       callback.__raw = ''
         function(args)
           if vim.startswith(vim.bo[args.buf].filetype, "fff_") then
-            local win = vim.fn.bufwinid(args.buf)
-            if win ~= -1 then
-              local whl = vim.wo[win].winhighlight
-              local extra = "Search:None,CurSearch:None"
-              if whl ~= "" then
-                vim.wo[win].winhighlight = whl .. "," .. extra
-              else
-                vim.wo[win].winhighlight = extra
-              end
-            end
             vim.schedule(function()
+              local extra = "Search:None,CurSearch:None"
+              for _, win in ipairs(vim.api.nvim_list_wins()) do
+                if vim.api.nvim_win_is_valid(win) then
+                  local buf = vim.api.nvim_win_get_buf(win)
+                  if vim.startswith(vim.bo[buf].filetype or "", "fff_") then
+                    local whl = vim.wo[win].winhighlight
+                    if not whl:find("Search:None", 1, true) then
+                      if whl ~= "" then
+                        vim.wo[win].winhighlight = whl .. "," .. extra
+                      else
+                        vim.wo[win].winhighlight = extra
+                      end
+                    end
+                  end
+                end
+              end
               if vim.api.nvim_buf_is_valid(args.buf) then
                 vim.api.nvim_buf_call(args.buf, function()
                   vim.cmd("silent! syntax clear BadWhitespace")
