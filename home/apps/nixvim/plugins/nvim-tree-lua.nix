@@ -93,7 +93,7 @@ in
             vim.keymap.set("n", "S", function()
               local selected = api.tree.get_node_under_cursor()
               if selected and selected.type == "directory" then
-                require("fff").live_grep({ cwd = selected.absolute_path })
+                require("fzf-lua").live_grep({ cwd = selected.absolute_path })
               end
             end, opts("Search"))
 

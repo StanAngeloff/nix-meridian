@@ -55,9 +55,9 @@
     { key = "<leader>si{"; mode = [ "n" ]; action = "mZvi{:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>si["; mode = [ "n" ]; action = "mZvi[:Sort<CR>g`Z:echo (line(\"'>\") - line(\"'<\") + 1) . ' line(s) sorted'<CR>"; options.silent = true; }
     { key = "<leader>s"; mode = [ "v" ]; action = ":sort u<CR>gv"; options.silent = true; }
-    { key = "<leader>o"; mode = [ "n" ]; action.__raw = ''function() require("fff").find_files() end''; options.desc = "fff: Find files"; }
-    { key = "<leader>0"; mode = [ "n" ]; action.__raw = ''function() require("fff").find_files({ query = vim.fn.expand("<cword>") }) end''; options.desc = "fff: Find files (word under cursor)"; } # Searching like a pro!
-    { key = "<leader>S"; mode = [ "n" ]; action.__raw = ''function() require("fff").live_grep() end''; options.desc = "fff: Live grep"; }
+    { key = "<leader>0"; mode = [ "n" ]; action.__raw = ''function() require("fzf-lua").git_files({ query = vim.fn.expand("<cword>"), cmd = "git ls-files --cached --others --exclude-standard" }) end''; } # Searching like a pro!
+    { key = "<leader>S"; mode = [ "n" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = "" }) end''; }
+    { key = "<leader>S"; mode = [ "v" ]; action.__raw = ''function() require("fzf-lua").live_grep({ search = require("fzf-lua.utils").get_visual_selection() }) end''; }
     { key = "<leader>ha"; mode = [ "n" ]; action.__raw = ''function() vim.cmd.Git("add %") end''; }
     { key = "<leader>hp"; mode = [ "n" ]; action = ":Gitsigns preview_hunk<CR>"; options.silent = true; } # gitsigns.nvim
     { key = "<leader>hs"; mode = [ "n" "v" ]; action = ":Gitsigns stage_hunk<CR>"; options.silent = true; }
@@ -100,23 +100,6 @@
           local line = vim.fn.line(".")
           vim.cmd "silent! keeppatterns %s/\\s\\+$//e"
           vim.cmd("silent! keepjumps normal! " .. line .. "G")
-        end
-      '';
-    }
-
-    # fff: Live grep the visual selection.
-    {
-      key = "<leader>S";
-      mode = [ "v" ];
-      options.desc = "fff: Live grep (visual selection)";
-      action.__raw = ''
-        function()
-          local mode = vim.fn.mode()
-          vim.cmd("normal! " .. vim.api.nvim_replace_termcodes("<Esc>", true, false, true))
-          local from = vim.fn.getpos("'<")
-          local to = vim.fn.getpos("'>")
-          local lines = vim.fn.getregion(from, to, { type = mode })
-          require("fff").live_grep({ query = table.concat(lines, " ") })
         end
       '';
     }
