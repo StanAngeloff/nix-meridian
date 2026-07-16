@@ -18,6 +18,7 @@
     ./lualine.nix
     ./markdown-preview-nvim
     ./nvim-autopairs.nix
+    ./nvim-hlslens.nix
     ./nvim-tree-lua.nix
     ./quickfix-reflector-vim.nix
     ./repeat.nix
