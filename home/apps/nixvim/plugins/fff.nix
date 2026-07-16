@@ -68,10 +68,14 @@
   # Highlight the file-picker query match case-insensitively, matching grep (fff's file renderer only highlights exact case); see the module.
   programs.nixvim.extraFiles."lua/nix-meridian/fff-match-highlight.lua".source =
     ../contrib/fff-match-highlight.lua;
+  # Disable fff's live-grep -> filename "suggestion": a no-match grep shows "No results" instead of switching to file mode; see the module.
+  programs.nixvim.extraFiles."lua/nix-meridian/fff-disable-grep-suggestion.lua".source =
+    ../contrib/fff-disable-grep-suggestion.lua;
   programs.nixvim.extraConfigLua = ''
     require("nix-meridian/fff-multiselect").setup()
     require("nix-meridian/fff-scrollbar").setup()
     require("nix-meridian/fff-match-highlight").setup()
+    require("nix-meridian/fff-disable-grep-suggestion").setup()
   '';
 
   # fff renders its own popup content; strip the global BadWhitespace trailing-whitespace
