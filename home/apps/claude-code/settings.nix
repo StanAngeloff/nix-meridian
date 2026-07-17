@@ -6,6 +6,7 @@
   ...
 }:
 let
+  mcpServers = import ../mcporter/servers.nix { inherit lib pkgs; };
   settings = {
     "$schema" = "https://json.schemastore.org/claude-code-settings.json";
     alwaysThinkingEnabled = true;
@@ -22,6 +23,25 @@ let
         "git commit *"
       ];
       allowUnsandboxedCommands = true;
+    };
+    # Auto mode (enabled by the cc alias) routes tool calls through a classifier. We do NOT customize the classifier:
+    # its built-in rules are a comprehensive backstop, it already trusts the repo you're working in, and the real checkpoint is permissions.ask below.
+    # classifyAllShell is deliberately left OFF — routing every command (even ls/cat) through the classifier was far too slow.
+    # Any autoMode.* override would go here, user scope only.
+    #
+    # Learn more at https://code.claude.com/docs/en/auto-mode-config
+    #
+    # Skip the one-time auto-mode opt-in dialog.
+    skipAutoPermissionPrompt = true;
+    # Human checkpoint. ask rules are evaluated BEFORE the classifier and always prompt — in every mode,
+    # including auto and --dangerously-skip-permissions — regardless of whether the action was explicitly requested.
+    # This is the deterministic gate for anything with an external side effect done on our behalf.
+    # Precedence is deny > ask > allow (specificity is ignored), so writes live here while reads stay in the project-scope allow list.
+    #
+    # Learn more at https://code.claude.com/docs/en/permissions
+    permissions = {
+      ask =
+        (import ./permissions.nix) ++ lib.concatMap (srv: srv.claudeAsk or [ ]) (lib.attrValues mcpServers);
     };
     # Learn more at https://code.claude.com/docs/en/settings#attribution-settings
     attribution = {

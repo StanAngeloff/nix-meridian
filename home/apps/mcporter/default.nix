@@ -5,26 +5,9 @@
   ...
 }:
 let
+  servers = import ./servers.nix { inherit lib pkgs; };
   mcporter-settings = {
-    mcpServers = {
-      slack = {
-        command = lib.getExe pkgs.slack-mcp-server;
-        # Learn more at https://github.com/korotovsky/slack-mcp-server/blob/v1.3.0/docs/01-authentication-setup.md#option-1-using-slack_mcp_xoxc_tokenslack_mcp_xoxd_token-browser-session
-        env = {
-          SLACK_MCP_XOXC_TOKEN = "\${SLACK_MCP_XOXC_TOKEN}";
-          SLACK_MCP_XOXD_TOKEN = "\${SLACK_MCP_XOXD_TOKEN}";
-        };
-      };
-      notion = {
-        baseUrl = "https://mcp.notion.com/mcp";
-      };
-      shortcut = {
-        baseUrl = "https://mcp.shortcut.com/mcp";
-      };
-      datadog = {
-        baseUrl = "https://mcp.datadoghq.eu/api/unstable/mcp-server/mcp";
-      };
-    };
+    mcpServers = builtins.mapAttrs (_: srv: builtins.removeAttrs srv [ "claudeAsk" ]) servers;
   };
 in
 {
