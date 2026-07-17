@@ -12,7 +12,6 @@ final: prev: {
   mutter = final.callPackage ./mutter/overlay.nix { mutter = prev.mutter; };
   mcporter = final.callPackage ./mcporter/package.nix { };
   n8n-cli = final.callPackage ./n8n-cli/package.nix { };
-  otter-mcp = final.callPackage ./otter-mcp/package.nix { };
   slack-mcp-server = final.callPackage ./slack-mcp-server/package.nix { };
   stampit-local-services = final.callPackage ./stampit-local-services/package.nix { };
   tesseract5 = final.callPackage ./tesseract/overlay.nix { tesseract = prev.tesseract5; };

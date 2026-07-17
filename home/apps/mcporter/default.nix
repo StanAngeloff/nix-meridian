@@ -15,21 +15,14 @@ let
           SLACK_MCP_XOXD_TOKEN = "\${SLACK_MCP_XOXD_TOKEN}";
         };
       };
-      otter = {
-        command = lib.getExe pkgs.otter-mcp;
-        env = {
-          OTTER_EMAIL = "\${OTTER_EMAIL}";
-          OTTER_PASSWORD = "\${OTTER_PASSWORD}";
-          OTTER_TOTP_SECRET = "\${OTTER_TOTP_SECRET}";
-        };
+      notion = {
+        baseUrl = "https://mcp.notion.com/mcp";
       };
-      trello = {
-        command = lib.getExe pkgs.mcp-server-trello;
-        # Learn more at https://github.com/delorenj/mcp-server-trello/tree/v1.6.1#environment-variables
-        env = {
-          TRELLO_API_KEY = "\${TRELLO_API_KEY}";
-          TRELLO_TOKEN = "\${TRELLO_TOKEN}";
-        };
+      shortcut = {
+        baseUrl = "https://mcp.shortcut.com/mcp";
+      };
+      datadog = {
+        baseUrl = "https://mcp.datadoghq.eu/api/unstable/mcp-server/mcp";
       };
     };
   };
