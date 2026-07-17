@@ -4,6 +4,7 @@
   bubblewrap,
   coreutils,
   gnupg,
+  jq,
   libsecret,
   tmux,
   pipewire,
@@ -29,6 +30,7 @@ let
     "home"
     "xdg"
     "claude"
+    "profiles"
     "nix"
     "git"
     "gpg"
@@ -59,6 +61,7 @@ let
       writeShellApplication
       coreutils
       gnupg
+      jq
       libsecret
       tmux
       pipewire

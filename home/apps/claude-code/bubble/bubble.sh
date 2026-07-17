@@ -45,6 +45,10 @@ while [[ $index -lt ${#args[@]} ]]; do
 		index=$((index + 1))
 		bubble_volumes+=("${args[$index]}")
 	else
+		# A bare "profiles" argument hands off to the standalone profile-switching command, before any bubble machinery starts.
+		if [[ "$argument" == "profiles" ]]; then
+			exec @profilesHandler@ "${args[@]:$((index + 1))}"
+		fi
 		if [[ "$argument" == "--help" || "$argument" == "-h" ]]; then help_requested=1; fi
 		claude_args+=("$argument")
 	fi
