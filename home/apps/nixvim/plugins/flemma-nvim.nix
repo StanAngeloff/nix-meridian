@@ -5,7 +5,7 @@
   ...
 }:
 let
-  gcloud-project-id = "stans-playground";
+  gcloud-project-id = "angeloff-sandbox";
   gcloud-default-location = "europe-central2"; # Warsaw, Poland, Europe
   flemma-nvim = (
     pkgs.vimUtils.buildVimPlugin {
