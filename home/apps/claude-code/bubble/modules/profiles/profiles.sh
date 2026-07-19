@@ -1,9 +1,9 @@
 set -euo pipefail
 
-config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-profiles_dir="$config_dir/profiles"
-cred_file="$config_dir/.credentials.json"
-config_file="$config_dir/.claude.json"
+config_path="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+profiles_path="$config_path/profiles"
+credentials_file="$config_path/.credentials.json"
+config_file="$config_path/.claude.json"
 
 highlight_on=""
 highlight_off=""
@@ -16,86 +16,148 @@ if [[ -t 2 ]]; then
 	red_off=$'\033[0m'
 fi
 
-die() {
+_profile_die() {
 	echo "${red_on}error:${red_off} $*" >&2
 	exit 1
 }
 
-check_not_running() {
+_profile_check_not_running() {
 	local pids
-	pids="$(pgrep -f '(claude-unwrapped|/bin/claude( |$))' 2>/dev/null || true)"
+	pids="$(pgrep -u "$(id -un)" -f '(claude-unwrapped|/bin/claude( |$))' 2>/dev/null || true)"
 	if [[ -n "$pids" ]]; then
-		die "Claude Code is running (PIDs: $(echo "$pids" | tr '\n' ' ' | sed 's/ *$//')). Close all sessions before managing profiles."
+		_profile_die "Claude Code is running (PIDs: $(echo "$pids" | tr '\n' ' ' | sed 's/ *$//')). Close all sessions before managing profiles."
 	fi
 }
 
-active_profile_name() {
+_profile_active_profile_name() {
 	local target
-	target="$(readlink "$profiles_dir/active" 2>/dev/null || true)"
+	target="$(readlink "$profiles_path/active" 2>/dev/null || true)"
 	if [[ -z "$target" ]]; then return 1; fi
 	echo "${target%.json}"
 }
 
-capture_profile() {
-	local dest="$1"
-	local oauth account
-	oauth="$(jq -c '.claudeAiOauth // empty' "$cred_file")"
+_profile_capture_profile() {
+	local destination_file="$1"
+	local oauth account temporary_file
+	oauth="$(jq -c '.claudeAiOauth // empty' "$credentials_file")"
 	if [[ -z "$oauth" ]]; then
-		die "no claudeAiOauth in $cred_file — not logged in?"
+		_profile_die "no claudeAiOauth in $credentials_file — not logged in?"
 	fi
 	account="$(jq -c '.oauthAccount // empty' "$config_file")"
+	temporary_file="$(mktemp "$destination_file.tmp.XXXXXX")"
 	jq -n --argjson claudeAiOauth "$oauth" --argjson oauthAccount "${account:-null}" \
-		'{claudeAiOauth: $claudeAiOauth, oauthAccount: $oauthAccount}' >"$dest"
-	chmod 600 "$dest"
+		'{claudeAiOauth: $claudeAiOauth, oauthAccount: $oauthAccount}' >"$temporary_file"
+	chmod 600 "$temporary_file"
+	mv "$temporary_file" "$destination_file"
 }
 
-profile_label() {
-	local file="$1"
-	local email sub org
-	email="$(jq -r '.oauthAccount.emailAddress // "unknown"' "$file")"
-	sub="$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$file")"
-	org="$(jq -r '.oauthAccount.organizationName // empty' "$file")"
-	if [[ -n "$org" ]]; then
-		printf '%s (%s, %s)' "$email" "$sub" "$org"
-	else
-		printf '%s (%s)' "$email" "$sub"
+# Identity of the account a live-credentials or profile-store file belongs to, for
+# comparing "who's actually logged in" against "who the profile store thinks is logged in".
+_profile_account_identity() {
+	jq -r '.oauthAccount.accountUuid // .oauthAccount.emailAddress // empty' "$1" 2>/dev/null || true
+}
+
+# Snapshot the outgoing profile before switching away from it, but only when doing so is safe:
+# skip (with a warning, not a hard failure) if nothing is logged in, or if the live account
+# doesn't match what the profile is supposed to hold — overwriting would destroy the other
+# account's only token copy instead of switching to it.
+_profile_capture_outgoing() {
+	local outgoing="$1"
+	[[ -n "$outgoing" && -f "$profiles_path/$outgoing.json" ]] || return 0
+	local live_oauth
+	live_oauth="$(jq -c '.claudeAiOauth // empty' "$credentials_file" 2>/dev/null || true)"
+	[[ -n "$live_oauth" ]] || return 0
+	local live_id stored_id
+	live_id="$(_profile_account_identity "$config_file")"
+	stored_id="$(_profile_account_identity "$profiles_path/$outgoing.json")"
+	if [[ -n "$live_id" && -n "$stored_id" && "$live_id" != "$stored_id" ]]; then
+		echo "${red_on}warning:${red_off} live account doesn't match profile '$outgoing' — skipping snapshot" >&2
+		return 0
+	fi
+	_profile_capture_profile "$profiles_path/$outgoing.json"
+}
+
+_profile_restore_profile() {
+	local source_file="$1"
+	local oauth temporary_file account
+	oauth="$(jq -c '.claudeAiOauth // empty' "$source_file")"
+	if [[ -z "$oauth" ]]; then
+		_profile_die "profile '$source_file' has no claudeAiOauth — corrupt?"
+	fi
+
+	temporary_file="$(mktemp "$credentials_file.tmp.XXXXXX")"
+	jq --argjson oauth "$oauth" '.claudeAiOauth = $oauth' "$credentials_file" >"$temporary_file"
+	[[ -s "$temporary_file" ]] || _profile_die "failed to update $credentials_file"
+	chmod 600 "$temporary_file"
+	mv "$temporary_file" "$credentials_file"
+
+	account="$(jq -c '.oauthAccount // empty' "$source_file")"
+	if [[ -n "$account" ]]; then
+		temporary_file="$(mktemp "$config_file.tmp.XXXXXX")"
+		jq --argjson account "$account" '.oauthAccount = $account' "$config_file" >"$temporary_file"
+		[[ -s "$temporary_file" ]] || _profile_die "failed to update $config_file"
+		chmod 600 "$temporary_file"
+		mv "$temporary_file" "$config_file"
 	fi
 }
 
-cmd_migrate() {
+_profile_valid_name() {
+	[[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_-]*$ ]]
+}
+
+_profile_profile_label() {
+	local file="$1"
+	local email subscription organization
+	email="$(jq -r '.oauthAccount.emailAddress // "unknown"' "$file")"
+	subscription="$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$file")"
+	organization="$(jq -r '.oauthAccount.organizationName // empty' "$file")"
+	if [[ -n "$organization" ]]; then
+		printf '%s (%s, %s)' "$email" "$subscription" "$organization"
+	else
+		printf '%s (%s)' "$email" "$subscription"
+	fi
+}
+
+_profile_cmd_migrate() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		die "profile name required. Usage: cc profiles migrate <name>"
+		_profile_die "profile name required. Usage: cc profiles migrate <name>"
 	fi
-	local profile_file="$profiles_dir/$name.json"
+	if ! _profile_valid_name "$name"; then
+		_profile_die "invalid profile name: $name"
+	fi
+	local profile_file="$profiles_path/$name.json"
 	if [[ -f "$profile_file" ]]; then
-		die "profile '$name' already exists"
+		_profile_die "profile '$name' already exists"
+	fi
+	if _profile_active_profile_name >/dev/null; then
+		_profile_die "a profile is already active. Use 'cc profiles add <name>' to add another account."
 	fi
 
-	mkdir -p "$profiles_dir"
-	capture_profile "$profile_file"
-	ln -sfn "$name.json" "$profiles_dir/active"
+	mkdir -p "$profiles_path"
+	_profile_capture_profile "$profile_file"
+	ln -sfn "$name.json" "$profiles_path/active"
 
 	local label
-	label="$(profile_label "$profile_file")"
+	label="$(_profile_profile_label "$profile_file")"
 	echo "${highlight_on}migrated:${highlight_off} $label" >&2
 	echo "${highlight_on}active profile:${highlight_off} $name" >&2
 }
 
-cmd_list() {
-	if [[ ! -d "$profiles_dir" ]]; then
+_profile_cmd_list() {
+	if [[ ! -d "$profiles_path" ]]; then
 		echo "no profiles yet — run: cc profiles migrate <name>" >&2
 		exit 0
 	fi
 	local active
-	active="$(active_profile_name || true)"
+	active="$(_profile_active_profile_name || true)"
 	local found=0
-	for file in "$profiles_dir"/*.json; do
+	for file in "$profiles_path"/*.json; do
 		[[ -f "$file" ]] || continue
 		found=1
 		local name label marker
 		name="$(basename "$file" .json)"
-		label="$(profile_label "$file")"
+		label="$(_profile_profile_label "$file")"
 		marker="  "
 		if [[ "$name" == "$active" ]]; then marker="* "; fi
 		printf '  %s%s%s  %s\n' "$marker" "${highlight_on}$name${highlight_off}" "" "$label" >&2
@@ -105,126 +167,121 @@ cmd_list() {
 	fi
 }
 
-cmd_which() {
+_profile_cmd_which() {
 	local name
-	name="$(active_profile_name)" || die "no active profile"
-	local profile_file="$profiles_dir/$name.json"
+	name="$(_profile_active_profile_name)" || _profile_die "no active profile"
+	local profile_file="$profiles_path/$name.json"
 	if [[ ! -f "$profile_file" ]]; then
-		die "active profile '$name' points to missing file"
+		_profile_die "active profile '$name' points to missing file"
 	fi
 	local email
 	email="$(jq -r '.oauthAccount.emailAddress // "unknown"' "$profile_file")"
 	echo "$name $email"
 }
 
-cmd_select() {
+_profile_cmd_select() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		die "profile name required. Usage: cc profiles select <name>"
+		_profile_die "profile name required. Usage: cc profiles select <name>"
 	fi
-	local profile_file="$profiles_dir/$name.json"
+	local profile_file="$profiles_path/$name.json"
 	if [[ ! -f "$profile_file" ]]; then
-		die "profile '$name' does not exist. Run 'cc profiles list' to see available profiles."
+		_profile_die "profile '$name' does not exist. Run 'cc profiles list' to see available profiles."
 	fi
-	check_not_running
-	ln -sfn "$name.json" "$profiles_dir/active"
+	_profile_check_not_running
+
+	_profile_capture_outgoing "$(_profile_active_profile_name || true)"
+	_profile_restore_profile "$profile_file"
+	ln -sfn "$name.json" "$profiles_path/active"
+
 	local label
-	label="$(profile_label "$profile_file")"
+	label="$(_profile_profile_label "$profile_file")"
 	echo "${highlight_on}active profile:${highlight_off} $name  $label" >&2
 }
 
-cmd_remove() {
+_profile_cmd_remove() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		die "profile name required. Usage: cc profiles remove <name>"
+		_profile_die "profile name required. Usage: cc profiles remove <name>"
 	fi
-	local profile_file="$profiles_dir/$name.json"
+	if ! _profile_valid_name "$name"; then
+		_profile_die "invalid profile name: $name"
+	fi
+	local profile_file="$profiles_path/$name.json"
 	if [[ ! -f "$profile_file" ]]; then
-		die "profile '$name' does not exist"
+		_profile_die "profile '$name' does not exist"
 	fi
 	local active
-	active="$(active_profile_name || true)"
+	active="$(_profile_active_profile_name || true)"
 	if [[ "$name" == "$active" ]]; then
-		die "cannot remove the active profile. Switch to another profile first: cc profiles select <other>"
+		_profile_die "cannot remove the active profile. Switch to another profile first: cc profiles select <other>"
 	fi
-	check_not_running
 	rm "$profile_file"
 	echo "${highlight_on}removed:${highlight_off} $name" >&2
 }
 
-cmd_add() {
+_profile_cmd_add() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		die "profile name required. Usage: cc profiles add <name>"
+		_profile_die "profile name required. Usage: cc profiles add <name>"
+	fi
+	if ! _profile_valid_name "$name"; then
+		_profile_die "invalid profile name: $name"
 	fi
 	shift
-	local profile_file="$profiles_dir/$name.json"
+	local profile_file="$profiles_path/$name.json"
 	if [[ -f "$profile_file" ]]; then
-		die "profile '$name' already exists"
+		_profile_die "profile '$name' already exists"
 	fi
-	check_not_running
+	_profile_check_not_running
 
-	mkdir -p "$profiles_dir"
-
-	local backup=""
-	local old_oauth
-	old_oauth="$(jq -c '.claudeAiOauth // empty' "$cred_file" 2>/dev/null || true)"
-	if [[ -n "$old_oauth" ]]; then
-		backup="$(mktemp "$profiles_dir/.backup.XXXXXX")"
-		echo "$old_oauth" >"$backup"
+	local outgoing
+	outgoing="$(_profile_active_profile_name || true)"
+	if [[ -z "$outgoing" || ! -f "$profiles_path/$outgoing.json" ]]; then
+		_profile_die "no active profile to preserve. Run 'cc profiles migrate <name>' first."
 	fi
+	_profile_capture_outgoing "$outgoing"
 
-	restore_backup() {
-		if [[ -n "${backup:-}" && -f "${backup:-}" ]]; then
-			if [[ -n "$old_oauth" ]]; then
-				local tmp
-				tmp="$(mktemp "$cred_file.tmp.XXXXXX")"
-				jq --argjson oauth "$old_oauth" '.claudeAiOauth = $oauth' "$cred_file" >"$tmp"
-				chmod 600 "$tmp"
-				mv "$tmp" "$cred_file"
-			fi
-			rm -f "$backup"
-		fi
+	# Covers explicit exit below and any other termination (signal, set -e) while credentials
+	# are mid-swap; disarmed once the new account's tokens are safely saved to a profile.
+	_profile_restore_on_abort() {
+		_profile_restore_profile "$profiles_path/$outgoing.json"
 	}
-	trap restore_backup INT TERM
+	trap _profile_restore_on_abort EXIT
 
-	local tmp
-	tmp="$(mktemp "$cred_file.tmp.XXXXXX")"
-	jq 'del(.claudeAiOauth)' "$cred_file" >"$tmp"
-	chmod 600 "$tmp"
-	mv "$tmp" "$cred_file"
+	local temporary_file
+	temporary_file="$(mktemp "$credentials_file.tmp.XXXXXX")"
+	jq 'del(.claudeAiOauth)' "$credentials_file" >"$temporary_file"
+	chmod 600 "$temporary_file"
+	mv "$temporary_file" "$credentials_file"
 
 	echo "${highlight_on}launching Claude Code auth flow...${highlight_off}" >&2
 	echo "complete the login in your browser, then exit Claude Code." >&2
 	echo "" >&2
 
-	local auth_exit=0
-	claude auth login "$@" || auth_exit=$?
-
-	trap - INT TERM
+	claude auth login "$@" || true
 
 	local new_oauth
-	new_oauth="$(jq -c '.claudeAiOauth // empty' "$cred_file" 2>/dev/null || true)"
-	if [[ -z "$new_oauth" || "$auth_exit" -ne 0 ]]; then
+	new_oauth="$(jq -c '.claudeAiOauth // empty' "$credentials_file" 2>/dev/null || true)"
+	if [[ -z "$new_oauth" ]]; then
 		echo "" >&2
 		echo "${red_on}auth did not complete — restoring previous credentials${red_off}" >&2
-		restore_backup
 		exit 1
 	fi
 
-	rm -f "${backup:-}"
+	trap - EXIT
 
-	capture_profile "$profile_file"
-	ln -sfn "$name.json" "$profiles_dir/active"
+	_profile_capture_profile "$profile_file"
+	ln -sfn "$name.json" "$profiles_path/active"
 
 	echo "" >&2
 	local label
-	label="$(profile_label "$profile_file")"
+	label="$(_profile_profile_label "$profile_file")"
 	echo "${highlight_on}saved:${highlight_off} $name  $label" >&2
 	echo "${highlight_on}active profile:${highlight_off} $name" >&2
 }
 
-usage() {
+_profile_usage() {
 	cat >&2 <<'USAGE'
 Usage: cc profiles <command> [args]
 
@@ -242,27 +299,27 @@ USAGE
 case "${1:-}" in
 migrate)
 	shift
-	cmd_migrate "$@"
+	_profile_cmd_migrate "$@"
 	;;
 add)
 	shift
-	cmd_add "$@"
+	_profile_cmd_add "$@"
 	;;
 list)
 	shift
-	cmd_list
+	_profile_cmd_list
 	;;
 which)
 	shift
-	cmd_which
+	_profile_cmd_which
 	;;
 select)
 	shift
-	cmd_select "$@"
+	_profile_cmd_select "$@"
 	;;
 remove)
 	shift
-	cmd_remove "$@"
+	_profile_cmd_remove "$@"
 	;;
-*) usage ;;
+*) _profile_usage ;;
 esac

@@ -6,6 +6,7 @@
   gnupg,
   jq,
   libsecret,
+  procps,
   tmux,
   pipewire,
   util-linux,
@@ -63,6 +64,7 @@ let
       gnupg
       jq
       libsecret
+      procps
       tmux
       pipewire
       util-linux
