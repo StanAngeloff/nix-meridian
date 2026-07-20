@@ -9,8 +9,15 @@ let
     claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
   };
   claude-code-statusline = pkgs.callPackage ./statusline/package.nix { };
+  integrations = import ../mcp.nix { inherit lib pkgs; };
   # Bubblewrap isolation wrapper that cc/ccc launch through; also profile-installed so it is runnable directly by name.
-  claude-bubble = pkgs.callPackage ./bubble/package.nix { inherit claude-code; };
+  claude-bubble = pkgs.callPackage ./bubble/package.nix {
+    inherit claude-code;
+    # Keyring variable names each integration needs; the bubble's secrets module resolves them host-side and injects them.
+    keyringVariables = lib.unique (
+      lib.concatMap (integration: integration.claude.secrets or [ ]) (lib.attrValues integrations)
+    );
+  };
   # High-precedence --settings layer that turns the inner Bash sandbox off inside the bubble.
   bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit pkgs; };
 in

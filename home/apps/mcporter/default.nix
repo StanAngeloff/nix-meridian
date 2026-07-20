@@ -5,9 +5,11 @@
   ...
 }:
 let
-  servers = import ./servers.nix { inherit lib pkgs; };
+  integrations = import ../mcp.nix { inherit lib pkgs; };
   mcporter-settings = {
-    mcpServers = builtins.mapAttrs (_: srv: builtins.removeAttrs srv [ "claudeAsk" ]) servers;
+    mcpServers = lib.mapAttrs (_: integration: integration.mcporter) (
+      lib.filterAttrs (_: integration: integration ? mcporter) integrations
+    );
   };
 in
 {

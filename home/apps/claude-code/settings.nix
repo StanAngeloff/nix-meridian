@@ -6,7 +6,7 @@
   ...
 }:
 let
-  mcpServers = import ../mcporter/servers.nix { inherit lib pkgs; };
+  integrations = import ../mcp.nix { inherit lib pkgs; };
   settings = {
     "$schema" = "https://json.schemastore.org/claude-code-settings.json";
     alwaysThinkingEnabled = true;
@@ -40,8 +40,7 @@ let
     #
     # Learn more at https://code.claude.com/docs/en/permissions
     permissions = {
-      ask =
-        (import ./permissions.nix) ++ lib.concatMap (srv: srv.claudeAsk or [ ]) (lib.attrValues mcpServers);
+      ask = lib.concatMap (integration: integration.claude.ask or [ ]) (lib.attrValues integrations);
     };
     # Learn more at https://code.claude.com/docs/en/settings#attribution-settings
     attribution = {

@@ -13,7 +13,7 @@
   wl-clipboard,
   claude-code,
   # Keyring var names the secrets module injects into the bubble.
-  secretVars ? [ "GH_TOKEN" ],
+  keyringVariables ? [ "GH_TOKEN" ],
 }:
 # Builds `claude-bubble` by assembling bubble.sh (the skeleton) from the modules under modules/<name>/hooks.sh.
 # Each hooks.sh defines <module>_<phase>() hook functions (hyphens become underscores, e.g. notifications_before_run); the assembler concatenates every hooks.sh into the skeleton's functions slot and generates the per-phase call lines.
@@ -69,7 +69,7 @@ let
       pipewire
       util-linux
       wl-clipboard
-      secretVars
+      keyringVariables
       ;
   };
   modules = map (
