@@ -1,7 +1,10 @@
+{ lib, ... }:
 {
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
+
+    includes = [ "config.d/*.conf" ];
 
     settings."*" = {
       AddKeysToAgent = "yes";
@@ -20,4 +23,8 @@
     # NOTE: gpg-agent handles SSH via enableSshSupport; both cannot set SSH_AUTH_SOCK
     enable = false;
   };
+
+  home.activation.sshConfigDropInDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD mkdir -p -m 700 "$HOME/.ssh/config.d"
+  '';
 }
