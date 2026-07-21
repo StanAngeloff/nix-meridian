@@ -24,12 +24,15 @@ claude_environment() {
 }
 
 claude_after_run() {
-	local stray stray_name rescue_base rescue_target timestamp
+	local stray stray_name stray_files rescue_base rescue_target timestamp
 	rescue_base="$home_path/.claude/rescued-projects"
 	for stray in "$projects_overlay"/*/; do
 		[[ -d "$stray" ]] || continue
 		stray_name="$(basename "$stray")"
 		[[ "$stray_name" == "$project_slug" ]] && continue
+		# Claude Code can register project directories besides the one we mount — notably the path of a git worktree it manages (--worktree). The session transcript stays under the launch directory, which we do mount, so these extras are empty: no data to lose, and they vanish with the scratch cleanup. Rescue and warn only when the stray actually holds files.
+		stray_files="$(find "$stray" -type f -print -quit 2>/dev/null || true)"
+		[[ -n "$stray_files" ]] || continue
 		mkdir -p "$rescue_base"
 		rescue_target="$rescue_base/$stray_name"
 		if [[ -d "$rescue_target" ]]; then
