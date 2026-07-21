@@ -89,6 +89,7 @@ in
     tesseract
     trash-cli
     tree
+    try
     unp
     wineWow64Packages.stable
     wl-clipboard
