@@ -23,7 +23,10 @@ let
   };
 in
 {
-  runtimeInputs = [ tmux ]; # after-run.sh clears @claude-state once bwrap exits
+  runtimeInputs = [
+    tmux
+    util-linux # setsid launches the relay in its own process group; tmux clears @claude-state once bwrap exits
+  ];
   substitutions = {
     bubbleRelay = lib.getExe relay;
     chimeMp3 = "${chimeMp3}";

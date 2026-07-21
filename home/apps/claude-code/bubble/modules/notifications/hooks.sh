@@ -22,14 +22,14 @@ notifications_before_run() {
 	# TMUX_PANE is still set here (host side); the bubble child gets it unset via --unsetenv.
 	relay_pid=""
 	if [[ -n "${TMUX_PANE:-}" ]]; then
-		"@bubbleRelay@" "$event_file" "$TMUX_PANE" "@chimeMp3@" &
+		setsid "@bubbleRelay@" "$event_file" "$TMUX_PANE" "@chimeMp3@" &
 		relay_pid=$!
 	fi
 }
 
 notifications_after_run() {
 	if [[ -n "$relay_pid" ]]; then
-		kill "$relay_pid" 2>/dev/null || true
+		kill -- -"$relay_pid" 2>/dev/null || true
 		tmux set -wu -t "$TMUX_PANE" @claude-state 2>/dev/null || true
 	fi
 }

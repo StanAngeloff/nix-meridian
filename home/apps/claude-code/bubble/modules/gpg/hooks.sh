@@ -1,4 +1,6 @@
 # Synthetic gnupg: public keyring only, so in-bubble gpg finds the signing pubkey; the secret key never enters — the forwarded restricted agent socket does the crypto.
+# gpg_prepare auto-starts an agent in the scratch GNUPGHOME; gpg_cleanup kills it so it does not outlive the session.
+
 gpg_prepare() {
 	gnupg_seed_path="$scratch_path/gnupg"
 	mkdir -p "$gnupg_seed_path"
@@ -15,4 +17,10 @@ gpg_mount() {
 	# On a miss gpg silently autostarts a throwaway agent and reports a misleading "No secret key". Diagnose with `gpg-connect-agent 'getinfo pid'`: "restricted mode" + ERR Forbidden means the host agent's extra socket answered (healthy); a PID reply means a throwaway did.
 	bwrap_args+=(--ro-bind-try "$xdg_runtime_path/gnupg/S.gpg-agent.extra" "$home_path/.gnupg/S.gpg-agent")
 	bwrap_args+=(--ro-bind-try "$xdg_runtime_path/gnupg/S.gpg-agent.extra" "$xdg_runtime_path/gnupg/S.gpg-agent")
+}
+
+gpg_cleanup() {
+	if [[ -d "${gnupg_seed_path:-}" ]]; then
+		GNUPGHOME="$gnupg_seed_path" gpgconf --kill gpg-agent 2>/dev/null || true
+	fi
 }
