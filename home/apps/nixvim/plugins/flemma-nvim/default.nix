@@ -49,6 +49,9 @@ let
         };
       };
     };
+    templating = {
+      modules = [ "flemma-nvim.tools.stub" ];
+    };
     editing = {
       auto_write = true;
     };
@@ -86,6 +89,8 @@ in
     extraPlugins = [
       flemma-nvim
     ];
+
+    extraFiles."lua/flemma-nvim/tools/stub.lua".source = ./tools/stub.lua;
 
     extraConfigLua =
       with config.lib.nixvim; # lua

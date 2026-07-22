@@ -8,7 +8,7 @@
     ./copilot-lualine.nix
     ./csc-nvim.nix
     ./dadbod.nix
-    ./flemma-nvim.nix
+    ./flemma-nvim
     ./fugitive.nix
     ./fzf-lua.nix
     ./git-conflict-nvim.nix
