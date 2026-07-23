@@ -2,6 +2,7 @@
   inputs,
   lib,
   pkgs,
+  pkgs-unstable,
   ...
 }:
 let
@@ -9,7 +10,7 @@ let
     claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
   };
   claude-code-statusline = pkgs.callPackage ./statusline/package.nix { };
-  integrations = import ../mcp.nix { inherit lib pkgs; };
+  integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
   # Bubblewrap isolation wrapper that cc/ccc launch through; also profile-installed so it is runnable directly by name.
   claude-bubble = pkgs.callPackage ./bubble/package.nix {
     inherit claude-code;

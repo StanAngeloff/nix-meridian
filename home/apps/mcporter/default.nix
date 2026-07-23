@@ -2,10 +2,11 @@
   config,
   lib,
   pkgs,
+  pkgs-unstable,
   ...
 }:
 let
-  integrations = import ../mcp.nix { inherit lib pkgs; };
+  integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
   mcporter-settings = {
     mcpServers = lib.mapAttrs (_: integration: integration.mcporter) (
       lib.filterAttrs (_: integration: integration ? mcporter) integrations

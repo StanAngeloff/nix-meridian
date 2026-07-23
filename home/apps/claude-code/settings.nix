@@ -3,10 +3,11 @@
   config,
   lib,
   pkgs,
+  pkgs-unstable,
   ...
 }:
 let
-  integrations = import ../mcp.nix { inherit lib pkgs; };
+  integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
   settings = {
     "$schema" = "https://json.schemastore.org/claude-code-settings.json";
     alwaysThinkingEnabled = true;

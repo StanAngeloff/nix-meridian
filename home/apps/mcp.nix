@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  pkgs-unstable,
 }:
 # Single registry of external service integrations, viewed per consuming tool. Each consumer imports this file and projects its own facet, so adding an integration is one entry here:
 #   .mcporter        — connection config for the MCPorter aggregator (home/apps/mcporter)
@@ -138,6 +139,24 @@
       ask = [
         "mcp__sentry__execute_sentry_tool"
       ];
+    };
+  };
+
+  # Perplexity's official MCP server (@perplexity-ai/mcp-server), pinned via unstable for determinism. Every tool call hits the paid API, so only the cheap perplexity_search runs unprompted; ask/reason/research are gated.
+  perplexity = {
+    mcporter = {
+      command = lib.getExe pkgs-unstable.perplexity-mcp;
+      env = {
+        PERPLEXITY_API_KEY = "\${PERPLEXITY_API_KEY}";
+      };
+    };
+    claude = {
+      ask = [
+        "mcp__perplexity__perplexity_ask"
+        "mcp__perplexity__perplexity_reason"
+        "mcp__perplexity__perplexity_research"
+      ];
+      secrets = [ "PERPLEXITY_API_KEY" ];
     };
   };
 
