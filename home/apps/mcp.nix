@@ -130,6 +130,17 @@
     };
   };
 
+  sentry = {
+    mcporter = {
+      baseUrl = "https://mcp.sentry.dev/mcp";
+    };
+    claude = {
+      ask = [
+        "mcp__sentry__execute_sentry_tool"
+      ];
+    };
+  };
+
   # Slack via claude.ai's managed MCP — a distinct tool namespace from the local slack server above.
   slack-ai = {
     claude = {
