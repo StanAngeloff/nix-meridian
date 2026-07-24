@@ -34,6 +34,7 @@ in
     })
     ./keybindings.nix
     (import ./settings.nix { inherit claude-code-statusline; })
+    ./mcp.nix
     ./notifications.nix
   ];
 

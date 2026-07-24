@@ -5,8 +5,18 @@
 }:
 # Single registry of external service integrations, viewed per consuming tool. Each consumer imports this file and projects its own facet, so adding an integration is one entry here:
 #   .mcporter        — connection config for the MCPorter aggregator (home/apps/mcporter)
+#   .claude.mcp      — Claude Code server definition, merged into the user scope of ~/.claude/.claude.json (home/apps/claude-code/mcp.nix)
 #   .claude.ask      — Claude Code permission-prompt globs (permissions.ask); these prompt even in auto mode / --dangerously-skip-permissions
 #   .claude.secrets  — env-var names the Claude Code bubble resolves from the keyring host-side and injects (bubble keyringVariables)
+let
+  # One stdio server, two consumers. Claude Code and MCPorter share the schema, so the definition is written once.
+  perplexity-server = {
+    command = lib.getExe pkgs-unstable.perplexity-mcp;
+    env = {
+      PERPLEXITY_API_KEY = "\${PERPLEXITY_API_KEY}";
+    };
+  };
+in
 {
   # ── MCPorter-managed servers ──
   slack = {
@@ -70,9 +80,16 @@
   };
 
   # ── Claude Code MCPs configured outside MCPorter ──
-  # GitHub: the MCP server (~/.claude.json, GH_TOKEN-authenticated) plus the gh/git CLI, its command-line sibling — both gated together.
+  # GitHub: the MCP server (GH_TOKEN-authenticated) plus the gh/git CLI, its command-line sibling — both gated together.
   github = {
     claude = {
+      mcp = {
+        type = "http";
+        url = "https://api.githubcopilot.com/mcp";
+        headers = {
+          Authorization = "Bearer \${GH_TOKEN}";
+        };
+      };
       ask = [
         # gh / git CLI — externally-visible actions
         "Bash(git push)"
@@ -113,7 +130,7 @@
         "mcp__github__run_*"
         "mcp__github__*_write"
       ];
-      # ~/.claude.json carries only a "Bearer ${GH_TOKEN}" placeholder; the bubble resolves the real token host-side.
+      # ~/.claude/.claude.json carries only a "Bearer ${GH_TOKEN}" placeholder; the bubble resolves the real token host-side.
       secrets = [ "GH_TOKEN" ];
     };
   };
@@ -144,13 +161,9 @@
 
   # Perplexity's official MCP server (@perplexity-ai/mcp-server), pinned via unstable for determinism. Every tool call hits the paid API, so only the cheap perplexity_search runs unprompted; ask/reason/research are gated.
   perplexity = {
-    mcporter = {
-      command = lib.getExe pkgs-unstable.perplexity-mcp;
-      env = {
-        PERPLEXITY_API_KEY = "\${PERPLEXITY_API_KEY}";
-      };
-    };
+    mcporter = perplexity-server;
     claude = {
+      mcp = perplexity-server;
       ask = [
         "mcp__perplexity__perplexity_ask"
         "mcp__perplexity__perplexity_reason"
