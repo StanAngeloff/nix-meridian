@@ -8,7 +8,7 @@ let
   baseArgs = [
     # nixfmt: off
     "--effort" "max"
-    "--model" "claude-opus-4-6[1m]"
+    "--model" "claude-opus-5[1m]"
     # nixfmt: on, as: shell-args
   ];
   # NOTE: The bubble adds OS-isolation mode and the inner-Bash-sandbox-off settings on top.
