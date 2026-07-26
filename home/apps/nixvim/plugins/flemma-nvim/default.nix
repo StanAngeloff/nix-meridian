@@ -13,13 +13,13 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "Flemma-Dev";
         repo = "flemma.nvim";
-        rev = "c3c0662dc44fc87f76b617292cc8c147d5a8910d";
-        hash = "sha256-GTIIj8WP3sYIb8DXQQoHLZnMJmhPebIcdF5i9dWuod8=";
+        rev = "a64c027385c326708beb335698af0e5f382faf7e";
+        hash = "sha256-Ltz1Z0S11z22BsCuwNXw5rodakfRQ3rFFtd0/PdE1nc=";
       };
     }
   );
   flemma-settings = {
-    model = "$gemini-3";
+    model = "$gemini";
     parameters = {
       thinking = "max";
       vertex = {
@@ -56,30 +56,30 @@ let
       auto_write = true;
     };
     presets = {
-      "$gemini-3" = {
+      "$gemini" = {
         provider = "vertex";
         model = "gemini-3.1-pro-preview";
         location = "global";
       };
-      "$gemini-2.5" = {
-        provider = "vertex";
-        model = "gemini-2.5-pro";
-      };
       "$opus" = {
         provider = "anthropic";
-        model = "claude-opus-4-6";
+        model = "claude-opus-5";
       };
       "$sonnet" = {
         provider = "anthropic";
-        model = "claude-sonnet-4-6";
+        model = "claude-sonnet-5";
+      };
+      "$haiku" = {
+        provider = "anthropic";
+        model = "claude-haiku-4-5";
       };
       "$gpt" = {
         provider = "openai";
-        model = "gpt-5.4";
+        model = "gpt-5.6";
       };
       "$kimi" = {
         provider = "moonshot";
-        model = "kimi-k2.6";
+        model = "kimi-k3";
       };
     };
   };
