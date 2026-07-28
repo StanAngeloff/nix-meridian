@@ -1,4 +1,4 @@
-# @claude-state traffic-light palette
+# @claude-window-state traffic-light palette
 
 How the colours in the tmux format strings were chosen (July 2026).
 
@@ -31,13 +31,13 @@ An earlier iteration tinted the whole focused tab with the state colour (red/amb
 
 ## State hues
 
-| State       | Hue | Saturation | Reasoning                                                 |
-| :---------- | :-- | :--------- | :-------------------------------------------------------- |
-| blocked     | 0   | 100%       | Pure red — universal "stop / needs attention"             |
-| working     | 35  | 100%       | Warm amber-orange — activity without alarm                |
-| idle-unread | 120 | 100%       | Pure green — done, unread                                 |
-| idle-read   | 120 | 40%        | Same green hue, desaturated — done, already seen          |
-| no-state    | 199 | 100%       | Cyan (the anchor) — Claude Code not running, just the tab |
+| State    | Hue | Saturation | Reasoning                                                 |
+| :------- | :-- | :--------- | :-------------------------------------------------------- |
+| blocked  | 0   | 100%       | Pure red — universal "stop / needs attention"             |
+| working  | 35  | 100%       | Warm amber-orange — activity without alarm                |
+| unread   | 120 | 100%       | Pure green — done, unread                                 |
+| read     | 120 | 40%        | Same green hue, desaturated — done, already seen          |
+| no-state | 199 | 100%       | Cyan (the anchor) — Claude Code not running, just the tab |
 
 ### Why read is desaturated, not a different hue
 
@@ -47,13 +47,13 @@ The desaturation does double duty: it keeps read distinct from unread on the foc
 
 ## Final colour table
 
-| State       | Dot (unfocused) | Dot (focused) | Focused tab bg |
-| :---------- | :-------------- | :------------ | :------------- |
-| blocked     | #ff0000         | #cc0000       | #00afff        |
-| working     | #ff9300         | #cc7500       | #00afff        |
-| idle-unread | #00ff00         | #00cc00       | #00afff        |
-| idle-read   | #4cb24c         | #3d8e3d       | #00afff        |
-| no-state    | (none)          | (none)        | #00afff        |
+| State    | Dot (unfocused) | Dot (focused) | Focused tab bg |
+| :------- | :-------------- | :------------ | :------------- |
+| blocked  | #ff0000         | #cc0000       | #00afff        |
+| working  | #ff9300         | #cc7500       | #00afff        |
+| unread   | #00ff00         | #00cc00       | #00afff        |
+| read     | #4cb24c         | #3d8e3d       | #00afff        |
+| no-state | (none)          | (none)        | #00afff        |
 
 Text: #000000 (black) on focused tabs, #9e9e9e (grey) on unfocused. Bar background: #080808. The focused tab background is always #00afff regardless of state.
 

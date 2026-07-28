@@ -30,7 +30,9 @@ notifications_before_run() {
 notifications_after_run() {
 	if [[ -n "$relay_pid" ]]; then
 		kill -- -"$relay_pid" 2>/dev/null || true
-		tmux set -wu -t "$TMUX_PANE" @claude-state 2>/dev/null || true
+		tmux set -pu -t "$TMUX_PANE" @claude-pane 2>/dev/null || true
+		tmux set -pu -t "$TMUX_PANE" @claude-blocked 2>/dev/null || true
+		tmux set -pu -t "$TMUX_PANE" @claude-unread 2>/dev/null || true
 	fi
 }
 

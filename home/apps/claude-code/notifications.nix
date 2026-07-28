@@ -11,8 +11,7 @@ let
 
   stateCmd = pkgs.callPackage ./hooks/package.nix { };
 
-  # Every state-changing event pipes its JSON to the dispatch script, which decides the state and ignores subagent-originated events;
-  # it reads stdin and takes no arguments.
+  # Events that cannot be read off the pane title pipe their JSON to the dispatch script, which resolves a pane-option action; it reads stdin and takes no arguments.
   stateHook = {
     type = "command";
     command = lib.getExe stateCmd;
@@ -30,12 +29,11 @@ let
     SessionStart = [ { hooks = [ stateHook ]; } ];
     UserPromptSubmit = [ { hooks = [ stateHook ]; } ];
     PreToolUse = [
-      # All tools go to the dispatch script; it decides working or blocked from tool_name.
-      { hooks = [ stateHook ]; }
+      # Only the two tools that block on you reach the dispatch script; working comes from the pane title.
+      { matcher = "AskUserQuestion|ExitPlanMode"; hooks = [ stateHook ]; }
       # Chime for the question prompt only.
       { matcher = "AskUserQuestion"; hooks = [ chimeHook ]; }
     ];
-    PostToolUse = [ { hooks = [ stateHook ]; } ];
     PermissionRequest = [
       { hooks = [ chimeHook stateHook ]; }
     ];
