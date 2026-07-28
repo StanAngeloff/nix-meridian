@@ -18,6 +18,7 @@ in
     # CLI
     ./ast-grep
     ./claude-code
+    ./codex
     ./direnv
     ./eza
     ./fzf
