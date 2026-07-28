@@ -102,7 +102,9 @@ bwrap_args+=(--chdir "$project_path")
 @beforeRunCalls@
 
 set +e
-bwrap "${bwrap_args[@]}" -- "$claudeBin" "${claude_args[@]}"
+# The arguments go in on a file descriptor rather than the command line: /proc/<pid>/cmdline is world-readable, and the secrets module's --setenv pairs carry live credentials, so expanding the array here would publish them to every process on the host for the lifetime of the session. Process substitution keeps them in a pipe; a temporary file would trade that for the on-disk exposure the keyring migration closed, and a here-string cannot carry NUL separators because command substitution strips them. The whole array goes through, not just the secrets, so a module that starts injecting a value later is covered without revisiting this.
+# The trade-off is that `ps` no longer shows the bubble's mount layout.
+bwrap --args 3 -- "$claudeBin" "${claude_args[@]}" 3< <(printf '%s\0' "${bwrap_args[@]}")
 exit_code=$?
 set -e
 

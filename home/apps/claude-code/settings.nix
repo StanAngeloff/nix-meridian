@@ -41,6 +41,22 @@ let
     #
     # Learn more at https://code.claude.com/docs/en/permissions
     permissions = {
+      # Environment dumps are how live credentials reach transcripts: the bubble injects keyring secrets as environment variables,
+      # so this output writes them verbatim into the session log, which outlives the process by years.
+      # Denied rather than asked because printing the whole environment is never the point —
+      # the question is always whether one variable is set, which `[[ -n "$NAME" ]]` answers without disclosing anything.
+      #
+      # This is a speed bump, not a boundary. Rules match the command prefix, so `bash -c 'echo $NAME'` still gets through,
+      # and rules do not apply to commands the user runs with `!` at all.
+      #
+      # NOTE: `env VAR=value command` is caught as collateral; use the shell's own `VAR=value command` instead.
+      deny = [
+        "Bash(env)"
+        "Bash(env *)"
+        "Bash(printenv)"
+        "Bash(printenv *)"
+        "Bash(export -p)"
+      ];
       ask = lib.concatMap (integration: integration.claude.ask or [ ]) (lib.attrValues integrations);
     };
     # Learn more at https://code.claude.com/docs/en/settings#attribution-settings
