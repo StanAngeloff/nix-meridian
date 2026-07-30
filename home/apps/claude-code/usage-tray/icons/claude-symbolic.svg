@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Claude's starburst, cut down to eight rays.
+
+  The name must end in -symbolic.svg: that suffix is the only thing that makes GNOME recolour the
+  icon to the panel's foreground, so it follows the theme and the light/dark switch the way every
+  other tray icon does. Which is also why the shapes are filled rather than stroked — the override
+  GNOME wraps around this file sets fill on rect, path, ellipse, circle and polygon, and leaves
+  stroke alone, so a stroked ray would keep the colour written here and stay invisible on a dark
+  panel.
+
+  Eight rays because the icon is drawn for a 16 pixel panel. Twelve — the count in the real logo —
+  puts the rays under a pixel apart at the hub, and they smear into a grey blob; ten still does.
+  Eight is the most that stays a legible burst at this size.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+    <path d="M 6.800 8.000 L 9.200 8.000 L 8.700 1.000 A 0.700 0.700 0 0 0 7.300 1.000 Z" fill="#2e3436"/>
+    <path d="M 7.151 7.151 L 8.849 8.849 L 13.445 3.545 A 0.700 0.700 0 0 0 12.455 2.555 Z" fill="#2e3436"/>
+    <path d="M 8.000 6.800 L 8.000 9.200 L 15.000 8.700 A 0.700 0.700 0 0 0 15.000 7.300 Z" fill="#2e3436"/>
+    <path d="M 8.849 7.151 L 7.151 8.849 L 12.455 13.445 A 0.700 0.700 0 0 0 13.445 12.455 Z" fill="#2e3436"/>
+    <path d="M 9.200 8.000 L 6.800 8.000 L 7.300 15.000 A 0.700 0.700 0 0 0 8.700 15.000 Z" fill="#2e3436"/>
+    <path d="M 8.849 8.849 L 7.151 7.151 L 2.555 12.455 A 0.700 0.700 0 0 0 3.545 13.445 Z" fill="#2e3436"/>
+    <path d="M 8.000 9.200 L 8.000 6.800 L 1.000 7.300 A 0.700 0.700 0 0 0 1.000 8.700 Z" fill="#2e3436"/>
+    <path d="M 7.151 8.849 L 8.849 7.151 L 3.545 2.555 A 0.700 0.700 0 0 0 2.555 3.545 Z" fill="#2e3436"/>
+</svg>

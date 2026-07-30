@@ -136,6 +136,22 @@ fi
 rate_part=""
 five_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage  // empty')
 week_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage  // empty')
+
+# Tell the usage tray that the limits just moved, so it re-times its poll to land right after and
+# the panel agrees with this line. Only the event matters, not the contents — the tray still reads
+# its own numbers from the API, because this hook has no Fable or credits figure to offer.
+#
+# Under ~/.claude rather than XDG_RUNTIME_DIR: the bubble lays a masked tmpfs over the runtime
+# directory, so a ping written there by a bubbled session would be invisible to the tray on the
+# host. ~/.claude is bound through, which is the same channel bubble/modules/notifications uses.
+# Renaming into place keeps concurrent sessions from writing over each other mid-write.
+if [ -n "$five_pct" ] || [ -n "$week_pct" ]; then
+	ping_path="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/usage-activity"
+	if printf '%s\n' "$five_pct" >"${ping_path}.$$" 2>/dev/null; then
+		mv -f "${ping_path}.$$" "$ping_path" 2>/dev/null || rm -f "${ping_path}.$$"
+	fi
+fi
+
 if [ -n "$five_pct" ] || [ -n "$week_pct" ]; then
 	rate_part="${DIM_SEP}"
 	if [ -n "$five_pct" ]; then

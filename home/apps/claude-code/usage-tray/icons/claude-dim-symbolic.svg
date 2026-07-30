@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  claude-symbolic.svg, faded. See that file for the geometry and for why the name ends in
+  -symbolic.svg.
+
+  A separate file rather than a second colour, because a symbolic icon's colour is the panel's to
+  choose, not ours: GNOME rewrites fill on every shape. It does not touch fill-opacity, so that is
+  the one channel left to fade through, and the result stays whatever colour the theme is using.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+    <path d="M 6.800 8.000 L 9.200 8.000 L 8.700 1.000 A 0.700 0.700 0 0 0 7.300 1.000 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 7.151 7.151 L 8.849 8.849 L 13.445 3.545 A 0.700 0.700 0 0 0 12.455 2.555 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 8.000 6.800 L 8.000 9.200 L 15.000 8.700 A 0.700 0.700 0 0 0 15.000 7.300 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 8.849 7.151 L 7.151 8.849 L 12.455 13.445 A 0.700 0.700 0 0 0 13.445 12.455 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 9.200 8.000 L 6.800 8.000 L 7.300 15.000 A 0.700 0.700 0 0 0 8.700 15.000 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 8.849 8.849 L 7.151 7.151 L 2.555 12.455 A 0.700 0.700 0 0 0 3.545 13.445 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 8.000 9.200 L 8.000 6.800 L 1.000 7.300 A 0.700 0.700 0 0 0 1.000 8.700 Z" fill="#2e3436" fill-opacity="0.45"/>
+    <path d="M 7.151 8.849 L 8.849 7.151 L 3.545 2.555 A 0.700 0.700 0 0 0 2.555 3.545 Z" fill="#2e3436" fill-opacity="0.45"/>
+</svg>

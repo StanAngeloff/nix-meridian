@@ -10,6 +10,8 @@ let
     claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
   };
   claude-code-statusline = pkgs.callPackage ./statusline/package.nix { };
+  # Panel indicator for the subscription limits. Polls the usage endpoint itself; see package.nix.
+  claude-usage-tray = pkgs.callPackage ./usage-tray/package.nix { };
   integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
   # Bubblewrap isolation wrapper that cc/ccc launch through; also profile-installed so it is runnable directly by name.
   claude-bubble = pkgs.callPackage ./bubble/package.nix {
@@ -41,7 +43,22 @@ in
   home.packages = [
     claude-code
     claude-bubble
+    claude-usage-tray
   ];
+
+  systemd.user.services.claude-usage-tray = {
+    Unit = {
+      Description = "Claude subscription usage in the GNOME panel";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = lib.getExe claude-usage-tray;
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
 
   programs.git.ignores = [
     ".claude/settings.local.json"
