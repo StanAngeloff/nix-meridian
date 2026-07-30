@@ -11,7 +11,6 @@
     ./soft-brightness-plus.nix
     ./tiling-assistant.nix
     ./window-calls.nix
-    ./window-title-is-back.nix
   ];
 
   dconf.settings."org/gnome/shell" = {
