@@ -22,4 +22,6 @@
   CLAUDE_CODE_FORK_SUBAGENT = 1;
   # Use the classic renderer to keep the conversation in the terminal's native scrollback. Learn more at https://code.claude.com/docs/en/fullscreen#research-preview
   CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = 1;
+  # Keep subagent output inline in the transcript instead of behind the agent view pane.
+  CLAUDE_CODE_DISABLE_AGENT_VIEW = 1;
 }
