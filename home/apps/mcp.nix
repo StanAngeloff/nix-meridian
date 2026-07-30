@@ -148,6 +148,19 @@ in
     };
   };
 
+  # LaunchDarkly: project-local MCP (@launchdarkly/mcp-server), LAUNCHDARKLY_API_TOKEN-authenticated.
+  launchdarkly = {
+    claude = {
+      # verb-first kebab-case names, so prefix globs. At 0.6.2 the server mounts 20 tools; these three globs cover all 10 that write, and every remaining one is a get-*/list-*.
+      ask = [
+        "mcp__launchdarkly__create-*"
+        "mcp__launchdarkly__update-*"
+        "mcp__launchdarkly__delete-*"
+      ];
+      secrets = [ "LAUNCHDARKLY_API_TOKEN" ];
+    };
+  };
+
   sentry = {
     mcporter = {
       baseUrl = "https://mcp.sentry.dev/mcp";
