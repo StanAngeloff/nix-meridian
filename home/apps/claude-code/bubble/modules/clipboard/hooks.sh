@@ -10,7 +10,8 @@ clipboard_prepare() {
 		fi
 
 		if [[ ! -S "$clipboard_wayland_socket" ]]; then
-			echo "${highlight_on}claude-bubble: --with-clipboard requested but $clipboard_wayland_socket does not exist (wl-copy/wl-paste will not reach the compositor)${highlight_off}" >&2
+			bubble_warn "--with-clipboard requested but $clipboard_wayland_socket does not exist" \
+				"wl-copy and wl-paste will not reach the compositor"
 		fi
 	fi
 }

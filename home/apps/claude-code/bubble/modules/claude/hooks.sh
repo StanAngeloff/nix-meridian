@@ -40,26 +40,15 @@ claude_after_run() {
 			rescue_target="${rescue_target}.${timestamp}"
 		fi
 		mv "$stray" "$rescue_target"
-		local red_on="" red_off=""
-		if [[ -t 2 ]]; then
-			red_on=$'\033[1;31m'
-			red_off=$'\033[0m'
-		fi
 		echo "" >&2
-		echo "${red_on}  ╔══════════════════════════════════════════════════════╗${red_off}" >&2
-		echo "${red_on}  ║  ⚠  SESSION DATA RESCUED                             ║${red_off}" >&2
-		echo "${red_on}  ╚══════════════════════════════════════════════════════╝${red_off}" >&2
-		echo "" >&2
-		echo "  ${highlight_on}↳ slug mismatch${highlight_off}" >&2
-		echo "    Claude Code wrote → ${stray_name}" >&2
-		echo "    Bubble expected  → ${project_slug}" >&2
-		echo "" >&2
-		echo "  ${highlight_on}↳ rescued to${highlight_off}" >&2
-		echo "    ${rescue_target}" >&2
-		echo "" >&2
-		echo "  ${highlight_on}↳ to restore${highlight_off}" >&2
-		echo "    mv '${rescue_target}' \\" >&2
-		echo "       '${home_path}/.claude/projects/${stray_name}'" >&2
+		bubble_error "session data rescued — Claude Code used an unexpected project slug" \
+			"Claude Code wrote   ${stray_name}" \
+			"bubble expected     ${project_slug}" \
+			"rescued to          ${rescue_target}" \
+			"" \
+			"restore it with" \
+			"  mv '${rescue_target}' \\" \
+			"     '${home_path}/.claude/projects/${stray_name}'"
 		echo "" >&2
 	done
 }

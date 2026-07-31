@@ -2,7 +2,8 @@
 
 podman_prepare() {
 	if [[ -n "${bubble_grants[podman]:-}" && ! -S "$xdg_runtime_path/podman/podman.sock" ]]; then
-		echo "${highlight_on}claude-bubble: --with-podman requested but $xdg_runtime_path/podman/podman.sock does not exist (is podman.socket active?)${highlight_off}" >&2
+		bubble_warn "--with-podman requested but $xdg_runtime_path/podman/podman.sock does not exist" \
+			"is podman.socket active?"
 	fi
 }
 

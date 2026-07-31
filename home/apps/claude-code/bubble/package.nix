@@ -128,6 +128,8 @@ let
 
   slotSubstitutions = {
     inherit moduleFunctions;
+    # Shared with the standalone profiles command, which prepends the same file (see modules/profiles/module.nix).
+    logHelpers = builtins.readFile ./utilities/log.sh;
   }
   // lib.listToAttrs (
     map (phaseName: {

@@ -4,7 +4,11 @@ desktop_prepare() {
 	if [[ -n "$xauth_path" ]]; then
 		case "$xauth_path" in
 		"$home_path/.claude"/* | "$project_path"/*)
-			printf '%sclaude-bubble: refusing to launch — XAUTHORITY points inside a bubble-writable path (%s).\nA reachable X cookie + the shared network namespace = full desktop control. Move the cookie out or unset XAUTHORITY.%s\n' "$highlight_on" "$xauth_path" "$highlight_off" >&2
+			bubble_error "refusing to launch — XAUTHORITY points inside a bubble-writable path" \
+				"$xauth_path" \
+				"" \
+				"A reachable X cookie plus the shared network namespace is full desktop control." \
+				"Move the cookie out of that path, or unset XAUTHORITY."
 			exit 1
 			;;
 		esac
@@ -12,7 +16,11 @@ desktop_prepare() {
 	local suspect
 	for suspect in "$project_path/.Xauthority" "$home_path/.claude/.Xauthority"; do
 		if [[ -e "$suspect" ]]; then
-			printf '%sclaude-bubble: refusing to launch — X authority cookie found at %s (bubble-writable path).\nA reachable X cookie + the shared network namespace = full desktop control. Remove it before launching.%s\n' "$highlight_on" "$suspect" "$highlight_off" >&2
+			bubble_error "refusing to launch — X authority cookie found in a bubble-writable path" \
+				"$suspect" \
+				"" \
+				"A reachable X cookie plus the shared network namespace is full desktop control." \
+				"Remove it before launching."
 			exit 1
 		fi
 	done

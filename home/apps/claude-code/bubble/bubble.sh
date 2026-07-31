@@ -17,13 +17,20 @@ user_id="$(id -u)"
 home_path="$HOME"
 xdg_runtime_path="${XDG_RUNTIME_DIR:-/run/user/$user_id}"
 
-# Highlight boundary-affecting announcements when stderr is a terminal; stay plain when piped.
-highlight_on=""
-highlight_off=""
-if [[ -t 2 ]]; then
-	highlight_on=$'\033[1;33m'
-	highlight_off=$'\033[0m'
-fi
+@logHelpers@
+
+# Everything the launcher says is tagged: it interleaves with a session the user started for another purpose, so each line has to name its source.
+bubble_prefix="claude-bubble:"
+
+# $HOME abbreviated to ~ for announcements. The prefix match is anchored on a path boundary so a sibling home directory (/home/stanley next to /home/stan) is left alone.
+abbreviate_home() {
+	local path="$1"
+	if [[ "$path" == "$home_path" || "$path" == "$home_path"/* ]]; then
+		printf '%s' "~${path#"$home_path"}"
+	else
+		printf '%s' "$path"
+	fi
+}
 
 # Arguments the bubble owns: --with-<grant>/--without-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
 declare -A bubble_grants=()
@@ -40,7 +47,9 @@ default_args=()
 if [[ -n "${CLAUDE_BUBBLE_ARGS:-}" ]]; then
 	mapfile -d '' -t default_args < <(xargs -r printf '%s\0' <<<"$CLAUDE_BUBBLE_ARGS")
 	if [[ ${#default_args[@]} -gt 0 ]]; then
-		echo "${highlight_on}claude-bubble: default arguments: $(printf '%q ' "${default_args[@]}")${highlight_off}" >&2
+		# Verbatim, and deliberately not abbreviated like the effect lines below: this line exists to be an exact record of what xargs parsed, so a truncated tail stays recognisable as one.
+		default_args_quoted="$(printf '%q ' "${default_args[@]}")"
+		bubble_info "defaults: ${default_args_quoted% }"
 	fi
 fi
 
@@ -50,10 +59,10 @@ while [[ $index -lt ${#args[@]} ]]; do
 	argument="${args[$index]}"
 	if [[ "$argument" == --with-?* && " @grantNames@ " == *" ${argument#--with-} "* ]]; then
 		bubble_grants["${argument#--with-}"]=1
-		echo "${highlight_on}claude-bubble: grant '${argument#--with-}' active${highlight_off}" >&2
+		bubble_info "grant '${argument#--with-}' active"
 	elif [[ "$argument" == --without-?* && " @grantNames@ " == *" ${argument#--without-} "* ]]; then
 		unset "bubble_grants[${argument#--without-}]"
-		echo "${highlight_on}claude-bubble: grant '${argument#--without-}' disabled${highlight_off}" >&2
+		bubble_info "grant '${argument#--without-}' disabled"
 	elif [[ ("$argument" == "-v" || "$argument" == "--volume") && $((index + 1)) -lt ${#args[@]} && "${args[$((index + 1))]}" == /* ]]; then
 		index=$((index + 1))
 		bubble_volumes+=("${args[$index]}")
@@ -107,7 +116,12 @@ for volume_spec in "${bubble_volumes[@]}"; do
 	ro) bwrap_args+=(--ro-bind "$volume_host" "$volume_container") ;;
 	*) bwrap_args+=(--bind "$volume_host" "$volume_container") ;;
 	esac
-	echo "${highlight_on}claude-bubble: volume '$volume_host' → '$volume_container' ($volume_mode)${highlight_off}" >&2
+	# Only the interesting half: the arrow is noise when a volume lands on the same path it came from, which is the common case.
+	volume_display="$(abbreviate_home "$volume_host")"
+	if [[ "$volume_container" != "$volume_host" ]]; then
+		volume_display+=" → $(abbreviate_home "$volume_container")"
+	fi
+	bubble_info "volume $volume_display ($volume_mode)"
 done
 
 bwrap_args+=(--chdir "$project_path")

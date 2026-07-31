@@ -12,7 +12,8 @@ let
       jq
       procps # pgrep, for the running-instance guard
     ];
-    text = builtins.readFile ./profiles.sh;
+    # Same message formatting as the launcher; this command is built separately, so it takes its own copy of the library rather than inheriting one.
+    text = builtins.readFile ../../utilities/log.sh + builtins.readFile ./profiles.sh;
   };
 in
 {

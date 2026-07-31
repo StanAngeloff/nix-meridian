@@ -82,8 +82,8 @@ ssh_before_run() {
 			case $'\n'"$ssh_agent_blobs" in
 			*$'\n'"$ssh_pub_blob"$'\n'*) : ;;
 			*)
-				echo "${highlight_on}claude-bubble: ssh key ${ssh_display} is referenced in your ssh config but not loaded in the agent.${highlight_off}" >&2
-				echo "  keys never enter the bubble — load it on the host: ssh-add ${ssh_display}" >&2
+				bubble_warn "ssh key ${ssh_display} is referenced in your ssh config but not loaded in the agent" \
+					"keys never enter the bubble — load it on the host: ssh-add ${ssh_display}"
 				;;
 			esac
 		done <"$ssh_file"

@@ -30,16 +30,17 @@ profiles_before_run() {
 	organization="$(jq -r '.oauthAccount.organizationName // empty' "$profile_file")"
 	label="$(echo "$profiles_active_name" | tr '[:lower:]' '[:upper:]')"
 
-	local cyan_on="" cyan_off=""
-	if [[ -t 2 ]]; then
-		cyan_on=$'\033[1;36m'
-		cyan_off=$'\033[0m'
+	# A banner rather than a message, so it skips the launcher's prefix: it answers "who am I about to spend tokens as", and it is the last thing on screen before Claude Code's own interface takes over. Bold carries the profile name alone; the account details after it stay plain, like every other message body. bubble_off is empty exactly when the shared policy decided against colour, so this reuses that decision rather than testing the terminal again.
+	local banner_on="" banner_off=""
+	if [[ -n "$bubble_off" ]]; then
+		banner_on=$'\033[1;36m'
+		banner_off="$bubble_off"
 	fi
 
 	if [[ -n "$organization" ]]; then
-		echo "${cyan_on}  🪪 ${label}  ·  ${email}  ·  ${subscription} (${organization})${cyan_off}" >&2
+		echo "  ${banner_on}🪪 ${label}${banner_off}  ·  ${email}  ·  ${subscription} (${organization})" >&2
 	else
-		echo "${cyan_on}  🪪 ${label}  ·  ${email}  ·  ${subscription}${cyan_off}" >&2
+		echo "  ${banner_on}🪪 ${label}${banner_off}  ·  ${email}  ·  ${subscription}" >&2
 	fi
 	echo "" >&2
 }

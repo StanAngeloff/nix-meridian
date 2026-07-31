@@ -5,19 +5,11 @@ profiles_path="$config_path/profiles"
 credentials_file="$config_path/.credentials.json"
 config_file="$config_path/.claude.json"
 
-highlight_on=""
-highlight_off=""
-red_on=""
-red_off=""
-if [[ -t 2 ]]; then
-	highlight_on=$'\033[1;33m'
-	highlight_off=$'\033[0m'
-	red_on=$'\033[1;31m'
-	red_off=$'\033[0m'
-fi
+# Unlike the launcher this command leaves bubble_prefix empty, so the severity word leads and results print bare — see utilities/log.sh.
 
+# First argument is the message, any further ones are continuation lines.
 _profile_die() {
-	echo "${red_on}error:${red_off} $*" >&2
+	bubble_error "$@"
 	exit 1
 }
 
@@ -25,7 +17,8 @@ _profile_check_not_running() {
 	local pids
 	pids="$(pgrep -u "$(id -un)" -f '(claude-unwrapped|/bin/claude( |$))' 2>/dev/null || true)"
 	if [[ -n "$pids" ]]; then
-		_profile_die "Claude Code is running (PIDs: $(echo "$pids" | tr '\n' ' ' | sed 's/ *$//')). Close all sessions before managing profiles."
+		_profile_die "Claude Code is running (PIDs: $(echo "$pids" | tr '\n' ' ' | sed 's/ *$//'))" \
+			"close all sessions before managing profiles"
 	fi
 }
 
@@ -71,7 +64,8 @@ _profile_capture_outgoing() {
 	live_id="$(_profile_account_identity "$config_file")"
 	stored_id="$(_profile_account_identity "$profiles_path/$outgoing.json")"
 	if [[ -n "$live_id" && -n "$stored_id" && "$live_id" != "$stored_id" ]]; then
-		echo "${red_on}warning:${red_off} live account doesn't match profile '$outgoing' — skipping snapshot" >&2
+		bubble_warn "live account does not match profile '$outgoing' — skipping snapshot" \
+			"overwriting it would destroy the other account's only copy of its tokens"
 		return 0
 	fi
 	_profile_capture_profile "$profiles_path/$outgoing.json"
@@ -121,7 +115,8 @@ _profile_profile_label() {
 _profile_cmd_migrate() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		_profile_die "profile name required. Usage: cc profiles migrate <name>"
+		_profile_die "profile name required" \
+			"usage: cc profiles migrate <name>"
 	fi
 	if ! _profile_valid_name "$name"; then
 		_profile_die "invalid profile name: $name"
@@ -131,7 +126,8 @@ _profile_cmd_migrate() {
 		_profile_die "profile '$name' already exists"
 	fi
 	if _profile_active_profile_name >/dev/null; then
-		_profile_die "a profile is already active. Use 'cc profiles add <name>' to add another account."
+		_profile_die "a profile is already active" \
+			"run 'cc profiles add <name>' to add another account"
 	fi
 
 	mkdir -p "$profiles_path"
@@ -140,13 +136,13 @@ _profile_cmd_migrate() {
 
 	local label
 	label="$(_profile_profile_label "$profile_file")"
-	echo "${highlight_on}migrated:${highlight_off} $label" >&2
-	echo "${highlight_on}active profile:${highlight_off} $name" >&2
+	printf '%smigrated:%s %s\n' "$bubble_family_on" "$bubble_off" "$label" >&2
+	printf '%sactive profile:%s %s\n' "$bubble_family_on" "$bubble_off" "$name" >&2
 }
 
 _profile_cmd_list() {
 	if [[ ! -d "$profiles_path" ]]; then
-		echo "no profiles yet — run: cc profiles migrate <name>" >&2
+		bubble_info "no profiles yet — run: cc profiles migrate <name>"
 		exit 0
 	fi
 	local active
@@ -160,10 +156,10 @@ _profile_cmd_list() {
 		label="$(_profile_profile_label "$file")"
 		marker="  "
 		if [[ "$name" == "$active" ]]; then marker="* "; fi
-		printf '  %s%s%s  %s\n' "$marker" "${highlight_on}$name${highlight_off}" "" "$label" >&2
+		printf '  %s%s%s%s  %s\n' "$marker" "$bubble_family_on" "$name" "$bubble_off" "$label" >&2
 	done
 	if [[ $found -eq 0 ]]; then
-		echo "no profiles yet — run: cc profiles migrate <name>" >&2
+		bubble_info "no profiles yet — run: cc profiles migrate <name>"
 	fi
 }
 
@@ -182,11 +178,13 @@ _profile_cmd_which() {
 _profile_cmd_select() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		_profile_die "profile name required. Usage: cc profiles select <name>"
+		_profile_die "profile name required" \
+			"usage: cc profiles select <name>"
 	fi
 	local profile_file="$profiles_path/$name.json"
 	if [[ ! -f "$profile_file" ]]; then
-		_profile_die "profile '$name' does not exist. Run 'cc profiles list' to see available profiles."
+		_profile_die "profile '$name' does not exist" \
+			"run 'cc profiles list' to see the available profiles"
 	fi
 	_profile_check_not_running
 
@@ -196,13 +194,14 @@ _profile_cmd_select() {
 
 	local label
 	label="$(_profile_profile_label "$profile_file")"
-	echo "${highlight_on}active profile:${highlight_off} $name  $label" >&2
+	printf '%sactive profile:%s %s  %s\n' "$bubble_family_on" "$bubble_off" "$name" "$label" >&2
 }
 
 _profile_cmd_remove() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		_profile_die "profile name required. Usage: cc profiles remove <name>"
+		_profile_die "profile name required" \
+			"usage: cc profiles remove <name>"
 	fi
 	if ! _profile_valid_name "$name"; then
 		_profile_die "invalid profile name: $name"
@@ -214,16 +213,18 @@ _profile_cmd_remove() {
 	local active
 	active="$(_profile_active_profile_name || true)"
 	if [[ "$name" == "$active" ]]; then
-		_profile_die "cannot remove the active profile. Switch to another profile first: cc profiles select <other>"
+		_profile_die "cannot remove the active profile" \
+			"switch away from it first: cc profiles select <other>"
 	fi
 	rm "$profile_file"
-	echo "${highlight_on}removed:${highlight_off} $name" >&2
+	printf '%sremoved:%s %s\n' "$bubble_family_on" "$bubble_off" "$name" >&2
 }
 
 _profile_cmd_add() {
 	local name="${1:-}"
 	if [[ -z "$name" ]]; then
-		_profile_die "profile name required. Usage: cc profiles add <name>"
+		_profile_die "profile name required" \
+			"usage: cc profiles add <name>"
 	fi
 	if ! _profile_valid_name "$name"; then
 		_profile_die "invalid profile name: $name"
@@ -238,7 +239,8 @@ _profile_cmd_add() {
 	local outgoing
 	outgoing="$(_profile_active_profile_name || true)"
 	if [[ -z "$outgoing" || ! -f "$profiles_path/$outgoing.json" ]]; then
-		_profile_die "no active profile to preserve. Run 'cc profiles migrate <name>' first."
+		_profile_die "no active profile to preserve" \
+			"run 'cc profiles migrate <name>' first"
 	fi
 	_profile_capture_outgoing "$outgoing"
 
@@ -255,8 +257,8 @@ _profile_cmd_add() {
 	chmod 600 "$temporary_file"
 	mv "$temporary_file" "$credentials_file"
 
-	echo "${highlight_on}launching Claude Code auth flow...${highlight_off}" >&2
-	echo "complete the login in your browser, then exit Claude Code." >&2
+	bubble_info "launching the Claude Code auth flow" \
+		"complete the login in your browser, then exit Claude Code"
 	echo "" >&2
 
 	claude auth login "$@" || true
@@ -265,7 +267,7 @@ _profile_cmd_add() {
 	new_oauth="$(jq -c '.claudeAiOauth // empty' "$credentials_file" 2>/dev/null || true)"
 	if [[ -z "$new_oauth" ]]; then
 		echo "" >&2
-		echo "${red_on}auth did not complete — restoring previous credentials${red_off}" >&2
+		bubble_error "auth did not complete — restoring the previous credentials"
 		exit 1
 	fi
 
@@ -277,8 +279,8 @@ _profile_cmd_add() {
 	echo "" >&2
 	local label
 	label="$(_profile_profile_label "$profile_file")"
-	echo "${highlight_on}saved:${highlight_off} $name  $label" >&2
-	echo "${highlight_on}active profile:${highlight_off} $name" >&2
+	printf '%ssaved:%s %s  %s\n' "$bubble_family_on" "$bubble_off" "$name" "$label" >&2
+	printf '%sactive profile:%s %s\n' "$bubble_family_on" "$bubble_off" "$name" >&2
 }
 
 _profile_usage() {
