@@ -31,7 +31,20 @@ declare -A bubble_grants=()
 bubble_volumes=()
 claude_args=()
 help_requested=""
-args=("$@")
+
+# CLAUDE_BUBBLE_ARGS holds arguments to prepend, meant to be exported from a project's .envrc so a directory that always needs a grant stops depending on remembering it at the prompt. Prepending is what makes it safe to forget: the real command line is parsed afterwards and therefore wins, so --without-<grant> revokes an injected --with-<grant>, and a one-off session drops the defaults entirely with `CLAUDE_BUBBLE_ARGS= cc`.
+# The value is announced because it can widen the boundary from a file in the current directory, and a boundary must never move invisibly. direnv adds no attack path of its own here — allowing an .envrc is already arbitrary code execution on cd — but it does mean allowing one now also extends trust to the bubble's mounts.
+# xargs parses shell quoting so a quoted value survives as one argument, and unlike eval it will not run command substitution from that same project-local file. Without -r it would run the command once on empty input and inject a stray empty argument.
+# What gets announced is the parsed result, never the raw variable: an unmatched quote makes xargs emit the tokens it read before the error and abandon the rest, so the two can differ, and the truncated tail may be exactly the --without-<grant> that was meant to revoke a default-on grant. Reporting what was applied keeps that visible instead of claiming the whole value took effect.
+default_args=()
+if [[ -n "${CLAUDE_BUBBLE_ARGS:-}" ]]; then
+	mapfile -d '' -t default_args < <(xargs -r printf '%s\0' <<<"$CLAUDE_BUBBLE_ARGS")
+	if [[ ${#default_args[@]} -gt 0 ]]; then
+		echo "${highlight_on}claude-bubble: default arguments: $(printf '%q ' "${default_args[@]}")${highlight_off}" >&2
+	fi
+fi
+
+args=("${default_args[@]}" "$@")
 index=0
 while [[ $index -lt ${#args[@]} ]]; do
 	argument="${args[$index]}"
@@ -114,6 +127,7 @@ set -e
 if [[ -n "$help_requested" ]]; then
 	printf '%s' '@grantsHelp@'
 	printf '\n  -v, --volume HOST[:CONTAINER[:MODE]]\n        Bind-mount HOST into the bubble at CONTAINER (default: same path).\n        MODE is rw (default) or ro. May be repeated.\n'
+	printf '\nEnvironment:\n  CLAUDE_BUBBLE_ARGS\n        Arguments prepended to the command line, parsed with shell quoting.\n        Export it from a project .envrc for per-directory defaults; whatever\n        is given at the prompt is parsed afterwards and wins.\n'
 fi
 
 # Not redundant with the trap: without a direct call shellcheck cannot see the cleanup hooks invoked (SC2329).

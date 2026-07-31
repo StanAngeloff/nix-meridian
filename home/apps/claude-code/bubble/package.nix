@@ -3,6 +3,7 @@
   writeShellApplication,
   bubblewrap,
   coreutils,
+  findutils,
   gnupg,
   jq,
   libsecret,
@@ -163,6 +164,7 @@ writeShellApplication {
     [
       bubblewrap
       coreutils
+      findutils # xargs, for parsing CLAUDE_BUBBLE_ARGS
     ]
     ++ lib.concatMap (module: module.metadata.runtimeInputs or [ ]) modules
   );
