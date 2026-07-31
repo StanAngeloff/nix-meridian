@@ -67,6 +67,7 @@ in
     unzip
     usbutils
     wget
+    zip
 
     # CLI
     android-tools
