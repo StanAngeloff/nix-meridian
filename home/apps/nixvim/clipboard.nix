@@ -1,3 +1,4 @@
+{ pkgs, ... }:
 {
   # Route Neovim's clipboard through xsel rather than wl-clipboard on this GNOME/Wayland session.
   #
@@ -9,6 +10,11 @@
   # and Mutter mirrors that clipboard to and from the Wayland one both ways, so copy and paste keep working without the stall.
   programs.nixvim = {
     clipboard.providers.xsel.enable = true;
+
+    # nixvim evaluates its own module tree against the nixpkgs it was locked to, so the default
+    # `mkPackageOption pkgs "xsel"` resolves an unoverlaid xsel and misses pkgs/xsel/overlay.nix.
+    # Pass the overlaid package in explicitly so the patched build is the one on Neovim's PATH.
+    clipboard.providers.xsel.package = pkgs.xsel;
 
     # providers.xsel only adds xsel to Neovim's PATH; Neovim's own detection still prefers wl-copy
     # whenever $WAYLAND_DISPLAY is set (autoload/provider/clipboard.vim), so pin the provider explicitly.

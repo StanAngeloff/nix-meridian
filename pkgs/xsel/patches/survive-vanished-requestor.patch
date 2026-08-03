@@ -1,0 +1,23 @@
+diff --git i/xsel.c w/xsel.c
+--- i/xsel.c
++++ w/xsel.c
+@@ -997,12 +997,19 @@
+   char err_buf[MAXLINE];
+ 
+   /* Make sure to send a refusal to all waiting INCR requests
+    * and delete the corresponding properties. */
+   if (eev->error_code == BadAlloc) refuse_all_incr ();
+ 
++  /* A selection owner must tolerate BadWindow: requestors routinely destroy their
++   * requestor window as soon as they have read the property, so a reply can land
++   * after the window is gone. Nothing is left to deliver, so drop it and keep
++   * serving the selection - aborting here would strand the selection with a dead
++   * owner. */
++  if (eev->error_code == BadWindow) return 0;
++
+   XGetErrorText (display, eev->error_code, err_buf, MAXLINE);
+   exit_err (err_buf);
+ 
+   return 0;
+ }
+ 

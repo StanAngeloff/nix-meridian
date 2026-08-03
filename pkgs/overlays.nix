@@ -18,5 +18,6 @@ final: prev: {
   tesseract = final.tesseract5;
   tig = final.callPackage ./tig/overlay.nix { tig = prev.tig; };
   voxize = final.callPackage ./voxize/package.nix { };
+  xsel = final.callPackage ./xsel/overlay.nix { xsel = prev.xsel; };
   # nixfmt: on, as: statements
 }
