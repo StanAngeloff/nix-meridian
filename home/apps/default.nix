@@ -24,6 +24,7 @@ in
     ./fzf
     ./ghostty
     ./git
+    ./git-lines
     ./httpie
     ./jq
     ./less
