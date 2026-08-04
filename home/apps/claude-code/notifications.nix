@@ -5,6 +5,8 @@
   ...
 }:
 let
+  inherit (import ./json-utils.nix { inherit lib pkgs; }) mergeIntoLiveFile;
+
   jq = lib.getExe pkgs.jq;
 
   # NOTE: setsid detaches into its own session so the chime never blocks the hook;
@@ -59,13 +61,13 @@ let
   };
 in
 {
+  # Guarded against a running session's own writes; see ./json-utils.nix.
   home.activation.updateClaudeCodeNotifications =
-    let
-      sponge = "${lib.getBin pkgs.moreutils}/bin/sponge";
-    in
-    lib.hm.dag.entryAfter [ "updateClaudeCodeSettings" ] ''
-      settingsFile="${config.home.homeDirectory}/.claude/settings.json"
-
-      ${jq} ${lib.strings.escapeShellArg ".hooks = ${builtins.toJSON hooks}"} "$settingsFile" | ${sponge} "$settingsFile"
-    '';
+    lib.hm.dag.entryAfter [ "updateClaudeCodeSettings" ]
+      (mergeIntoLiveFile {
+        file = "${config.home.homeDirectory}/.claude/settings.json";
+        label = "Claude Code hooks";
+        # The whole hooks tree is ours: every entry below is generated here, so it is replaced rather than merged.
+        filter = ".hooks = ${builtins.toJSON hooks}";
+      });
 }
