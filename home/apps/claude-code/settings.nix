@@ -7,7 +7,23 @@
   ...
 }:
 let
+  inherit (import ./json-utils.nix { inherit lib pkgs; }) mergeIntoLiveFile;
   integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
+  # Marketplaces plugins may come from, and which of their plugins load in every session; see ./marketplaces.nix.
+  trustedMarketplaces = import ./marketplaces.nix;
+  marketplaces = lib.mapAttrs (_: marketplace: {
+    source = {
+      source = "github";
+      repo = marketplace.repo;
+    };
+  }) trustedMarketplaces;
+  enabledPlugins = lib.listToAttrs (
+    lib.concatLists (
+      lib.mapAttrsToList (
+        name: marketplace: map (plugin: lib.nameValuePair "${plugin}@${name}" true) marketplace.plugins
+      ) trustedMarketplaces
+    )
+  );
   settings = {
     "$schema" = "https://json.schemastore.org/claude-code-settings.json";
     alwaysThinkingEnabled = true;
@@ -75,22 +91,19 @@ let
   };
 in
 {
+  # Guarded against a running session's own writes; see ./json-utils.nix.
   home.activation.updateClaudeCodeSettings =
-    let
-      jq = lib.getExe pkgs.jq;
-      sponge = "${lib.getBin pkgs.moreutils}/bin/sponge";
-    in
-    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      settingsFile="${config.home.homeDirectory}/.claude/settings.json"
-
-      if [[ ! -f "$settingsFile" ]]; then
-        echo "Creating Claude Code settings file..."
-
-        mkdir -p "$(dirname "$settingsFile")"
-        echo "{}" > "$settingsFile"
-        chmod 644 "$settingsFile"
-      fi
-
-      ${jq} ${lib.strings.escapeShellArg ''. + ${builtins.toJSON settings} | {"$schema": .["$schema"]} + del(.["$schema"])''} "$settingsFile" | ${sponge} "$settingsFile"
-    '';
+    lib.hm.dag.entryAfter [ "writeBoundary" ]
+      (mergeIntoLiveFile {
+        file = "${config.home.homeDirectory}/.claude/settings.json";
+        label = "Claude Code settings";
+        # extraKnownMarketplaces and enabledPlugins merge per key rather than wholesale, because /plugin writes those same
+        # two keys: entries added by hand neither drift nor get clobbered. Everything else here is ours to replace.
+        filter = ''
+          . + ${builtins.toJSON settings}
+          | .extraKnownMarketplaces = ((.extraKnownMarketplaces // { }) + ${builtins.toJSON marketplaces})
+          | .enabledPlugins = ((.enabledPlugins // { }) + ${builtins.toJSON enabledPlugins})
+          | {"$schema": .["$schema"]} + del(.["$schema"])
+        '';
+      });
 }
