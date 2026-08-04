@@ -9,12 +9,23 @@ def _at(text):
     return datetime.fromisoformat(text)
 
 
+def _epoch(moment):
+    """The status line reports reset times as epoch seconds, not as ISO strings."""
+    return int(moment.timestamp())
+
+
 def _text(markup):
     """Strip Pango tags and the leading offset, so content can be asserted on its own."""
     return re.sub(r"<[^>]+>", "", markup).replace(usage.ZERO_WIDTH_SPACE, "")
 
 
 NOW = _at("2026-07-30T11:05:00+00:00")
+
+
+def _view(payload=None, activity=None, now=NOW):
+    """A merged view, which is what panel_label and menu_rows take."""
+    snapshot = usage.parse_snapshot(payload, now=now) if payload is not None else None
+    return usage.compose(snapshot, activity, now=now)
 
 
 class ParseSnapshot(unittest.TestCase):
@@ -214,68 +225,336 @@ class Age(unittest.TestCase):
         )
 
 
-class ActivityPing(unittest.TestCase):
-    def test_polls_at_once_when_the_budget_already_allows_it(self):
-        self.assertEqual(
-            usage.delay_after_activity(
-                seconds_since_attempt=400, consecutive_failures=0
-            ),
-            0,
+class ParseActivity(unittest.TestCase):
+    """The status line hands over its own `rate_limits` object verbatim.
+
+    Its shape is not the endpoint's: percentages are `used_percentage`, and reset times are epoch
+    seconds rather than ISO strings.
+    """
+
+    def test_reads_both_windows_and_their_epoch_reset_times(self):
+        activity = usage.parse_activity(
+            {
+                "five_hour": {"used_percentage": 19.4, "resets_at": _epoch(NOW) + 900},
+                "seven_day": {
+                    "used_percentage": 27.0,
+                    "resets_at": _epoch(NOW) + 72000,
+                },
+            },
+            observed_at=NOW,
         )
 
-    def test_waits_out_the_remaining_cadence_when_a_poll_was_recent(self):
-        self.assertEqual(
-            usage.delay_after_activity(
-                seconds_since_attempt=100, consecutive_failures=0
-            ),
-            200,
+        self.assertEqual(activity.five_hour.percent, 19)
+        self.assertEqual(activity.seven_day.percent, 27)
+        self.assertEqual(activity.five_hour.resets_at, _at("2026-07-30T11:20:00+00:00"))
+        self.assertEqual(activity.observed_at, NOW)
+
+    def test_tolerates_a_window_without_a_reset_time(self):
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.4}}, observed_at=NOW
         )
 
-    def test_activity_does_not_shorten_a_backoff(self):
-        # A statusline ping proves inference is working, not that the metadata endpoint has stopped
-        # refusing us — they are separate budgets. Pinging must not pull the ladder in.
-        self.assertEqual(
-            usage.delay_after_activity(
-                seconds_since_attempt=9999, consecutive_failures=3
-            ),
+        self.assertIsNone(activity.five_hour.resets_at)
+        self.assertIsNone(activity.seven_day)
+
+    def test_is_nothing_when_neither_window_is_reported(self):
+        self.assertIsNone(usage.parse_activity({}, observed_at=NOW))
+        self.assertIsNone(usage.parse_activity({"five_hour": {}}, observed_at=NOW))
+        self.assertIsNone(usage.parse_activity(None, observed_at=NOW))
+
+    def test_is_nothing_for_the_bare_percentage_an_older_hook_wrote(self):
+        # The previous hook wrote just the five-hour percentage, which is legal JSON and so arrives
+        # here as an integer. A session still running that hook must read as "no figures" rather than
+        # as a reading of nothing, or it would clear a current session's numbers.
+        self.assertIsNone(usage.parse_activity(19, observed_at=NOW))
+        self.assertIsNone(usage.parse_activity("19", observed_at=NOW))
+
+
+class ComposingSources(unittest.TestCase):
+    """Two feeds with different reach: the status line has the windows, the endpoint has the rest."""
+
+    def _snapshot(self, at):
+        return usage.parse_snapshot(
+            {
+                "five_hour": {"utilization": 11.0, "resets_at": None},
+                "seven_day": {"utilization": 24.0, "resets_at": None},
+                "limits": [
+                    {
+                        "kind": "weekly_scoped",
+                        "percent": 21,
+                        "resets_at": None,
+                        "scope": {"model": {"display_name": "Fable"}},
+                    }
+                ],
+            },
+            now=at,
+        )
+
+    def test_a_newer_status_line_reading_wins_the_windows(self):
+        stale_at = _at("2026-07-30T10:30:00+00:00")
+        activity = usage.parse_activity(
+            {
+                "five_hour": {"used_percentage": 19.0},
+                "seven_day": {"used_percentage": 27.0},
+            },
+            observed_at=NOW,
+        )
+
+        view = usage.compose(self._snapshot(stale_at), activity, now=NOW)
+
+        self.assertEqual(view.five_hour.percent, 19)
+        self.assertEqual(view.seven_day.percent, 27)
+        self.assertEqual(view.windows_at, NOW)
+        self.assertTrue(view.windows_from_activity)
+
+    def test_the_endpoint_still_owns_fable_and_credits_however_fresh_the_ping(self):
+        # The status line has no scoped window at all, so a ping must never drop Fable.
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}}, observed_at=NOW
+        )
+        snapshot_at = _at("2026-07-30T10:30:00+00:00")
+
+        view = usage.compose(self._snapshot(snapshot_at), activity, now=NOW)
+
+        self.assertEqual([limit.title for limit in view.scoped], ["Fable"])
+        self.assertEqual(view.details_at, snapshot_at)
+
+    def test_a_fresh_poll_wins_over_an_older_ping(self):
+        old_ping = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}},
+            observed_at=_at("2026-07-30T10:30:00+00:00"),
+        )
+
+        view = usage.compose(self._snapshot(NOW), old_ping, now=NOW)
+
+        self.assertEqual(view.five_hour.percent, 11)
+        self.assertFalse(view.windows_from_activity)
+
+    def test_a_ping_alone_carries_the_panel_before_any_poll_succeeds(self):
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}}, observed_at=NOW
+        )
+
+        view = usage.compose(None, activity, now=NOW)
+
+        self.assertEqual(view.five_hour.percent, 19)
+        self.assertEqual(view.scoped, ())
+        self.assertIsNone(view.details_at)
+
+    def test_nothing_from_either_source_is_an_empty_view(self):
+        view = usage.compose(None, None, now=NOW)
+
+        self.assertIsNone(view.five_hour)
+        self.assertIsNone(view.windows_at)
+        self.assertFalse(view.has_data)
+
+
+class Cadence(unittest.TestCase):
+    def test_a_live_status_line_makes_the_poll_rare(self):
+        # While Claude Code is feeding the windows, the only thing a request still adds is Fable and
+        # the credit balance, and neither moves fast enough to be worth a five-minute cadence.
+        recent = _at("2026-07-30T11:04:00+00:00")
+
+        self.assertEqual(usage.base_cadence(recent, now=NOW), 1800)
+
+    def test_a_long_pause_returns_to_the_normal_cadence(self):
+        old = _at("2026-07-30T10:55:00+00:00")
+
+        self.assertEqual(usage.base_cadence(old, now=NOW), 300)
+
+    def test_no_status_line_at_all_uses_the_normal_cadence(self):
+        self.assertEqual(usage.base_cadence(None, now=NOW), 300)
+
+    def test_the_backoff_ladder_starts_from_whichever_cadence_is_in_force(self):
+        self.assertEqual(usage.poll_delay(0, base=1800), 1800)
+        self.assertEqual(usage.poll_delay(1, base=300), 600)
+
+
+class RequestSpacing(unittest.TestCase):
+    """A floor under every trigger, not just the timer.
+
+    One rewrite of the credentials file emits three file-monitor events, and a burst of simultaneous
+    requests is what draws a 429 from a metadata endpoint even when the daily total is trivial.
+    """
+
+    def test_a_request_that_has_just_happened_forces_a_wait(self):
+        self.assertEqual(usage.spacing_delay(0), usage.MINIMUM_REQUEST_SPACING_SECONDS)
+
+    def test_the_wait_shrinks_as_the_last_request_recedes(self):
+        self.assertEqual(usage.spacing_delay(20), 10)
+
+    def test_no_wait_once_the_floor_has_passed(self):
+        self.assertEqual(usage.spacing_delay(999), 0)
+
+    def test_the_first_request_of_all_is_not_delayed(self):
+        self.assertEqual(usage.spacing_delay(None), 0)
+
+
+class Retiming(unittest.TestCase):
+    """Re-timing may pull a poll in, never push it out.
+
+    The old rule re-armed at the full backoff measured from now, so a ping every minute against a
+    thirty-minute backoff moved the deadline out of reach and the tray never retried at all.
+    """
+
+    def test_a_ping_cannot_postpone_a_poll_that_is_already_due_sooner(self):
+        self.assertEqual(usage.retime(1800, seconds_until_pending=120), 120)
+
+    def test_a_ping_can_bring_a_poll_forward(self):
+        self.assertEqual(usage.retime(30, seconds_until_pending=600), 30)
+
+    def test_an_overdue_deadline_is_not_negative(self):
+        self.assertEqual(usage.retime(1800, seconds_until_pending=-5), 0)
+
+    def test_with_nothing_scheduled_the_delay_stands(self):
+        self.assertEqual(usage.retime(1800, seconds_until_pending=None), 1800)
+
+
+class Scheduling(unittest.TestCase):
+    def test_only_a_completed_poll_may_push_the_next_one_further_out(self):
+        postponed = usage.schedule_delay(
             1800,
+            seconds_until_pending=120,
+            seconds_since_attempt=600,
+            may_postpone=True,
+        )
+        retimed = usage.schedule_delay(
+            1800,
+            seconds_until_pending=120,
+            seconds_since_attempt=600,
+            may_postpone=False,
         )
 
-    def test_never_polls_faster_than_the_cadence_however_often_it_is_pinged(self):
-        for elapsed in range(0, 300, 25):
-            self.assertGreaterEqual(
-                usage.delay_after_activity(
-                    seconds_since_attempt=elapsed, consecutive_failures=0
-                ),
-                300 - elapsed,
+        self.assertEqual(postponed, 1800)
+        self.assertEqual(retimed, 120)
+
+    def test_the_floor_wins_over_a_nearer_deadline(self):
+        # Honouring the spacing can move a deadline out, which is the one postponement allowed to
+        # anybody: a request 5s after the last one is exactly what drew the 429s.
+        self.assertEqual(
+            usage.schedule_delay(
+                0, seconds_until_pending=5, seconds_since_attempt=2, may_postpone=False
+            ),
+            28,
+        )
+
+    def test_a_session_pinging_forever_still_gets_a_poll(self):
+        """The regression that started this: pings starved the retry completely.
+
+        The old rule re-armed at the full backoff measured from now, so a ping every minute against a
+        thirty-minute backoff moved the deadline out on every ping and no request ever happened.
+        Simulated here over six hours of minute-by-minute pings.
+        """
+        pending = 1800.0
+        since_attempt = 0.0
+        polls = 0
+
+        for minute in range(360):
+            for _ in range(60):
+                pending -= 1
+                since_attempt += 1
+                if pending <= 0:
+                    polls += 1
+                    since_attempt = 0.0
+                    pending = usage.schedule_delay(
+                        1800,
+                        seconds_until_pending=None,
+                        seconds_since_attempt=since_attempt,
+                        may_postpone=True,
+                    )
+            # One ping per minute, each of which used to reset the deadline to the full backoff.
+            pending = usage.schedule_delay(
+                1800,
+                seconds_until_pending=pending,
+                seconds_since_attempt=since_attempt,
+                may_postpone=False,
             )
+
+        self.assertEqual(
+            polls, 12, "six hours at a thirty-minute backoff is twelve polls"
+        )
+
+    def test_the_same_traffic_never_beats_the_request_floor(self):
+        # The other half: whatever the trigger, two requests can never land inside the spacing.
+        gaps = []
+        pending = 0.0
+        since_attempt = None
+        elapsed = 0.0
+        last_poll_at = None
+
+        for _ in range(20000):
+            elapsed += 1
+            pending -= 1
+            if since_attempt is not None:
+                since_attempt += 1
+            if pending <= 0:
+                if last_poll_at is not None:
+                    gaps.append(elapsed - last_poll_at)
+                last_poll_at = elapsed
+                since_attempt = 0.0
+                pending = usage.schedule_delay(
+                    300, None, since_attempt, may_postpone=True
+                )
+            if int(elapsed) % 7 == 0:
+                # A burst-prone trigger firing far faster than any real one.
+                pending = usage.schedule_delay(
+                    0, pending, since_attempt, may_postpone=False
+                )
+
+        self.assertTrue(gaps)
+        self.assertGreaterEqual(
+            min(gaps),
+            usage.MINIMUM_REQUEST_SPACING_SECONDS,
+            f"closest pair: {min(gaps)}s",
+        )
 
 
 class Staleness(unittest.TestCase):
-    def test_one_failure_does_not_make_the_data_stale(self):
-        self.assertFalse(
-            usage.is_stale(consecutive_failures=1, fetched_at=NOW, now=NOW)
+    def _view(self, windows_at, from_activity):
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}}, observed_at=windows_at
         )
+        if from_activity:
+            return usage.compose(None, activity, now=windows_at)
+        snapshot = usage.parse_snapshot(
+            {"five_hour": {"utilization": 11.0}, "limits": []}, now=windows_at
+        )
+        return usage.compose(snapshot, None, now=windows_at)
 
-    def test_two_consecutive_failures_make_the_data_stale(self):
-        self.assertTrue(usage.is_stale(consecutive_failures=2, fetched_at=NOW, now=NOW))
+    def test_one_failure_does_not_make_the_data_stale(self):
+        view = self._view(NOW, from_activity=False)
 
-    def test_data_older_than_the_stale_ceiling_is_stale_even_without_failures(self):
+        self.assertFalse(usage.is_stale(view, consecutive_failures=1, now=NOW))
+
+    def test_two_consecutive_failures_make_polled_data_stale(self):
+        view = self._view(NOW, from_activity=False)
+
+        self.assertTrue(usage.is_stale(view, consecutive_failures=2, now=NOW))
+
+    def test_failures_do_not_grey_out_numbers_the_status_line_just_supplied(self):
+        # The whole point of the feed: a rate-limited endpoint says nothing about whether the
+        # windows on screen are right, and while Claude Code is running they are.
+        view = self._view(NOW, from_activity=True)
+
+        self.assertFalse(usage.is_stale(view, consecutive_failures=9, now=NOW))
+
+    def test_data_older_than_the_stale_ceiling_is_stale_whatever_fed_it(self):
         later = _at("2026-07-30T11:16:00+00:00")
 
-        self.assertTrue(
-            usage.is_stale(consecutive_failures=0, fetched_at=NOW, now=later)
-        )
+        for from_activity in (True, False):
+            view = self._view(NOW, from_activity=from_activity)
+
+            self.assertTrue(usage.is_stale(view, consecutive_failures=0, now=later))
 
     def test_data_with_no_successful_fetch_yet_is_not_stale_but_loading(self):
-        self.assertFalse(
-            usage.is_stale(consecutive_failures=0, fetched_at=None, now=NOW)
-        )
+        view = usage.compose(None, None, now=NOW)
+
+        self.assertFalse(usage.is_stale(view, consecutive_failures=0, now=NOW))
 
 
 class PanelLabel(unittest.TestCase):
-    def _snapshot(self):
-        return usage.parse_snapshot(
+    def _view(self):
+        return _view(
             {
                 "five_hour": {"utilization": 11.0, "resets_at": None},
                 "seven_day": {"utilization": 24.0, "resets_at": None},
@@ -287,7 +566,7 @@ class PanelLabel(unittest.TestCase):
     def test_dims_the_prefixes_and_brightens_the_numbers_when_fresh(self):
         # Same two colours the tmux status line uses, so the panel and the terminal agree.
         self.assertEqual(
-            usage.panel_label(self._snapshot(), stale=False),
+            usage.panel_label(self._view(), stale=False),
             "\u200b"
             '<span foreground="#377880">'
             '5h:<span foreground="#56b6c2">11%</span>'
@@ -297,19 +576,19 @@ class PanelLabel(unittest.TestCase):
 
     def test_dims_the_whole_label_when_stale(self):
         self.assertEqual(
-            usage.panel_label(self._snapshot(), stale=True),
+            usage.panel_label(self._view(), stale=True),
             '\u200b<span foreground="#646464">5h:11% 7d:24%</span>',
         )
 
     def test_shows_an_ellipsis_before_the_first_poll_succeeds(self):
         self.assertEqual(
-            usage.panel_label(None, stale=False),
+            usage.panel_label(_view(), stale=False),
             '\u200b<span foreground="#646464">…</span>',
         )
 
     def test_the_loading_label_is_distinguishable_from_the_stale_label(self):
-        loading = usage.panel_label(None, stale=False)
-        stale = usage.panel_label(self._snapshot(), stale=True)
+        loading = usage.panel_label(_view(), stale=False)
+        stale = usage.panel_label(self._view(), stale=True)
 
         self.assertNotEqual(loading, stale)
 
@@ -376,9 +655,9 @@ FULL_PAYLOAD = {
 
 class MenuRows(unittest.TestCase):
     def test_lists_every_limit_then_the_credits(self):
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         self.assertEqual(
             [_text(row) for row in rows],
@@ -391,9 +670,9 @@ class MenuRows(unittest.TestCase):
         )
 
     def test_every_row_is_monospaced_so_the_columns_line_up(self):
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         for row in rows:
             self.assertIn("<tt>", row)
@@ -413,9 +692,9 @@ class MenuRows(unittest.TestCase):
                 }
             ],
         )
-        snapshot = usage.parse_snapshot(payload, now=NOW)
+        view = _view(payload)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         scoped_row = [row for row in rows if "A&amp;B&lt;C" in row]
         self.assertEqual(len(scoped_row), 1, rows)
@@ -423,9 +702,9 @@ class MenuRows(unittest.TestCase):
     def test_titles_and_reset_times_keep_the_menu_default_colour(self):
         # The popover background is lighter than the terminal's, so the dim teal that reads fine in
         # tmux turns to mud here. Only the data is coloured; the rest inherits the theme.
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         self.assertIn("<tt>5-hour", rows[0])
         self.assertTrue(rows[0].endswith("resets in 15m</tt>"), rows[0])
@@ -433,9 +712,9 @@ class MenuRows(unittest.TestCase):
     def test_uses_the_alpha_compensated_palette_because_rows_are_insensitive(self):
         # Insensitive rows render at alpha 0.4, and Pango foreground sets RGB but not alpha, so the
         # panel's colours arrive at 40% and look muddy. The menu needs brighter source colours.
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         self.assertIn(usage.MENU_VALUE_COLOUR, rows[0])
         self.assertIn(usage.MENU_MUTED_COLOUR, rows[0])
@@ -443,9 +722,9 @@ class MenuRows(unittest.TestCase):
         self.assertNotIn(usage.PREFIX_COLOUR, rows[0])
 
     def test_dims_every_row_when_stale(self):
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
 
-        rows = usage.menu_rows(snapshot, stale=True, now=NOW)
+        rows = usage.menu_rows(view, stale=True, now=NOW)
 
         for row in rows:
             self.assertIn(usage.MENU_STALE_COLOUR, row)
@@ -453,56 +732,100 @@ class MenuRows(unittest.TestCase):
 
     def test_drops_the_credits_row_when_extra_usage_is_disabled(self):
         payload = dict(FULL_PAYLOAD, extra_usage={"is_enabled": False})
-        snapshot = usage.parse_snapshot(payload, now=NOW)
+        view = _view(payload)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         self.assertFalse([row for row in rows if "Credits" in row])
 
     def test_drops_the_scoped_row_when_the_account_has_no_scoped_limit(self):
         payload = dict(FULL_PAYLOAD, limits=[])
-        snapshot = usage.parse_snapshot(payload, now=NOW)
+        view = _view(payload)
 
-        rows = usage.menu_rows(snapshot, stale=False, now=NOW)
+        rows = usage.menu_rows(view, stale=False, now=NOW)
 
         self.assertFalse([row for row in rows if "Fable" in row])
 
     def test_says_how_old_the_numbers_are_when_stale(self):
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
         later = _at("2026-07-30T11:12:00+00:00")
 
-        rows = usage.menu_rows(snapshot, stale=True, now=later)
+        rows = usage.menu_rows(view, stale=True, now=later)
 
         self.assertIn("Last updated 7m ago", _text(rows[-1]))
 
     def test_names_the_actual_reason_the_refresh_failed(self):
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
         later = _at("2026-07-30T11:12:00+00:00")
 
         rows = usage.menu_rows(
-            snapshot, stale=True, now=later, reason="network unreachable"
+            view, stale=True, now=later, reason="network unreachable"
         )
 
         self.assertEqual(_text(rows[-1]), "Last updated 7m ago — network unreachable")
 
     def test_gives_the_age_alone_when_there_is_no_reason_to_report(self):
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
         later = _at("2026-07-30T11:12:00+00:00")
 
-        rows = usage.menu_rows(snapshot, stale=True, now=later)
+        rows = usage.menu_rows(view, stale=True, now=later)
 
         self.assertEqual(_text(rows[-1]), "Last updated 7m ago")
 
+    def test_reports_the_endpoint_age_when_only_the_endpoint_rows_are_behind(self):
+        # The status line keeps the windows current, so the panel is right and nothing is dimmed —
+        # but Fable and the credits came from a poll that is now well past the active cadence, and
+        # saying so is the only way to tell those two rows apart from the fresh ones.
+        polled_at = _at("2026-07-30T10:00:00+00:00")
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}}, observed_at=NOW
+        )
+        view = usage.compose(
+            usage.parse_snapshot(FULL_PAYLOAD, now=polled_at), activity, now=NOW
+        )
+
+        rows = usage.menu_rows(
+            view, stale=False, now=NOW, reason="endpoint returned 429"
+        )
+
+        self.assertEqual(_text(rows[-1]), "Endpoint 1h05m ago — endpoint returned 429")
+
+    def test_says_nothing_extra_when_both_feeds_are_current(self):
+        view = _view(FULL_PAYLOAD)
+
+        rows = usage.menu_rows(view, stale=False, now=NOW)
+
+        self.assertNotIn("Endpoint", _text(rows[-1]))
+        self.assertIn("Credits", _text(rows[-1]))
+
+    def test_no_endpoint_row_when_the_account_has_nothing_only_the_endpoint_knows(self):
+        # With no scoped window and no credits, a poll adds nothing the status line has not already
+        # supplied, so its age is not worth a row.
+        payload = dict(FULL_PAYLOAD, limits=[], extra_usage={"is_enabled": False})
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}}, observed_at=NOW
+        )
+        view = usage.compose(
+            usage.parse_snapshot(payload, now=_at("2026-07-30T08:00:00+00:00")),
+            activity,
+            now=NOW,
+        )
+
+        rows = usage.menu_rows(view, stale=False, now=NOW)
+
+        self.assertFalse([row for row in rows if "Endpoint" in row])
+
     def test_says_it_is_loading_before_the_first_poll(self):
         self.assertEqual(
-            [_text(r) for r in usage.menu_rows(None, stale=False, now=NOW)], ["Loading"]
+            [_text(r) for r in usage.menu_rows(_view(), stale=False, now=NOW)],
+            ["Loading"],
         )
 
 
 class SignedOut(unittest.TestCase):
     def test_the_panel_says_so_when_there_are_no_credentials_and_no_history(self):
         self.assertEqual(
-            usage.panel_label(None, stale=False, signed_out=True),
+            usage.panel_label(_view(), stale=False, signed_out=True),
             '\u200b<span foreground="#646464">?</span>',
         )
 
@@ -510,7 +833,9 @@ class SignedOut(unittest.TestCase):
         self.assertEqual(
             [
                 _text(row)
-                for row in usage.menu_rows(None, stale=False, now=NOW, signed_out=True)
+                for row in usage.menu_rows(
+                    _view(), stale=False, now=NOW, signed_out=True
+                )
             ],
             ["Not signed in"],
         )
@@ -518,10 +843,10 @@ class SignedOut(unittest.TestCase):
     def test_previous_numbers_still_show_when_the_credentials_go_away(self):
         # Losing the token is just another failure. Stale numbers beat no numbers, so the
         # signed-out wording only applies when nothing was ever fetched.
-        snapshot = usage.parse_snapshot(FULL_PAYLOAD, now=NOW)
+        view = _view(FULL_PAYLOAD)
 
         self.assertEqual(
-            usage.panel_label(snapshot, stale=True, signed_out=True),
+            usage.panel_label(view, stale=True, signed_out=True),
             '\u200b<span foreground="#646464">5h:11% 7d:24%</span>',
         )
 

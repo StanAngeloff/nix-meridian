@@ -38,8 +38,19 @@ class Tray:
         )
         self._indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
         self._indicator.set_title("Claude usage")
+        self._rendered = None
 
     def render(self, label, rows, stale):
+        """Publish a state, skipping the work when it is the one already showing.
+
+        Callers render on a timer as well as on new data, so most calls change nothing. Rebuilding
+        the menu anyway would replace the DBusMenu tree and make the shell re-read it every tick.
+        """
+        state = (label, tuple(rows), stale)
+        if state == self._rendered:
+            return
+        self._rendered = state
+
         self._indicator.set_label(label, label)
         self._indicator.set_icon_full(
             STALE_ICON_PATH if stale else FRESH_ICON_PATH, "Claude usage"

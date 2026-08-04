@@ -19,6 +19,12 @@ USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_BETA_HEADER = "oauth-2025-04-20"
 REQUEST_TIMEOUT_SECONDS = 5
 
+# How long to let a file settle before reporting it changed. One rewrite emits three events —
+# `deleted`, `created`, `changes-done-hint` for a rename into place, or two `changed` and a hint for
+# an in-place write — and answering each separately turned one token refresh into three simultaneous
+# requests, which is what drew the 429s. Measured with a Gio monitor against both write styles.
+MONITOR_SETTLE_MILLISECONDS = 250
+
 
 class Unavailable(Exception):
     """The usage numbers could not be refreshed.
@@ -45,10 +51,12 @@ def default_state_path():
 
 
 def default_activity_path():
-    """The file the status line hook touches whenever Claude Code's limits move.
+    """Where the status line hook publishes Claude Code's own rate-limit figures.
 
-    Written by home/apps/claude-code/statusline/statusline.sh. Its contents are irrelevant; only
-    the modification event is used.
+    Written by home/apps/claude-code/statusline/statusline.sh, which puts the `rate_limits` object
+    from its input in here verbatim. Claude Code recomputes those numbers from the inference API's
+    rate-limit headers on every render, so while a session is working this is both fresher than a
+    poll and free.
 
     Alongside the credentials rather than in XDG_RUNTIME_DIR, because the bubble lays a masked
     tmpfs over the runtime directory: a ping written there by a bubbled session would land in the
@@ -57,17 +65,54 @@ def default_activity_path():
     return os.path.join(os.path.dirname(default_credentials_path()), "usage-activity")
 
 
-def watch_activity(activity_path, on_activity):
-    """Fire on_activity when the status line reports movement.
+def _watch(path, on_change):
+    """Fire on_change once per rewrite of path, however many events the rewrite emits.
 
-    The file may not exist yet — no Claude Code session has rendered since boot — and Gio watches
-    the path rather than the inode, so the monitor still fires once it appears.
+    The burst is coalesced by restarting a short timer on every event and only reporting once it
+    elapses. Without that, each caller has to defend itself against being invoked three times in the
+    same instant, and the one that did not is what put bursts of requests on the endpoint.
+
+    The file need not exist yet — no session may have rendered since boot — because Gio watches the
+    path rather than the inode and still fires once it appears.
     """
-    monitor = Gio.File.new_for_path(activity_path).monitor_file(
-        Gio.FileMonitorFlags.NONE, None
-    )
-    monitor.connect("changed", lambda *_: on_activity())
+    pending = None
+
+    def _settled():
+        nonlocal pending
+        pending = None
+        on_change()
+        return False
+
+    def _changed(*_):
+        nonlocal pending
+        if pending is not None:
+            GLib.source_remove(pending)
+        pending = GLib.timeout_add(MONITOR_SETTLE_MILLISECONDS, _settled)
+
+    monitor = Gio.File.new_for_path(path).monitor_file(Gio.FileMonitorFlags.NONE, None)
+    monitor.connect("changed", _changed)
     return monitor
+
+
+def watch_activity(activity_path, on_activity):
+    """Fire on_activity when the status line has published new figures."""
+    return _watch(activity_path, on_activity)
+
+
+def read_activity(activity_path):
+    """Return the status line's `rate_limits` object and when it was written, or (None, None).
+
+    Dated by modification time, which is when Claude Code rendered the line and therefore when the
+    figures were true.
+    """
+    try:
+        observed_at = datetime.fromtimestamp(
+            os.path.getmtime(activity_path), timezone.utc
+        )
+        with open(activity_path, "r", encoding="utf-8") as activity_file:
+            return json.load(activity_file), observed_at
+    except (OSError, ValueError):
+        return None, None
 
 
 def read_token(credentials_path):
@@ -140,15 +185,12 @@ def fetch_usage(session, token, on_done):
 def watch_credentials(credentials_path, on_change):
     """Fire on_change whenever the credentials file is rewritten.
 
-    This is what lets backoff be interrupted: a rewrite means Claude Code has just refreshed the
-    token, which is the one event that makes an immediate retry worth attempting rather than
-    waiting out the cap.
+    This is what lets backoff be interrupted: a rewrite may mean Claude Code has just refreshed the
+    token, which is the one event that makes an immediate retry worth attempting rather than waiting
+    out the cap. Whether the token actually changed is the caller's business — a rewrite alone is not
+    proof of one.
     """
-    monitor = Gio.File.new_for_path(credentials_path).monitor_file(
-        Gio.FileMonitorFlags.NONE, None
-    )
-    monitor.connect("changed", lambda *_: on_change())
-    return monitor
+    return _watch(credentials_path, on_change)
 
 
 def write_state(state_path, payload):

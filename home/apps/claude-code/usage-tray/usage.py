@@ -8,19 +8,41 @@ no display and no session bus.
 
 import html
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Five minutes, not one. The endpoint answered 429 at a one-minute cadence on 2026-07-30, and it is
 # a metadata endpoint on a far tighter budget than the inference API — it also shares the token with
 # Claude Code, which calls it for its own /usage command, so the two contend. Nothing is lost: even
 # a session window running flat out moves about a third of a percent per minute.
 HEALTHY_CADENCE_SECONDS = 300
+
+# What the cadence becomes while Claude Code is reporting the windows itself. The only thing a
+# request still adds then is the scoped window and the credit balance, and neither moves fast enough
+# to be worth asking every five minutes.
+ACTIVE_CADENCE_SECONDS = 1800
+
+# How long a status line reading counts as current. Claude Code renders its line on every turn, so
+# anything within a few minutes means a session is working; past that the feed has gone quiet and
+# the endpoint is all that is left.
+ACTIVITY_FRESH_FOR = timedelta(minutes=3)
+
+# A floor under every request, whatever asked for it. One rewrite of the credentials file emits three
+# file-monitor events, and answering each of them immediately put three simultaneous requests on a
+# metadata endpoint — which is what drew the 429s of 2026-08-04, even though the whole day's traffic
+# was 15 requests. The ladder alone could not prevent it: it only spaces polls the timer schedules.
+MINIMUM_REQUEST_SPACING_SECONDS = 30
+
 MAXIMUM_BACKOFF_SECONDS = 1800
 # The longest a Retry-After will be honoured. Past this the endpoint is telling us to go away for
 # longer than a panel indicator can usefully stay blank, so it retries and shows stale meanwhile.
 MAXIMUM_RETRY_AFTER_SECONDS = 3600
 STALE_AFTER = timedelta(minutes=10)
 STALE_AFTER_FAILURES = 2
+
+# Longer than the active cadence on purpose. Polling rarely while the status line feeds the windows
+# is the design, not a fault, so the endpoint's own age only becomes worth reporting once it exceeds
+# what that design would produce.
+DETAILS_STALE_AFTER = timedelta(minutes=45)
 
 # Past the longest window every limit has reset, so a cache older than this describes nothing and
 # the loading state is more honest than confident nonsense.
@@ -74,6 +96,8 @@ class Credits:
 
 @dataclass(frozen=True)
 class Snapshot:
+    """What the usage endpoint returned. The only source for the scoped window and the credits."""
+
     five_hour: Limit | None
     seven_day: Limit | None
     scoped: tuple[Limit, ...]
@@ -81,10 +105,54 @@ class Snapshot:
     fetched_at: datetime
 
 
+@dataclass(frozen=True)
+class Activity:
+    """What Claude Code's status line reported. Only the two account-wide windows, but free and
+    current: it recomputes them from the inference API's rate-limit headers on every render.
+    """
+
+    five_hour: Limit | None
+    seven_day: Limit | None
+    observed_at: datetime
+
+
+@dataclass(frozen=True)
+class View:
+    """The two sources merged into what is actually on screen.
+
+    Provenance is kept because it decides whether a failing endpoint should grey the panel: if the
+    windows came from the status line, a 429 says nothing about whether they are right.
+    """
+
+    five_hour: Limit | None
+    seven_day: Limit | None
+    scoped: tuple[Limit, ...]
+    credits: Credits | None
+    windows_at: datetime | None
+    windows_from_activity: bool
+    details_at: datetime | None
+
+    @property
+    def has_data(self):
+        return any(
+            (self.five_hour, self.seven_day, self.scoped, self.credits is not None)
+        )
+
+
 def _parse_timestamp(text):
     if not text:
         return None
     return datetime.fromisoformat(text)
+
+
+def _parse_epoch(value):
+    """Read a reset time the status line reported, which is epoch seconds rather than ISO text."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        return datetime.fromtimestamp(value, timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return None
 
 
 def _parse_window(payload, key, title):
@@ -151,6 +219,68 @@ def _parse_credits(payload):
     )
 
 
+def _parse_activity_window(payload, key, title):
+    window = payload.get(key)
+    if not isinstance(window, dict):
+        return None
+    percent = window.get("used_percentage")
+    if percent is None:
+        return None
+    return Limit(
+        title=title,
+        percent=round(percent),
+        resets_at=_parse_epoch(window.get("resets_at")),
+    )
+
+
+def parse_activity(payload, observed_at):
+    """Read the `rate_limits` object the status line hands over, or None if it has no windows.
+
+    The hook writes that object through untouched rather than picking fields out of it in shell, so
+    field names are named in one place — here — and a window Claude Code adds later needs no change
+    on the writing side.
+    """
+    if not isinstance(payload, dict):
+        return None
+    five_hour = _parse_activity_window(payload, "five_hour", "5-hour")
+    seven_day = _parse_activity_window(payload, "seven_day", "7-day")
+    if five_hour is None and seven_day is None:
+        return None
+    return Activity(five_hour=five_hour, seven_day=seven_day, observed_at=observed_at)
+
+
+def compose(snapshot, activity, now):
+    """Merge the two feeds into one view, newest reading of the windows winning.
+
+    The scoped window and the credits only ever come from the endpoint — the status line has no
+    equivalent — so a ping must never displace them, however fresh it is. `windows_at` describes the
+    reading that supplied the windows, which is what the age and staleness rules then work from.
+    """
+    five_hour = snapshot.five_hour if snapshot else None
+    seven_day = snapshot.seven_day if snapshot else None
+    windows_at = snapshot.fetched_at if snapshot else None
+    windows_from_activity = False
+
+    if activity is not None and (
+        windows_at is None or activity.observed_at > windows_at
+    ):
+        # Either window the status line omitted keeps the endpoint's figure rather than disappearing.
+        five_hour = activity.five_hour or five_hour
+        seven_day = activity.seven_day or seven_day
+        windows_at = activity.observed_at
+        windows_from_activity = True
+
+    return View(
+        five_hour=five_hour,
+        seven_day=seven_day,
+        scoped=snapshot.scoped if snapshot else (),
+        credits=snapshot.credits if snapshot else None,
+        windows_at=windows_at,
+        windows_from_activity=windows_from_activity,
+        details_at=snapshot.fetched_at if snapshot else None,
+    )
+
+
 def bar(percent):
     """A ten-cell text meter.
 
@@ -195,23 +325,23 @@ def _offset(markup):
     return f"{ZERO_WIDTH_SPACE}{markup}"
 
 
-def panel_label(snapshot, stale, signed_out=False):
+def panel_label(view, stale, signed_out=False):
     """The panel text, as Pango markup.
 
     Everything this returns is rendered through set_markup, so it must always be well-formed
     markup. That holds trivially here because every value is a number we formatted ourselves; any
     text taken from the payload would have to be escaped first.
     """
-    if snapshot is None:
+    if not view.has_data:
         return _offset(
             _span(SIGNED_OUT_LABEL if signed_out else LOADING_LABEL, STALE_COLOUR)
         )
 
     windows = []
-    if snapshot.five_hour is not None:
-        windows.append(("5h:", f"{snapshot.five_hour.percent}%"))
-    if snapshot.seven_day is not None:
-        windows.append(("7d:", f"{snapshot.seven_day.percent}%"))
+    if view.five_hour is not None:
+        windows.append(("5h:", f"{view.five_hour.percent}%"))
+    if view.seven_day is not None:
+        windows.append(("7d:", f"{view.seven_day.percent}%"))
 
     if stale:
         return _offset(
@@ -291,20 +421,24 @@ def _row(segments, stale):
     return _offset(f"<tt>{body}</tt>")
 
 
-def menu_rows(snapshot, stale, now, signed_out=False, reason=None):
+def menu_rows(view, stale, now, signed_out=False, reason=None):
     """The dropdown, as Pango markup.
 
     Strings rather than widgets because DBusMenu only carries labels, and markup only because the
     appindicator extension is patched to render our menu through set_markup; see
     home/gnome-shell/extensions/appindicator.nix. Rows whose data the account does not have are
     left out entirely: a Fable row reading 0% would claim an allowance that is not there.
+
+    Every string here is derived from `now`, so this has to be rebuilt on a clock of its own and not
+    only when a poll lands. Rebuilding it solely on poll completion froze the age at whatever it was
+    when the last request failed, which read as "just now" for as long as the backoff lasted.
     """
-    if snapshot is None:
+    if not view.has_data:
         text = SIGNED_OUT_LABEL_ROW if signed_out else LOADING_LABEL_ROW
         return [_row([(text, None)], stale=True)]
 
     rows = []
-    for limit in (snapshot.five_hour, snapshot.seven_day, *snapshot.scoped):
+    for limit in (view.five_hour, view.seven_day, *view.scoped):
         if limit is None:
             continue
         meter = bar(limit.percent)
@@ -322,21 +456,33 @@ def menu_rows(snapshot, stale, now, signed_out=False, reason=None):
             )
         )
 
-    if snapshot.credits is not None:
-        used = snapshot.credits.used
-        limit_text = _format_money(snapshot.credits.limit, snapshot.credits.currency)
+    if view.credits is not None:
+        used = view.credits.used
+        limit_text = _format_money(view.credits.limit, view.credits.currency)
         amount = (
             f"{limit_text} limit"
             if used is None
-            else f"{_format_money(used, snapshot.credits.currency)} / {limit_text}"
+            else f"{_format_money(used, view.credits.currency)} / {limit_text}"
         )
         rows.append(
             _row([(f"{'Credits':<10} ", None), (amount, MENU_VALUE_COLOUR)], stale)
         )
 
+    footer = None
     if stale:
-        age = f"Last updated {format_age(snapshot.fetched_at, now)}"
-        rows.append(_row([(f"{age} — {reason}" if reason else age, None)], stale=True))
+        footer = f"Last updated {format_age(view.windows_at, now)}"
+    elif details_are_stale(view, now):
+        # The windows are current, so the panel is right; it is only the endpoint-only rows above
+        # that are behind. Naming the endpoint rather than the fields keeps this true whether the
+        # account has a scoped window, credits or both.
+        footer = f"Endpoint {format_age(view.details_at, now)}"
+    if footer is not None:
+        rows.append(
+            _row(
+                [(f"{footer} — {reason}" if reason else footer, None)],
+                stale=True,
+            )
+        )
     return rows
 
 
@@ -354,12 +500,24 @@ def parse_retry_after(text):
     return seconds if seconds > 0 else None
 
 
-def poll_delay(consecutive_failures, retry_after=None):
+def base_cadence(activity_at, now):
+    """The interval between healthy polls, which depends on whether anything else is feeding us.
+
+    Long while the status line is live: Claude Code is already reporting the windows more often and
+    more accurately than a poll could, so a request only refreshes the scoped window and the credit
+    balance. Short once the feed goes quiet, because then nothing else keeps the panel current.
+    """
+    if activity_at is not None and (now - activity_at) <= ACTIVITY_FRESH_FOR:
+        return ACTIVE_CADENCE_SECONDS
+    return HEALTHY_CADENCE_SECONDS
+
+
+def poll_delay(consecutive_failures, retry_after=None, base=None):
     """Seconds to wait before the next poll.
 
-    Doubling starts from the healthy cadence rather than below it, so a run of failures can only
-    ever slow polling down. The caller resets the failure count on success, and also when the
-    credentials file changes, since that means a retry has a fresh reason to succeed.
+    Doubling starts from the cadence in force rather than below it, so a run of failures can only
+    ever slow polling down. The caller resets the failure count on success, and also when the token
+    on disk actually changes, since that means a retry has a fresh reason to succeed.
 
     A Retry-After from the server raises the floor but never lowers it: being asked to come back in
     five seconds must not turn a run of 429s into a tight loop against an endpoint already refusing
@@ -368,40 +526,83 @@ def poll_delay(consecutive_failures, retry_after=None):
     """
     backoff = min(
         MAXIMUM_BACKOFF_SECONDS,
-        HEALTHY_CADENCE_SECONDS * 2**consecutive_failures,
+        (HEALTHY_CADENCE_SECONDS if base is None else base) * 2**consecutive_failures,
     )
     if retry_after is None:
         return backoff
     return min(MAXIMUM_RETRY_AFTER_SECONDS, max(backoff, retry_after))
 
 
-def delay_after_activity(seconds_since_attempt, consecutive_failures):
-    """Seconds to wait after Claude Code reports activity.
+def spacing_delay(seconds_since_attempt):
+    """How long a request must wait to keep the minimum spacing, whatever asked for it.
 
-    Re-times the poll so a refresh lands just after the numbers have actually moved, which is what
-    keeps the panel agreeing with the tmux status line. Bounded two ways: never sooner than the
-    healthy cadence allows, so a busy session cannot turn every render into a request, and never
-    sooner than the current backoff, because activity says inference is working — it says nothing
-    about the metadata endpoint, which has its own budget and may still be refusing us.
+    Applies to the timer, to a credentials change and to the Refresh menu item alike. Without it any
+    trigger that fires in a burst becomes a burst of requests, which is how the file monitor's three
+    events per rewrite turned into three simultaneous polls.
     """
-    floor = poll_delay(consecutive_failures)
-    if consecutive_failures:
-        return floor
-    return max(0, floor - max(0, seconds_since_attempt))
+    if seconds_since_attempt is None:
+        return 0
+    return max(0, MINIMUM_REQUEST_SPACING_SECONDS - seconds_since_attempt)
 
 
-def is_stale(consecutive_failures, fetched_at, now):
-    """Whether the displayed numbers should be marked as no longer trustworthy.
+def retime(delay, seconds_until_pending):
+    """Reconcile a newly computed delay with a poll that is already scheduled.
 
-    Two triggers, because either alone leaves a gap: a couple of failures catch a fast outage
-    without letting one dropped packet flicker the panel, and an age ceiling catches polls that
-    keep failing too slowly for the count to climb.
+    Re-timing may only bring a poll forward. Re-arming at the full delay measured from now meant a
+    ping every minute against a thirty-minute backoff pushed the deadline out of reach on every
+    ping, so the tray stopped retrying entirely for as long as any session kept working.
     """
-    if fetched_at is None:
+    if seconds_until_pending is None:
+        return delay
+    return max(0, min(delay, seconds_until_pending))
+
+
+def schedule_delay(delay, seconds_until_pending, seconds_since_attempt, may_postpone):
+    """The delay actually armed, reconciling a request with the floor and with a poll already due.
+
+    One rule in one place, because the two failures this replaces were both about which caller was
+    allowed to move a deadline. Only a completed poll may push the next one further out — that is how
+    a growing backoff takes effect. Everything else (a ping, a token change, the Refresh item) may
+    pull it in but never postpone it.
+
+    The floor is applied last, so honouring it can still move a deadline out by up to the spacing
+    itself. That is bounded and self-clearing: past the floor, spacing_delay is zero and nothing can
+    postpone anything.
+    """
+    if not may_postpone:
+        delay = retime(delay, seconds_until_pending)
+    return max(delay, spacing_delay(seconds_since_attempt))
+
+
+def is_stale(view, consecutive_failures, now):
+    """Whether the numbers on screen should be marked as no longer trustworthy.
+
+    Keyed on the age of whatever is displayed, so it covers both feeds with one rule. Failures are a
+    second, faster trigger — a couple of them catch an outage before the age ceiling would — but only
+    for figures the endpoint supplied. A rate-limited endpoint says nothing about windows the status
+    line reported a moment ago, and grieving over them was exactly what made a working panel grey.
+    """
+    if view.windows_at is None:
         return False
+    if (now - view.windows_at) > STALE_AFTER:
+        return True
     return (
-        consecutive_failures >= STALE_AFTER_FAILURES or (now - fetched_at) > STALE_AFTER
+        not view.windows_from_activity and consecutive_failures >= STALE_AFTER_FAILURES
     )
+
+
+def details_are_stale(view, now):
+    """Whether the endpoint-only figures are old enough to say so.
+
+    Separate from is_stale because they are allowed to lag: polling rarely while the status line
+    carries the windows is the intent, so this only fires once the endpoint is further behind than
+    that intent accounts for.
+    """
+    if view.details_at is None:
+        return False
+    if not view.scoped and view.credits is None:
+        return False
+    return (now - view.details_at) > DETAILS_STALE_AFTER
 
 
 def parse_snapshot(payload, now):

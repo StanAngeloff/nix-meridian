@@ -137,18 +137,26 @@ rate_part=""
 five_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage  // empty')
 week_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage  // empty')
 
-# Tell the usage tray that the limits just moved, so it re-times its poll to land right after and
-# the panel agrees with this line. Only the event matters, not the contents — the tray still reads
-# its own numbers from the API, because this hook has no Fable or credits figure to offer.
+# Publish these limits for the usage tray, which shows them in the GNOME panel. Claude Code derives
+# them from the inference API's rate-limit headers on every render, so while a session is working
+# they are fresher than anything the tray's own /api/oauth/usage poll can get -- and free, which
+# matters because that endpoint rate-limits hard. The tray still polls for the per-model window and
+# the credit balance, neither of which appears here, but far less often while this file keeps moving.
+#
+# The whole rate_limits object goes through verbatim rather than picked apart here, so field names
+# live in one place (the tray's usage.py) and a window Claude Code adds later needs no change on this
+# side.
 #
 # Under ~/.claude rather than XDG_RUNTIME_DIR: the bubble lays a masked tmpfs over the runtime
-# directory, so a ping written there by a bubbled session would be invisible to the tray on the
+# directory, so a file written there by a bubbled session would be invisible to the tray on the
 # host. ~/.claude is bound through, which is the same channel bubble/modules/notifications uses.
 # Renaming into place keeps concurrent sessions from writing over each other mid-write.
 if [ -n "$five_pct" ] || [ -n "$week_pct" ]; then
-	ping_path="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/usage-activity"
-	if printf '%s\n' "$five_pct" >"${ping_path}.$$" 2>/dev/null; then
-		mv -f "${ping_path}.$$" "$ping_path" 2>/dev/null || rm -f "${ping_path}.$$"
+	usage_path="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/usage-activity"
+	if echo "$input" | jq -c '.rate_limits' >"${usage_path}.$$" 2>/dev/null; then
+		mv -f "${usage_path}.$$" "$usage_path" 2>/dev/null || rm -f "${usage_path}.$$"
+	else
+		rm -f "${usage_path}.$$"
 	fi
 fi
 
