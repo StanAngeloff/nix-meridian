@@ -11,16 +11,9 @@
 
   programs.zsh.initContent =
     let
-      zshConfigAfterZoxide =
-        lib.mkOrder 2010 # bash
-          ''
-            # Jump to a directory within the current Git repository.
-            function zz() {
-                __zoxide_doctor
-                \builtin local result
-                result="$(\command zoxide query --base-dir="$( git rev-parse --show-toplevel )" -- "$@")" && __zoxide_cd "''${result}"
-            }
-          '';
+      zshConfigAfterZoxide = lib.mkOrder 2010 ''
+        source ${./zz.zsh}
+      '';
     in
     lib.mkMerge [ zshConfigAfterZoxide ];
 
