@@ -94,6 +94,8 @@ in
         # gh / git CLI — externally-visible actions
         "Bash(git push)"
         "Bash(git push *)"
+        "Bash(git reset)"
+        "Bash(git reset *)"
         "Bash(gh pr create *)"
         "Bash(gh pr merge *)"
         "Bash(gh pr close *)"
