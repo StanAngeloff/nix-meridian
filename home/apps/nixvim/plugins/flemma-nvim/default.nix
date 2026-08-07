@@ -63,7 +63,7 @@ let
       };
       "$opus" = {
         provider = "anthropic";
-        model = "claude-opus-5";
+        model = "claude-opus-4-6";
       };
       "$sonnet" = {
         provider = "anthropic";
