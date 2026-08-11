@@ -1,6 +1,6 @@
-{ lib, pkgs, ... }:
+{ lib, pkgs-unstable, ... }:
 let
-  ast-grep = pkgs.ast-grep;
+  ast-grep = pkgs-unstable.ast-grep;
 in
 {
   home.packages = [ ast-grep ];
