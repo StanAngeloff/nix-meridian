@@ -15,6 +15,22 @@ let
     done
     ${tmux} refresh-client -S 2>/dev/null || true
   '';
+
+  scratchNote = pkgs.writeShellScript "tmux-scratch-note" ''
+    pane_id="$1"
+    pane_pid="$2"
+    dir="$HOME/.cache/tmux-scratch-notes"
+    mkdir -p "$dir"
+    note="$dir/$pane_id-$pane_pid.md"
+    exec nvim \
+      -c 'set noswapfile nobackup noundofile' \
+      -c 'set laststatus=0 showtabline=0 signcolumn=no nonumber norelativenumber cmdheight=0 fillchars=eob:\ ' \
+      -c 'set textwidth=0 wrapmargin=0 wrap linebreak breakindent' \
+      -c 'nnoremap <Esc> :silent write <Bar> quit<CR>' \
+      -c 'autocmd VimLeavePre * silent! write' \
+      -c 'startinsert' \
+      "$note"
+  '';
 in
 {
   programs.tmux = {
@@ -50,6 +66,9 @@ in
       )}
       ${builtins.readFile ./abilities/tmux.tig.conf}
       ${builtins.readFile ./abilities/tmux.nix-diff.conf}
+      ${builtins.replaceStrings [ "@scratchNote@" ] [ "${scratchNote}" ] (
+        builtins.readFile ./abilities/tmux.scratch-note.conf
+      )}
     '';
   };
 }
