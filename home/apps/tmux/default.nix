@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, osConfig, ... }:
 let
   tmux = "${pkgs.tmux}/bin/tmux";
 
@@ -61,9 +61,17 @@ in
 
     extraConfig = ''
       ${builtins.readFile ./claude-state.conf}
-      ${builtins.replaceStrings [ "@dismissClaudeIdle@" ] [ "${dismissClaudeIdle}" ] (
-        builtins.readFile ./tmux.conf
-      )}
+      ${
+        let
+          replacements = {
+            "@dismissClaudeIdle@" = "${dismissClaudeIdle}";
+            "@machineName@" = osConfig.networking.hostName;
+          };
+        in
+        builtins.replaceStrings (builtins.attrNames replacements) (builtins.attrValues replacements) (
+          builtins.readFile ./tmux.conf
+        )
+      }
       ${builtins.readFile ./abilities/tmux.tig.conf}
       ${builtins.readFile ./abilities/tmux.nix-diff.conf}
       ${builtins.replaceStrings [ "@scratchNote@" ] [ "${scratchNote}" ] (
