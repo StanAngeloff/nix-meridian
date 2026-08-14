@@ -51,6 +51,7 @@ in
     ./mpv
     ./swappy
     ./thunderbird
+    ./typora
     ./vscode
   ];
 
