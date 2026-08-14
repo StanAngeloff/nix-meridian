@@ -34,6 +34,8 @@ in
     fontconfig = {
       enable = true;
 
+      subpixel.rgba = "rgb";
+
       # This would ideally be done in Home Manager, however it lacks the option to add extra configuration.
       localConf = ''
         <alias>

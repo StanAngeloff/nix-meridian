@@ -43,7 +43,10 @@ let
 
       # Give ANGLE's libraries (libEGL.so, libGLESv2.so) the same rpath as the main binary so
       # they can find libvulkan and libGL at runtime. Also borrowed from Chrome's Nix package.
-      ${pkgs.patchelf}/bin/patchelf --set-rpath "$(${pkgs.patchelf}/bin/patchelf --print-rpath $out/opt/brave.com/brave/brave)" $out/opt/brave.com/brave/lib*GL*
+      # Brave 1.93+ may no longer bundle these libraries.
+      for lib in $out/opt/brave.com/brave/lib*GL*; do
+        [ -f "$lib" ] && ${pkgs.patchelf}/bin/patchelf --set-rpath "$(${pkgs.patchelf}/bin/patchelf --print-rpath $out/opt/brave.com/brave/brave)" "$lib"
+      done
     '';
   });
 in
