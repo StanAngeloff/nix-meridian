@@ -9,6 +9,7 @@
     ./hide-universal-access.nix
     ./notification-timeout.nix
     ./soft-brightness-plus.nix
+    ./unite.nix
     ./tiling-assistant.nix
     ./window-calls.nix
   ];
