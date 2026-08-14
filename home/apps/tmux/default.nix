@@ -16,6 +16,30 @@ let
     ${tmux} refresh-client -S 2>/dev/null || true
   '';
 
+  nameWindow = pkgs.writeShellScript "tmux-name-window" ''
+    adjectives=(
+      big old shy mad sad red hot cold cool calm
+      bold dim dry fat fit flat glad grim keen kind
+      lazy lean loud mean mild neat odd pale pink plum
+      posh raw rich ripe rude slim slow smug soft sour
+      tall tame thin tiny warm weak wide wild wise dull
+    )
+    animals=(
+      ant ape bat bear bee boar bull cat cod cow
+      crab crow deer dog dove duck eel elk ewe fish
+      fly fox frog goat gull hare hawk hen hog jay
+      koi lamb lark lion lynx mare mink mole moth mule
+      newt owl ox pig pug ram rat seal slug swan
+      toad vole wasp wolf worm wren yak
+    )
+    existing=$(${tmux} list-windows -F '#{window_name}' 2>/dev/null)
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      name="$(shuf -n1 -e "''${adjectives[@]}")-$(shuf -n1 -e "''${animals[@]}")"
+      echo "$existing" | grep -qxF "$name" || break
+    done
+    echo "$name"
+  '';
+
   scratchNote = pkgs.writeShellScript "tmux-scratch-note" ''
     pane_id="$1"
     pane_pid="$2"
@@ -66,6 +90,7 @@ in
           replacements = {
             "@dismissClaudeIdle@" = "${dismissClaudeIdle}";
             "@machineName@" = osConfig.networking.hostName;
+            "@nameWindow@" = "${nameWindow}";
           };
         in
         builtins.replaceStrings (builtins.attrNames replacements) (builtins.attrValues replacements) (
