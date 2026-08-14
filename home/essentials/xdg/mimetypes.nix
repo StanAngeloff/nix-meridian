@@ -23,7 +23,7 @@
       "text/plain"
       "text/x-log"
     ];
-    "org.gnome.gitlab.somas.Apostrophe.desktop" = [
+    "typora.desktop" = [
       "text/markdown"
     ];
     "io.github.diegopvlk.Cine.desktop" = [

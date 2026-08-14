@@ -105,7 +105,6 @@ in
     n8n-cli
 
     # GUI
-    apostrophe
     bottles
     bruno
     gnome-firmware
