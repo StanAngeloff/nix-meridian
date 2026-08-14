@@ -11,16 +11,24 @@
   libsecret,
   pipewire,
   portaudio,
+  # Typography
+  source-serif,
+  ibm-plex,
 }:
 let
   python = python313;
-  runtimeDeps = [
+  runtimeLibs = [
     gtk4
     libadwaita
     libsecret
     pipewire
     portaudio
   ];
+  runtimeFonts = [
+    source-serif
+    ibm-plex
+  ];
+  runtimeDeps = runtimeLibs ++ runtimeFonts;
   pythonDeps = with python.pkgs; [
     openai
     pygobject3
@@ -30,14 +38,14 @@ let
 in
 python.pkgs.buildPythonApplication rec {
   pname = "voxize";
-  version = "0.1.0-alpha";
+  version = "0.1.0";
   name = pname;
 
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
-    rev = "8b7108b2ef3cb0c2940e28eaed883984f534767e";
-    hash = "sha256-tGyzCRzBeIdlZY5wyD7PilB0pJ39G+ZpfOUKOOPaqCs=";
+    rev = "6c3942d9eb92288b8d4a8a5cfc1be4a4c9967d7e";
+    hash = "sha256-SwBHT63weQ4hy0y1TsH8fy8SMz3dqPi3C1ZmYbpXMOU=";
   };
 
   buildInputs = runtimeDeps;
@@ -61,7 +69,7 @@ python.pkgs.buildPythonApplication rec {
     ''
       makeWrapperArgs+=(
         "''${gappsWrapperArgs[@]}"
-        --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeDeps}
+        --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
         --set ALSA_PLUGIN_DIR ${pipewire}/lib/alsa-lib
         --prefix PYTHONPATH : "$out/${python.sitePackages}:${pyPath}"
       )
