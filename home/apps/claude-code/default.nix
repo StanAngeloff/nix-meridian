@@ -60,6 +60,8 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
+  home.sessionVariables.CLAUDE_BUBBLE_TMUX = "1";
+
   programs.git.ignores = [
     ".claude/settings.local.json"
   ];
