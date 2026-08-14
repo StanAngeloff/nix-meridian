@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Drive the tmux Claude Code traffic light from a Claude Code hook, and apply the resulting pane options.
 #
 # Working and idle are not decided here. Claude Code writes them into its own terminal title, which tmux exposes as #{pane_title}, and home/apps/tmux/claude-state.conf turns that into a dot. This script owns only what the title cannot say: that a prompt is waiting, and whether a finished turn has been looked at.

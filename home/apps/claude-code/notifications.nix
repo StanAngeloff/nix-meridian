@@ -28,6 +28,21 @@ let
     timeout = 5;
   };
 
+  worktreeTigCmd = pkgs.writeShellApplication {
+    name = "claude-worktree-tig";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.tmux
+    ];
+    text = builtins.readFile ./hooks/claude-worktree-tig.sh;
+  };
+
+  worktreeTigHook = {
+    type = "command";
+    command = lib.getExe worktreeTigCmd;
+    timeout = 5;
+  };
+
   # A session has no way to learn its own id, but every hook payload carries one.
   # KEY=value lines appended to $CLAUDE_ENV_FILE join the session environment for the rest of the run, so $CLAUDE_SESSION_ID reaches shell commands; later lines win, which is what makes a clear or a resume land on the new id.
   # The variable is undocumented -- present and working in 2.1.219 -- hence the guard: if it ever disappears the hook is a no-op rather than a failure.
@@ -57,6 +72,9 @@ let
     Stop = [ { hooks = [ stateHook ]; } ];
     StopFailure = [ { hooks = [ stateHook ]; } ];
     SessionEnd = [ { hooks = [ stateHook ]; } ];
+    PostToolUse = [
+      { matcher = "EnterWorktree|ExitWorktree"; hooks = [ worktreeTigHook ]; }
+    ];
     # nixfmt: on, as: statements
   };
 in

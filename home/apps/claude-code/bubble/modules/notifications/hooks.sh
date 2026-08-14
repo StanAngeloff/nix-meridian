@@ -33,6 +33,7 @@ notifications_after_run() {
 		tmux set -pu -t "$TMUX_PANE" @claude-pane 2>/dev/null || true
 		tmux set -pu -t "$TMUX_PANE" @claude-blocked 2>/dev/null || true
 		tmux set -pu -t "$TMUX_PANE" @claude-unread 2>/dev/null || true
+		tmux set -pu -t "$TMUX_PANE" @tig_path 2>/dev/null || true
 	fi
 }
 
