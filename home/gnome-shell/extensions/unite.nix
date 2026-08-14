@@ -14,6 +14,7 @@
   ];
 
   dconf.settings."org/gnome/shell/extensions/unite" = {
+    autofocus-windows = false;
     extend-left-box = false;
     hide-activities-button = "never";
     hide-app-menu-icon = false;
