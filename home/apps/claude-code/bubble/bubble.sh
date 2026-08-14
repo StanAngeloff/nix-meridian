@@ -66,6 +66,11 @@ while [[ $index -lt ${#args[@]} ]]; do
 	elif [[ ("$argument" == "-v" || "$argument" == "--volume") && $((index + 1)) -lt ${#args[@]} && "${args[$((index + 1))]}" == /* ]]; then
 		index=$((index + 1))
 		bubble_volumes+=("${args[$index]}")
+	elif [[ "$argument" == "-m" && $((index + 1)) -lt ${#args[@]} ]]; then
+		index=$((index + 1))
+		model="${args[$index]}"
+		[[ "$model" != claude-* ]] && model="claude-${model}"
+		claude_args+=("--model" "$model")
 	else
 		# A "profiles" argument followed by a subcommand hands off to the standalone profile-switching
 		# command, before any bubble machinery starts. Requiring a trailing argument keeps a Claude
