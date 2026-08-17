@@ -97,6 +97,7 @@ in
     unp
     wineWow64Packages.stable
     wl-clipboard
+    yq-go
     yt-dlp
 
     # AI era tools
