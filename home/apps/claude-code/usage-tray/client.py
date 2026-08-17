@@ -15,6 +15,8 @@ from gi.repository import Gio, GLib, Soup  # noqa: E402
 
 import usage  # noqa: E402
 
+PROFILES_ACTIVE_LINK = "active"
+
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_BETA_HEADER = "oauth-2025-04-20"
 REQUEST_TIMEOUT_SECONDS = 5
@@ -38,11 +40,16 @@ class Unavailable(Exception):
         self.retry_after = retry_after
 
 
+def _config_directory():
+    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+
+
 def default_credentials_path():
-    config_directory = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser(
-        "~/.claude"
-    )
-    return os.path.join(config_directory, ".credentials.json")
+    return os.path.join(_config_directory(), ".credentials.json")
+
+
+def default_profiles_path():
+    return os.path.join(_config_directory(), "profiles")
 
 
 def default_state_path():
@@ -113,6 +120,33 @@ def read_activity(activity_path):
             return json.load(activity_file), observed_at
     except (OSError, ValueError):
         return None, None
+
+
+def read_profile(profiles_path):
+    """Read the active profile's JSON payload and its name, or (None, None).
+
+    The active profile is a symlink at profiles_path/active pointing to a profile JSON file. The
+    profile name is the symlink target without the .json extension.
+    """
+    active_link = os.path.join(profiles_path, PROFILES_ACTIVE_LINK)
+    try:
+        target = os.readlink(active_link)
+    except OSError:
+        return None, None
+    name = os.path.splitext(target)[0]
+    if not name:
+        return None, None
+    profile_file = os.path.join(profiles_path, target)
+    try:
+        with open(profile_file, "r", encoding="utf-8") as handle:
+            return json.load(handle), name
+    except (OSError, ValueError):
+        return None, None
+
+
+def watch_profile(profiles_path, on_change):
+    """Fire on_change when the active profile symlink is replaced."""
+    return _watch(os.path.join(profiles_path, PROFILES_ACTIVE_LINK), on_change)
 
 
 def read_token(credentials_path):

@@ -81,6 +81,14 @@ MENU_STALE_COLOUR = "#9c9c9c"
 
 
 @dataclass(frozen=True)
+class Profile:
+    name: str
+    email: str | None
+    subscription: str | None
+    organization: str | None
+
+
+@dataclass(frozen=True)
 class Limit:
     title: str
     percent: int
@@ -249,6 +257,20 @@ def parse_activity(payload, observed_at):
     return Activity(five_hour=five_hour, seven_day=seven_day, observed_at=observed_at)
 
 
+def parse_profile(payload, name):
+    """Build a Profile from the active profile's JSON and its name, or None."""
+    if not isinstance(payload, dict) or not name:
+        return None
+    oauth = payload.get("oauthAccount") or {}
+    claude = payload.get("claudeAiOauth") or {}
+    return Profile(
+        name=name,
+        email=oauth.get("emailAddress") or None,
+        subscription=claude.get("subscriptionType") or None,
+        organization=oauth.get("organizationName") or None,
+    )
+
+
 def compose(snapshot, activity, now):
     """Merge the two feeds into one view, newest reading of the windows winning.
 
@@ -399,6 +421,26 @@ def format_age(fetched_at, now):
     if days:
         return f"{days}d ago"
     return f"{hours}h{minutes:02d}m ago" if hours else f"{minutes}m ago"
+
+
+def profile_row(profile):
+    """The dropdown header identifying which account the numbers belong to.
+
+    Same banner as the terminal launcher, adapted for the menu palette. Never dimmed by staleness:
+    the profile is identity, not data, and it is either known or absent.
+    """
+    if profile is None:
+        return None
+    label = _escape(profile.name.upper())
+    body = _span(f"\U0001faaa {label}", MENU_VALUE_COLOUR)
+    if profile.email:
+        body += _escape(f"  ·  {profile.email}")
+    if profile.subscription:
+        suffix = profile.subscription
+        if profile.organization:
+            suffix += f" ({profile.organization})"
+        body += _escape(f"  ·  {suffix}")
+    return _offset(f"<tt>{body}</tt>")
 
 
 def _row(segments, stale):

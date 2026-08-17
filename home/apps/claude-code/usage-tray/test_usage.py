@@ -270,6 +270,116 @@ class ParseActivity(unittest.TestCase):
         self.assertIsNone(usage.parse_activity("19", observed_at=NOW))
 
 
+class ParseProfile(unittest.TestCase):
+    def test_reads_the_identity_from_the_profile_json(self):
+        payload = {
+            "oauthAccount": {
+                "emailAddress": "stan@example.com",
+                "organizationName": "Acme",
+            },
+            "claudeAiOauth": {"subscriptionType": "team"},
+        }
+
+        profile = usage.parse_profile(payload, "acme")
+
+        self.assertEqual(profile.name, "acme")
+        self.assertEqual(profile.email, "stan@example.com")
+        self.assertEqual(profile.subscription, "team")
+        self.assertEqual(profile.organization, "Acme")
+
+    def test_is_nothing_when_the_payload_is_none(self):
+        self.assertIsNone(usage.parse_profile(None, "x"))
+
+    def test_is_nothing_when_the_name_is_empty(self):
+        self.assertIsNone(usage.parse_profile({}, ""))
+        self.assertIsNone(usage.parse_profile({}, None))
+
+    def test_tolerates_missing_fields(self):
+        profile = usage.parse_profile({}, "personal")
+
+        self.assertEqual(profile.name, "personal")
+        self.assertIsNone(profile.email)
+        self.assertIsNone(profile.subscription)
+        self.assertIsNone(profile.organization)
+
+
+class ProfileRow(unittest.TestCase):
+    def test_renders_the_full_banner(self):
+        profile = usage.Profile(
+            name="cosuno",
+            email="stan@cosuno.de",
+            subscription="team",
+            organization="Cosuno",
+        )
+
+        self.assertEqual(
+            _text(usage.profile_row(profile)),
+            "\U0001faaa COSUNO  ·  stan@cosuno.de  ·  team (Cosuno)",
+        )
+
+    def test_omits_the_organization_when_there_is_none(self):
+        profile = usage.Profile(
+            name="personal",
+            email="me@example.com",
+            subscription="pro",
+            organization=None,
+        )
+
+        self.assertEqual(
+            _text(usage.profile_row(profile)),
+            "\U0001faaa PERSONAL  ·  me@example.com  ·  pro",
+        )
+
+    def test_omits_the_subscription_when_there_is_none(self):
+        profile = usage.Profile(
+            name="x", email="me@example.com", subscription=None, organization=None
+        )
+
+        self.assertEqual(
+            _text(usage.profile_row(profile)),
+            "\U0001faaa X  ·  me@example.com",
+        )
+
+    def test_is_nothing_when_there_is_no_profile(self):
+        self.assertIsNone(usage.profile_row(None))
+
+    def test_is_monospaced(self):
+        profile = usage.Profile(
+            name="x", email="a@b", subscription=None, organization=None
+        )
+
+        row = usage.profile_row(profile)
+
+        self.assertIn("<tt>", row)
+        self.assertTrue(row.endswith("</tt>"))
+
+    def test_highlights_only_the_profile_name(self):
+        profile = usage.Profile(
+            name="cosuno",
+            email="stan@cosuno.de",
+            subscription="team",
+            organization="Cosuno",
+        )
+
+        row = usage.profile_row(profile)
+
+        self.assertIn(usage.MENU_VALUE_COLOUR, row)
+        self.assertNotIn(f'foreground="{usage.MENU_VALUE_COLOUR}">stan', row)
+
+    def test_escapes_markup_breaking_characters_in_the_profile_data(self):
+        profile = usage.Profile(
+            name="a&b",
+            email="<user>@host",
+            subscription=None,
+            organization=None,
+        )
+
+        row = usage.profile_row(profile)
+
+        self.assertIn("A&amp;B", row)
+        self.assertIn("&lt;user&gt;@host", row)
+
+
 class ComposingSources(unittest.TestCase):
     """Two feeds with different reach: the status line has the windows, the endpoint has the rest."""
 

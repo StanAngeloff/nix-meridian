@@ -34,9 +34,11 @@ class Application:
         self._credentials_path = client.default_credentials_path()
         self._state_path = client.default_state_path()
         self._activity_path = client.default_activity_path()
+        self._profiles_path = client.default_profiles_path()
         self._session = client.build_session()
         self._tray = tray.Tray(on_refresh=self.refresh_now, on_quit=self.quit)
 
+        self._profile = None
         self._snapshot = None
         self._activity = None
         self._consecutive_failures = 0
@@ -55,6 +57,10 @@ class Application:
         self._activity_monitor = client.watch_activity(
             self._activity_path, self._on_activity
         )
+        self._profile_monitor = client.watch_profile(
+            self._profiles_path, self._on_profile_changed
+        )
+        self._take_profile()
         self._restore()
         self._render()
         self._poll()
@@ -113,6 +119,14 @@ class Application:
         self._consecutive_failures = 0
         self._retry_after = None
         self._pull_in(0)
+
+    def _take_profile(self):
+        payload, name = client.read_profile(self._profiles_path)
+        self._profile = usage.parse_profile(payload, name)
+
+    def _on_profile_changed(self):
+        self._take_profile()
+        self._render()
 
     def _on_activity(self):
         """Claude Code published new figures: take them, and re-time the poll rather than make one.
@@ -232,15 +246,18 @@ class Application:
         now = _now()
         view = usage.compose(self._snapshot, self._activity, now=now)
         stale = usage.is_stale(view, self._consecutive_failures, now=now)
+        header = usage.profile_row(self._profile)
+        data_rows = usage.menu_rows(
+            view,
+            stale=stale,
+            now=now,
+            signed_out=self._signed_out,
+            reason=self._reason,
+        )
+        rows = ([header, None] if header is not None else []) + data_rows
         self._tray.render(
             label=usage.panel_label(view, stale=stale, signed_out=self._signed_out),
-            rows=usage.menu_rows(
-                view,
-                stale=stale,
-                now=now,
-                signed_out=self._signed_out,
-                reason=self._reason,
-            ),
+            rows=rows,
             stale=stale,
         )
 

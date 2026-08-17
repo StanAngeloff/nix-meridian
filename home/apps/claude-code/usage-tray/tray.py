@@ -76,10 +76,9 @@ class Tray:
     def _build_menu(self, rows):
         menu = Gtk.Menu()
         for row in rows:
-            # Insensitive because there is nothing to activate, and a hover highlight on a row that
-            # does nothing is a lie. The cost is that the shell renders insensitive text at alpha
-            # 0.4, which Pango's foreground attribute cannot compensate for; usage.py's MENU_*
-            # colours are pre-brightened for it.
+            if row is None:
+                menu.append(Gtk.SeparatorMenuItem())
+                continue
             item = Gtk.MenuItem(label=row)
             item.set_sensitive(False)
             menu.append(item)
