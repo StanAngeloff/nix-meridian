@@ -43,6 +43,9 @@ in
     ./zoxide
     ./zsh
 
+    # AI era tools
+    ./gh
+
     # GUI
     ./brave
     ./dropbox
@@ -101,7 +104,6 @@ in
     yt-dlp
 
     # AI era tools
-    gh
     mcporter
     n8n-cli
 

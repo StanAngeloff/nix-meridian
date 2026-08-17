@@ -7,7 +7,9 @@ github_prepare() {
 }
 
 github_mount() {
-	# gh settings (config.yml) stay live via the directory bind; hosts.yml is shadowed by the empty file from the prepare hook.
-	bwrap_args+=(--ro-bind-try "$home_path/.config/gh" "$home_path/.config/gh")
+	# Bind config.yml individually so hosts.yml can be shadowed with the empty file from the prepare hook.
+	# A whole-directory bind followed by a file overlay fails when hosts.yml is a symlink (Home Manager).
+	bwrap_args+=(--dir "$home_path/.config/gh")
+	bwrap_args+=(--ro-bind-try "$(readlink -f "$home_path/.config/gh/config.yml")" "$home_path/.config/gh/config.yml")
 	bwrap_args+=(--ro-bind-try "$gh_empty_hosts" "$home_path/.config/gh/hosts.yml")
 }
