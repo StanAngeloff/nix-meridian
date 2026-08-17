@@ -1,6 +1,8 @@
 {
   nix.gc = {
-    # See ../../home/apps/nh/default.nix instead.
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
   };
 
   # Nix will automatically detect files in the store that have identical contents,
