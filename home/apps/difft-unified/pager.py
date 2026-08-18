@@ -139,11 +139,12 @@ def run_pager(lines):
             height, width = get_terminal_size()
             viewable_height = height - 1
 
+            max_viewport = max(0, len(lines) - viewable_height)
             if cursor_row < viewport_top:
                 viewport_top = cursor_row
             elif cursor_row >= viewport_top + viewable_height:
                 viewport_top = cursor_row - viewable_height + 1
-            viewport_top = max(0, min(viewport_top, len(lines) - viewable_height))
+            viewport_top = max(0, min(viewport_top, max_viewport))
 
             write(HOME)
 
@@ -154,14 +155,11 @@ def run_pager(lines):
                     sliced = render_visible_slice(line, horizontal_offset, width)
                     if line_index == cursor_row:
                         plain = strip_ansi(sliced)
-                        padded = plain.ljust(width)[:width]
-                        write(f"\r{CURSOR_BG}{padded}{RESET}\r\n")
+                        write(f"\r{CURSOR_BG}{plain}{CLEAR_LINE}{RESET}\r\n")
                     else:
-                        visible = visible_length(sliced)
-                        padding = " " * max(0, width - visible)
-                        write(f"\r{RESET}{sliced}{padding}{RESET}\r\n")
+                        write(f"\r{RESET}{sliced}{RESET}{CLEAR_LINE}\r\n")
                 else:
-                    write(f"\r{RESET}{' ' * width}\r\n")
+                    write(f"\r{RESET}{CLEAR_LINE}\r\n")
 
             percentage = ""
             if len(lines) > viewable_height:
@@ -191,7 +189,8 @@ def run_pager(lines):
             elif key == "G":
                 cursor_row = len(lines) - 1
             elif key in (" ", "PGDN", "\x06"):
-                viewport_top = min(viewport_top + viewable_height, len(lines) - 1)
+                max_vp = max(0, len(lines) - viewable_height)
+                viewport_top = min(viewport_top + viewable_height, max_vp)
                 cursor_row = min(cursor_row + viewable_height, len(lines) - 1)
             elif key in ("PGUP", "\x02"):
                 viewport_top = max(viewport_top - viewable_height, 0)
