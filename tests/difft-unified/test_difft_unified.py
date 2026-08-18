@@ -28,6 +28,83 @@ def test_detect_status_changed():
     assert difft_unified.detect_status("05839b0", "/tmp/old", "23c608e", "/tmp/new") == "changed"
 
 
+def test_is_binary_dev_null_is_not_binary():
+    assert difft_unified.is_binary("/dev/null") is False
+
+
+def test_is_binary_detects_null_byte(tmp_path):
+    binary_file = tmp_path / "binary.dat"
+    binary_file.write_bytes(b"\x00\x01\x02some binary content")
+    assert difft_unified.is_binary(str(binary_file)) is True
+
+
+def test_is_binary_text_file_is_not_binary(tmp_path):
+    text_file = tmp_path / "text.txt"
+    text_file.write_text("just some ordinary text\nwith multiple lines\n")
+    assert difft_unified.is_binary(str(text_file)) is False
+
+
+def test_render_binary_notice_changed():
+    result = difft_unified.render_binary_notice("path/file.bin", "path/file.bin", "changed")
+    assert result == (
+        f"{difft_unified.YELLOW}Binary files a/path/file.bin and b/path/file.bin differ"
+        f"{difft_unified.RESET}"
+    )
+
+
+def test_render_binary_notice_created():
+    result = difft_unified.render_binary_notice("path/file.bin", "path/file.bin", "created")
+    assert "/dev/null and b/path/file.bin differ" in result
+
+
+def test_render_binary_notice_deleted():
+    result = difft_unified.render_binary_notice("path/file.bin", "path/file.bin", "deleted")
+    assert "a/path/file.bin and /dev/null differ" in result
+
+
+def test_render_file_header_simple_changed():
+    result = difft_unified.render_file_header(
+        "path/file.nix", "path/file.nix", "aaaaaaa", "100644", "bbbbbbb", "100644", "changed"
+    )
+    assert "diff --git a/path/file.nix b/path/file.nix" in result
+    assert "index aaaaaaa..bbbbbbb 100644" in result
+    assert "--- a/path/file.nix" in result
+    assert "+++ b/path/file.nix" in result
+    assert "rename from" not in result
+
+
+def test_render_file_header_rename_prints_git_supplied_block_verbatim():
+    # Git precomputes the entire rename/copy extended header (similarity index, rename
+    # from/to, and an index line with abbreviated hashes) as one pre-formatted block,
+    # because only git's own diff engine can compute the similarity percentage.
+    rename_description = (
+        "similarity index 93%\n"
+        "rename from old/path.nix\n"
+        "rename to new/path.nix\n"
+        "index 1ab4e9f..e006035 100644\n"
+    )
+    result = difft_unified.render_file_header(
+        "old/path.nix",
+        "new/path.nix",
+        "1ab4e9f80e30a5dff2ac75f692fe0c0bcf972269",
+        "100644",
+        "e00603502e436c18196f815c322d5099321a7b64",
+        "100644",
+        "changed",
+        rename_description,
+    )
+    assert "diff --git a/old/path.nix b/new/path.nix" in result
+    assert "similarity index 93%" in result
+    assert "rename from old/path.nix" in result
+    assert "rename to new/path.nix" in result
+    assert "index 1ab4e9f..e006035 100644" in result
+    # The pre-formatted block already supplies its own (abbreviated) index line; the
+    # full-hash index line the non-rename path constructs must not also appear.
+    assert "1ab4e9f80e30a5dff2ac75f692fe0c0bcf972269" not in result
+    assert "--- a/old/path.nix" in result
+    assert "+++ b/new/path.nix" in result
+
+
 def test_render_full_addition():
     lines = ["line one", "line two", "line three"]
     output = difft_unified.render_full_addition(lines)
@@ -354,3 +431,76 @@ def test_render_changed_file_strips_end_of_file_sentinel_no_crash():
     result = difft_unified.render_changed_file("sample.txt", lhs_lines, rhs_lines, data)
     assert f"{difft_unified.GREEN}+{difft_unified.RESET}" in result
     assert "line4" in result
+
+
+def test_parse_arguments_standard_seven_parameter_form():
+    argv = [
+        "difft-unified",
+        "path/file.nix",
+        "/tmp/old",
+        "aaaaaaa",
+        "100644",
+        "/tmp/new",
+        "bbbbbbb",
+        "100644",
+    ]
+    (
+        old_path,
+        old_file,
+        old_hex,
+        old_mode,
+        new_file,
+        new_hex,
+        new_mode,
+        new_path,
+        rename_description,
+    ) = difft_unified.parse_arguments(argv)
+    assert old_path == "path/file.nix"
+    assert new_path == "path/file.nix"
+    assert old_file == "/tmp/old"
+    assert old_hex == "aaaaaaa"
+    assert old_mode == "100644"
+    assert new_file == "/tmp/new"
+    assert new_hex == "bbbbbbb"
+    assert new_mode == "100644"
+    assert rename_description is None
+
+
+def test_parse_arguments_rename_nine_parameter_form():
+    # Regression test for the reported crash: git's diff.renames invokes the external diff
+    # driver with 9 positional parameters (not 7) for a rename or copy with content changes —
+    # the leading path becomes the source path, and two parameters are appended: the
+    # destination path and a pre-formatted rename/copy extended-header block. Before this fix,
+    # parse_arguments (formerly inline in main()) rejected anything but exactly 7 parameters,
+    # which aborted the entire `git diff` invocation, not just the renamed file.
+    argv = [
+        "difft-unified",
+        "old/path.nix",
+        "/tmp/old",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "100644",
+        "/tmp/new",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "100644",
+        "new/path.nix",
+        "similarity index 93%\nrename from old/path.nix\nrename to new/path.nix\n",
+    ]
+    (
+        old_path,
+        old_file,
+        old_hex,
+        old_mode,
+        new_file,
+        new_hex,
+        new_mode,
+        new_path,
+        rename_description,
+    ) = difft_unified.parse_arguments(argv)
+    assert old_path == "old/path.nix"
+    assert new_path == "new/path.nix"
+    assert rename_description == "similarity index 93%\nrename from old/path.nix\nrename to new/path.nix\n"
+
+
+def test_parse_arguments_invalid_argument_count_raises():
+    with pytest.raises(ValueError, match="Usage:"):
+        difft_unified.parse_arguments(["difft-unified", "only-one-arg"])
