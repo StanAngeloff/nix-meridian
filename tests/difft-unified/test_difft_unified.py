@@ -231,3 +231,53 @@ def test_compute_hunks_no_changes():
     operations = [("context", i, i) for i in range(10)]
     hunks = difft_unified.compute_hunks(operations, context_lines=3)
     assert hunks == []
+
+
+def test_render_line_with_emphasis_no_changes():
+    result = difft_unified.render_line_with_emphasis("hello world", [], difft_unified.RED)
+    assert result == f"{difft_unified.RED}hello world{difft_unified.RESET}"
+
+
+def test_render_line_with_emphasis_with_changes():
+    changes = [{"start": 6, "end": 11, "content": "world", "highlight": "normal"}]
+    result = difft_unified.render_line_with_emphasis("hello world", changes, difft_unified.GREEN)
+    assert difft_unified.BOLD in result
+    assert difft_unified.GREEN in result
+    # "hello " should not be bold, "world" should be bold
+    bold_start = result.index(difft_unified.BOLD)
+    assert bold_start > result.index("h")
+
+
+def test_render_line_with_emphasis_multiple_spans():
+    changes = [
+        {"start": 0, "end": 3, "content": "aaa", "highlight": "normal"},
+        {"start": 5, "end": 8, "content": "bbb", "highlight": "normal"},
+    ]
+    result = difft_unified.render_line_with_emphasis("aaa--bbb--ccc", changes, difft_unified.RED)
+    assert result.count(difft_unified.BOLD) == 2
+
+
+def test_render_hunk_header():
+    operations = [
+        ("context", 4, 4),
+        ("delete", 5, None),
+        ("add", None, 5),
+        ("context", 6, 6),
+    ]
+    result = difft_unified.render_hunk_header(operations)
+    # lhs lines: 5, 6, 7 (1-based from indices 4, 5, 6) -> start=5, count=3
+    # rhs lines: 5, 6, 7 (1-based from indices 4, 5, 6) -> start=5, count=3
+    assert f"{difft_unified.MAGENTA}@@ -5,3 +5,3 @@{difft_unified.RESET}" == result
+
+
+def test_render_hunk_header_pure_addition():
+    operations = [
+        ("context", 4, 4),
+        ("add", None, 5),
+        ("add", None, 6),
+        ("context", 5, 7),
+    ]
+    result = difft_unified.render_hunk_header(operations)
+    # lhs: indices 4, 5 -> lines 5, 6 -> start=5, count=2
+    # rhs: indices 4, 5, 6, 7 -> lines 5, 6, 7, 8 -> start=5, count=4
+    assert f"{difft_unified.MAGENTA}@@ -5,2 +5,4 @@{difft_unified.RESET}" == result
