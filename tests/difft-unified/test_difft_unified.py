@@ -9,7 +9,9 @@ import pytest
 # spec_from_file_location() cannot infer a loader from the suffix (it only matches
 # .py, .pyc, and .so) and returns None. Passing an explicit SourceFileLoader
 # sidesteps the suffix lookup entirely.
-_SCRIPT_PATH = os.path.expanduser("~/bin/difft-unified")
+_SCRIPT_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "home", "apps", "difft-unified", "difft-unified.py"
+)
 _LOADER = importlib.machinery.SourceFileLoader("difft_unified", _SCRIPT_PATH)
 spec = importlib.util.spec_from_loader("difft_unified", _LOADER)
 difft_unified = importlib.util.module_from_spec(spec)
@@ -338,18 +340,21 @@ def test_compute_hunks_no_changes():
 
 
 def test_render_line_with_emphasis_no_changes():
-    result = difft_unified.render_line_with_emphasis("hello world", [], difft_unified.RED)
+    result = difft_unified.render_line_with_emphasis(
+        "hello world", [], difft_unified.RED, difft_unified.EMPHASIS_DEL
+    )
     assert result == f"{difft_unified.RED}hello world{difft_unified.RESET}"
 
 
 def test_render_line_with_emphasis_with_changes():
     changes = [{"start": 6, "end": 11, "content": "world", "highlight": "normal"}]
-    result = difft_unified.render_line_with_emphasis("hello world", changes, difft_unified.GREEN)
-    assert difft_unified.BOLD in result
+    result = difft_unified.render_line_with_emphasis(
+        "hello world", changes, difft_unified.GREEN, difft_unified.EMPHASIS_ADD
+    )
+    assert difft_unified.EMPHASIS_ADD in result
     assert difft_unified.GREEN in result
-    # "hello " should not be bold, "world" should be bold
-    bold_start = result.index(difft_unified.BOLD)
-    assert bold_start > result.index("h")
+    emphasis_start = result.index(difft_unified.EMPHASIS_ADD)
+    assert emphasis_start > result.index("h")
 
 
 def test_render_line_with_emphasis_multiple_spans():
@@ -357,8 +362,10 @@ def test_render_line_with_emphasis_multiple_spans():
         {"start": 0, "end": 3, "content": "aaa", "highlight": "normal"},
         {"start": 5, "end": 8, "content": "bbb", "highlight": "normal"},
     ]
-    result = difft_unified.render_line_with_emphasis("aaa--bbb--ccc", changes, difft_unified.RED)
-    assert result.count(difft_unified.BOLD) == 2
+    result = difft_unified.render_line_with_emphasis(
+        "aaa--bbb--ccc", changes, difft_unified.RED, difft_unified.EMPHASIS_DEL
+    )
+    assert result.count(difft_unified.EMPHASIS_DEL) == 2
 
 
 def test_render_hunk_header():

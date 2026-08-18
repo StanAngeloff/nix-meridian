@@ -15,6 +15,8 @@ GREEN = "\033[32m"
 DEFAULT = "\033[39m"
 GRAY240 = "\033[38;5;240m"
 BOLD = "\033[1m"
+EMPHASIS_DEL = "\033[38;5;210;48;5;52m"
+EMPHASIS_ADD = "\033[38;5;120;48;5;22m"
 
 
 def get_terminal_width():
@@ -260,23 +262,23 @@ def compute_hunks(operations, context_lines=3):
     return hunks
 
 
-def render_line_with_emphasis(line_text, changes, base_color):
+def render_line_with_emphasis(line_text, changes, base_color, emphasis_color):
     if not changes:
         return f"{base_color}{line_text}{RESET}"
 
-    bold_ranges = sorted((change["start"], change["end"]) for change in changes)
+    emphasis_ranges = sorted((change["start"], change["end"]) for change in changes)
 
     result = [base_color]
-    in_bold = False
+    in_emphasis = False
 
     for column, character in enumerate(line_text):
-        should_bold = any(start <= column < end for start, end in bold_ranges)
-        if should_bold and not in_bold:
-            result.append(BOLD)
-            in_bold = True
-        elif not should_bold and in_bold:
+        should_emphasize = any(start <= column < end for start, end in emphasis_ranges)
+        if should_emphasize and not in_emphasis:
+            result.append(emphasis_color)
+            in_emphasis = True
+        elif not should_emphasize and in_emphasis:
             result.append(RESET + base_color)
-            in_bold = False
+            in_emphasis = False
         result.append(character)
 
     result.append(RESET)
@@ -357,21 +359,23 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
             elif operation == "add":
                 changes = rhs_changes.get(rhs_index, [])
                 emphasized = render_line_with_emphasis(
-                    rhs_lines[rhs_index], changes, GREEN
+                    rhs_lines[rhs_index], changes, GREEN, EMPHASIS_ADD
                 )
                 output_parts.append(f"{GREEN}+{RESET}{emphasized}")
             elif operation == "delete":
                 changes = lhs_changes.get(lhs_index, [])
                 emphasized = render_line_with_emphasis(
-                    lhs_lines[lhs_index], changes, RED
+                    lhs_lines[lhs_index], changes, RED, EMPHASIS_DEL
                 )
                 output_parts.append(f"{RED}-{RESET}{emphasized}")
             elif operation == "modify":
                 lhs_emphasized = render_line_with_emphasis(
-                    lhs_lines[lhs_index], lhs_changes.get(lhs_index, []), RED
+                    lhs_lines[lhs_index], lhs_changes.get(lhs_index, []),
+                    RED, EMPHASIS_DEL
                 )
                 rhs_emphasized = render_line_with_emphasis(
-                    rhs_lines[rhs_index], rhs_changes.get(rhs_index, []), GREEN
+                    rhs_lines[rhs_index], rhs_changes.get(rhs_index, []),
+                    GREEN, EMPHASIS_ADD
                 )
                 output_parts.append(f"{RED}-{RESET}{lhs_emphasized}")
                 output_parts.append(f"{GREEN}+{RESET}{rhs_emphasized}")
