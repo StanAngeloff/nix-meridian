@@ -281,3 +281,49 @@ def test_render_hunk_header_pure_addition():
     # lhs: indices 4, 5 -> lines 5, 6 -> start=5, count=2
     # rhs: indices 4, 5, 6, 7 -> lines 5, 6, 7, 8 -> start=5, count=4
     assert f"{difft_unified.MAGENTA}@@ -5,2 +5,4 @@{difft_unified.RESET}" == result
+
+
+def test_strip_alignment_sentinel_removes_trailing_entry():
+    # difft's JSON always appends one trailing (lhs_line_count, rhs_line_count)
+    # pair to aligned_lines representing an end-of-file alignment anchor, which
+    # is one past the last valid 0-based index on both sides simultaneously.
+    aligned_lines = [[0, 0], [1, 1], [2, 2], [None, 3], [3, 4]]
+    result = difft_unified.strip_alignment_sentinel(
+        aligned_lines, lhs_line_count=3, rhs_line_count=4
+    )
+    assert result == [[0, 0], [1, 1], [2, 2], [None, 3]]
+
+
+def test_strip_alignment_sentinel_empty_input():
+    result = difft_unified.strip_alignment_sentinel(
+        [], lhs_line_count=0, rhs_line_count=0
+    )
+    assert result == []
+
+
+def test_strip_alignment_sentinel_raises_on_unexpected_last_entry():
+    aligned_lines = [[0, 0], [1, 1]]
+    with pytest.raises(ValueError, match="end-of-file sentinel"):
+        difft_unified.strip_alignment_sentinel(
+            aligned_lines, lhs_line_count=5, rhs_line_count=5
+        )
+
+
+def test_render_changed_file_strips_end_of_file_sentinel_no_crash():
+    # Regression test for the reported crash: real difft output on a 3-line ->
+    # 4-line file (one appended line) ends aligned_lines with a [3, 4] sentinel
+    # pair that is out of range for both 3-line lhs_lines and 4-line rhs_lines.
+    # Reproduced empirically against real difft 0.70.0 JSON output before this
+    # fix (see task-5-report.md for the full investigation).
+    lhs_lines = ["line1", "line2", "line3"]
+    rhs_lines = ["line1", "line2", "line3", "line4"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1], [2, 2], [None, 3], [3, 4]],
+        "chunks": [],
+        "language": "Text",
+        "path": "sample.txt",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("sample.txt", lhs_lines, rhs_lines, data)
+    assert f"{difft_unified.GREEN}+{difft_unified.RESET}" in result
+    assert "line4" in result
