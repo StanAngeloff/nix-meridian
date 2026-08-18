@@ -191,8 +191,10 @@ def run_pager(lines):
             elif key == "G":
                 cursor_row = len(lines) - 1
             elif key in (" ", "PGDN", "\x06"):
+                viewport_top = min(viewport_top + viewable_height, len(lines) - 1)
                 cursor_row = min(cursor_row + viewable_height, len(lines) - 1)
             elif key in ("PGUP", "\x02"):
+                viewport_top = max(viewport_top - viewable_height, 0)
                 cursor_row = max(cursor_row - viewable_height, 0)
             elif key == "\x04":
                 cursor_row = min(cursor_row + viewable_height // 2, len(lines) - 1)
