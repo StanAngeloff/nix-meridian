@@ -152,7 +152,7 @@ def test_classify_lines_context():
 def test_classify_lines_addition():
     aligned = [[0, 0], [None, 1], [1, 2]]
     lhs_changes = {}
-    rhs_changes = {2: []}  # 1-based line 2
+    rhs_changes = {1: []}  # 0-based, matches the added line's rhs_index
     modified_pairs = set()
     result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
     assert result[1] == ("add", None, 1)
@@ -160,7 +160,7 @@ def test_classify_lines_addition():
 
 def test_classify_lines_deletion():
     aligned = [[0, 0], [1, None], [2, 1]]
-    lhs_changes = {2: []}  # 1-based line 2
+    lhs_changes = {1: []}  # 0-based, matches the deleted line's lhs_index
     rhs_changes = {}
     modified_pairs = set()
     result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
@@ -169,13 +169,40 @@ def test_classify_lines_deletion():
 
 def test_classify_lines_modification():
     aligned = [[0, 0], [1, 1], [2, 2]]
-    lhs_changes = {2: []}  # 1-based
-    rhs_changes = {2: []}
-    modified_pairs = {(2, 2)}
+    lhs_changes = {1: []}  # 0-based
+    rhs_changes = {1: []}
+    modified_pairs = {(1, 1)}
     result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
     assert result[1] == ("modify", 1, 1)
     assert result[0] == ("context", 0, 0)
     assert result[2] == ("context", 2, 2)
+
+
+def test_demote_identical_modifications_downgrades_identical_text():
+    # Regression test: difftastic can mark a line "modified" (for example, because it sits
+    # inside a Nix multi-line string that was restructured elsewhere) even though the line's
+    # own text is byte-for-byte identical on both sides. Such a pair must render as context.
+    operations = [("context", 0, 0), ("modify", 1, 1), ("context", 2, 2)]
+    lhs_lines = ["same line one", "identical text", "same line three"]
+    rhs_lines = ["same line one", "identical text", "same line three"]
+    result = difft_unified.demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    assert result == [("context", 0, 0), ("context", 1, 1), ("context", 2, 2)]
+
+
+def test_demote_identical_modifications_keeps_real_modifications():
+    operations = [("modify", 0, 0)]
+    lhs_lines = ["old text"]
+    rhs_lines = ["new text"]
+    result = difft_unified.demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    assert result == [("modify", 0, 0)]
+
+
+def test_demote_identical_modifications_leaves_add_and_delete_untouched():
+    operations = [("add", None, 0), ("delete", 0, None)]
+    lhs_lines = ["deleted line"]
+    rhs_lines = ["added line"]
+    result = difft_unified.demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    assert result == operations
 
 
 def test_compute_hunks_single_change():
