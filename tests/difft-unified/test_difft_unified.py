@@ -24,3 +24,28 @@ def test_detect_status_deleted():
 
 def test_detect_status_changed():
     assert difft_unified.detect_status("05839b0", "/tmp/old", "23c608e", "/tmp/new") == "changed"
+
+
+def test_render_full_addition():
+    lines = ["line one", "line two", "line three"]
+    output = difft_unified.render_full_addition(lines)
+    assert f"{difft_unified.MAGENTA}@@ -0,0 +1,3 @@{difft_unified.RESET}" in output
+    assert f"{difft_unified.GREEN}+line one{difft_unified.RESET}" in output
+    assert f"{difft_unified.GREEN}+line two{difft_unified.RESET}" in output
+    assert f"{difft_unified.GREEN}+line three{difft_unified.RESET}" in output
+
+
+def test_render_full_deletion():
+    lines = ["old line one", "old line two"]
+    output = difft_unified.render_full_deletion(lines)
+    assert f"{difft_unified.MAGENTA}@@ -1,2 +0,0 @@{difft_unified.RESET}" in output
+    assert f"{difft_unified.RED}-old line one{difft_unified.RESET}" in output
+    assert f"{difft_unified.RED}-old line two{difft_unified.RESET}" in output
+
+
+def test_render_full_addition_empty():
+    assert difft_unified.render_full_addition([]) == ""
+
+
+def test_render_full_deletion_empty():
+    assert difft_unified.render_full_deletion([]) == ""
