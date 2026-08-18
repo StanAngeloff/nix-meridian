@@ -138,3 +138,96 @@ def test_build_chunk_lookup_deletion_only():
     assert 7 in lhs_changes
     assert rhs_changes == {}
     assert modified_pairs == set()
+
+
+def test_classify_lines_context():
+    aligned = [[0, 0], [1, 1], [2, 2]]
+    lhs_changes = {}
+    rhs_changes = {}
+    modified_pairs = set()
+    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    assert result == [("context", 0, 0), ("context", 1, 1), ("context", 2, 2)]
+
+
+def test_classify_lines_addition():
+    aligned = [[0, 0], [None, 1], [1, 2]]
+    lhs_changes = {}
+    rhs_changes = {2: []}  # 1-based line 2
+    modified_pairs = set()
+    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    assert result[1] == ("add", None, 1)
+
+
+def test_classify_lines_deletion():
+    aligned = [[0, 0], [1, None], [2, 1]]
+    lhs_changes = {2: []}  # 1-based line 2
+    rhs_changes = {}
+    modified_pairs = set()
+    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    assert result[1] == ("delete", 1, None)
+
+
+def test_classify_lines_modification():
+    aligned = [[0, 0], [1, 1], [2, 2]]
+    lhs_changes = {2: []}  # 1-based
+    rhs_changes = {2: []}
+    modified_pairs = {(2, 2)}
+    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    assert result[1] == ("modify", 1, 1)
+    assert result[0] == ("context", 0, 0)
+    assert result[2] == ("context", 2, 2)
+
+
+def test_compute_hunks_single_change():
+    operations = [
+        ("context", 0, 0),
+        ("context", 1, 1),
+        ("context", 2, 2),
+        ("context", 3, 3),
+        ("context", 4, 4),
+        ("add", None, 5),
+        ("context", 5, 6),
+        ("context", 6, 7),
+        ("context", 7, 8),
+        ("context", 8, 9),
+    ]
+    hunks = difft_unified.compute_hunks(operations, context_lines=3)
+    assert len(hunks) == 1
+    start, end = hunks[0]
+    assert start == 2  # 3 lines before the change at index 5
+    assert end == 9  # 3 lines after the change at index 5
+
+
+def test_compute_hunks_merged():
+    operations = [
+        ("context", 0, 0),
+        ("add", None, 1),
+        ("context", 1, 2),
+        ("context", 2, 3),
+        ("context", 3, 4),
+        ("context", 4, 5),
+        ("delete", 5, None),
+        ("context", 6, 6),
+    ]
+    hunks = difft_unified.compute_hunks(operations, context_lines=3)
+    # Gap between changes is 4 context lines (indices 2-5), which is <= 6, so they merge
+    assert len(hunks) == 1
+
+
+def test_compute_hunks_separate():
+    operations = (
+        [("context", i, i) for i in range(10)]
+        + [("add", None, 10)]
+        + [("context", i, i + 1) for i in range(10, 25)]
+        + [("delete", 25, None)]
+        + [("context", i, i - 1) for i in range(26, 30)]
+    )
+    hunks = difft_unified.compute_hunks(operations, context_lines=3)
+    # Gap between changes is 14 context lines, well over 6 — separate hunks
+    assert len(hunks) == 2
+
+
+def test_compute_hunks_no_changes():
+    operations = [("context", i, i) for i in range(10)]
+    hunks = difft_unified.compute_hunks(operations, context_lines=3)
+    assert hunks == []
