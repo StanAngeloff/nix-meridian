@@ -129,6 +129,7 @@ def run_pager(lines):
         tty.setraw(tty_fd)
 
         cursor_row = 0
+        viewport_top = 0
         horizontal_offset = 0
         horizontal_step = 8
 
@@ -138,14 +139,11 @@ def run_pager(lines):
             height, width = get_terminal_size()
             viewable_height = height - 1
 
-            viewport_top = max(
-                0,
-                min(
-                    cursor_row - viewable_height // 2,
-                    len(lines) - viewable_height,
-                ),
-            )
-            viewport_top = max(0, viewport_top)
+            if cursor_row < viewport_top:
+                viewport_top = cursor_row
+            elif cursor_row >= viewport_top + viewable_height:
+                viewport_top = cursor_row - viewable_height + 1
+            viewport_top = max(0, min(viewport_top, len(lines) - viewable_height))
 
             write(HOME)
 
@@ -165,10 +163,14 @@ def run_pager(lines):
                 else:
                     write(f"\r{RESET}{' ' * width}\r\n")
 
-            status = f" line {cursor_row + 1}/{len(lines)}"
-            if horizontal_offset > 0:
-                status += f" +{horizontal_offset}"
-            write(f"{STATUS_BG}{status.ljust(width)[:width]}{RESET}")
+            percentage = ""
+            if len(lines) > viewable_height:
+                pct = int(100 * (viewport_top + viewable_height) / len(lines))
+                pct = min(pct, 100)
+                percentage = f"{pct:>4d}%"
+            status_left = f"[pager] - line {cursor_row + 1} of {len(lines)}"
+            status_line = f"{status_left}{percentage.rjust(width - len(status_left))}"
+            write(f"{STATUS_BG}{status_line[:width]}{RESET}")
 
             tty_file.flush()
 
@@ -188,9 +190,9 @@ def run_pager(lines):
                 horizontal_offset = 0
             elif key == "G":
                 cursor_row = len(lines) - 1
-            elif key in (" ", "PGDN"):
+            elif key in (" ", "PGDN", "\x06"):
                 cursor_row = min(cursor_row + viewable_height, len(lines) - 1)
-            elif key == "PGUP":
+            elif key in ("PGUP", "\x02"):
                 cursor_row = max(cursor_row - viewable_height, 0)
             elif key == "\x04":
                 cursor_row = min(cursor_row + viewable_height // 2, len(lines) - 1)
