@@ -19,6 +19,7 @@ in
     ./ast-grep
     ./claude-code
     ./codex
+    ./difft-unified
     ./direnv
     ./eza
     ./fzf

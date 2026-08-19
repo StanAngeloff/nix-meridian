@@ -1,7 +1,6 @@
 import importlib.machinery
 import importlib.util
 import os
-import sys
 
 import pytest
 
@@ -10,7 +9,13 @@ import pytest
 # .py, .pyc, and .so) and returns None. Passing an explicit SourceFileLoader
 # sidesteps the suffix lookup entirely.
 _SCRIPT_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "home", "apps", "difft-unified", "difft-unified.py"
+    os.path.dirname(__file__),
+    "..",
+    "..",
+    "home",
+    "apps",
+    "difft-unified",
+    "difft-unified.py",
 )
 _LOADER = importlib.machinery.SourceFileLoader("difft_unified", _SCRIPT_PATH)
 spec = importlib.util.spec_from_loader("difft_unified", _LOADER)
@@ -51,7 +56,9 @@ def test_is_binary_text_file_is_not_binary(tmp_path):
 
 
 def test_render_binary_notice_changed():
-    result = difft_unified.render_binary_notice("path/file.bin", "path/file.bin", "changed")
+    result = difft_unified.render_binary_notice(
+        "path/file.bin", "path/file.bin", "changed"
+    )
     assert result == (
         f"{difft_unified.YELLOW}Binary files a/path/file.bin and b/path/file.bin differ"
         f"{difft_unified.RESET}"
@@ -59,18 +66,28 @@ def test_render_binary_notice_changed():
 
 
 def test_render_binary_notice_created():
-    result = difft_unified.render_binary_notice("path/file.bin", "path/file.bin", "created")
+    result = difft_unified.render_binary_notice(
+        "path/file.bin", "path/file.bin", "created"
+    )
     assert "/dev/null and b/path/file.bin differ" in result
 
 
 def test_render_binary_notice_deleted():
-    result = difft_unified.render_binary_notice("path/file.bin", "path/file.bin", "deleted")
+    result = difft_unified.render_binary_notice(
+        "path/file.bin", "path/file.bin", "deleted"
+    )
     assert "a/path/file.bin and /dev/null differ" in result
 
 
 def test_render_file_header_simple_changed():
     result = difft_unified.render_file_header(
-        "path/file.nix", "path/file.nix", "aaaaaaa", "100644", "bbbbbbb", "100644", "changed"
+        "path/file.nix",
+        "path/file.nix",
+        "aaaaaaa",
+        "100644",
+        "bbbbbbb",
+        "100644",
+        "changed",
     )
     assert "diff --git a/path/file.nix b/path/file.nix" in result
     assert "index aaaaaaa..bbbbbbb 100644" in result
@@ -191,12 +208,34 @@ def test_validate_difft_json_missing_chunks_for_changed():
 
 
 def test_build_chunk_lookup_modified_pair():
-    chunks = [[
-        {
-            "lhs": {"line_number": 10, "changes": [{"start": 5, "end": 10, "content": "hello", "highlight": "normal"}]},
-            "rhs": {"line_number": 12, "changes": [{"start": 5, "end": 12, "content": "goodbye", "highlight": "normal"}]},
-        }
-    ]]
+    chunks = [
+        [
+            {
+                "lhs": {
+                    "line_number": 10,
+                    "changes": [
+                        {
+                            "start": 5,
+                            "end": 10,
+                            "content": "hello",
+                            "highlight": "normal",
+                        }
+                    ],
+                },
+                "rhs": {
+                    "line_number": 12,
+                    "changes": [
+                        {
+                            "start": 5,
+                            "end": 12,
+                            "content": "goodbye",
+                            "highlight": "normal",
+                        }
+                    ],
+                },
+            }
+        ]
+    ]
     lhs_changes, rhs_changes, modified_pairs = difft_unified.build_chunk_lookup(chunks)
     assert 10 in lhs_changes
     assert 12 in rhs_changes
@@ -204,9 +243,18 @@ def test_build_chunk_lookup_modified_pair():
 
 
 def test_build_chunk_lookup_addition_only():
-    chunks = [[
-        {"rhs": {"line_number": 5, "changes": [{"start": 0, "end": 3, "content": "new", "highlight": "normal"}]}}
-    ]]
+    chunks = [
+        [
+            {
+                "rhs": {
+                    "line_number": 5,
+                    "changes": [
+                        {"start": 0, "end": 3, "content": "new", "highlight": "normal"}
+                    ],
+                }
+            }
+        ]
+    ]
     lhs_changes, rhs_changes, modified_pairs = difft_unified.build_chunk_lookup(chunks)
     assert lhs_changes == {}
     assert 5 in rhs_changes
@@ -214,9 +262,18 @@ def test_build_chunk_lookup_addition_only():
 
 
 def test_build_chunk_lookup_deletion_only():
-    chunks = [[
-        {"lhs": {"line_number": 7, "changes": [{"start": 0, "end": 3, "content": "old", "highlight": "normal"}]}}
-    ]]
+    chunks = [
+        [
+            {
+                "lhs": {
+                    "line_number": 7,
+                    "changes": [
+                        {"start": 0, "end": 3, "content": "old", "highlight": "normal"}
+                    ],
+                }
+            }
+        ]
+    ]
     lhs_changes, rhs_changes, modified_pairs = difft_unified.build_chunk_lookup(chunks)
     assert 7 in lhs_changes
     assert rhs_changes == {}
@@ -228,7 +285,9 @@ def test_classify_lines_context():
     lhs_changes = {}
     rhs_changes = {}
     modified_pairs = set()
-    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    result = difft_unified.classify_lines(
+        aligned, lhs_changes, rhs_changes, modified_pairs
+    )
     assert result == [("context", 0, 0), ("context", 1, 1), ("context", 2, 2)]
 
 
@@ -237,7 +296,9 @@ def test_classify_lines_addition():
     lhs_changes = {}
     rhs_changes = {1: []}  # 0-based, matches the added line's rhs_index
     modified_pairs = set()
-    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    result = difft_unified.classify_lines(
+        aligned, lhs_changes, rhs_changes, modified_pairs
+    )
     assert result[1] == ("add", None, 1)
 
 
@@ -246,7 +307,9 @@ def test_classify_lines_deletion():
     lhs_changes = {1: []}  # 0-based, matches the deleted line's lhs_index
     rhs_changes = {}
     modified_pairs = set()
-    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    result = difft_unified.classify_lines(
+        aligned, lhs_changes, rhs_changes, modified_pairs
+    )
     assert result[1] == ("delete", 1, None)
 
 
@@ -255,7 +318,9 @@ def test_classify_lines_modification():
     lhs_changes = {1: []}  # 0-based
     rhs_changes = {1: []}
     modified_pairs = {(1, 1)}
-    result = difft_unified.classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
+    result = difft_unified.classify_lines(
+        aligned, lhs_changes, rhs_changes, modified_pairs
+    )
     assert result[1] == ("modify", 1, 1)
     assert result[0] == ("context", 0, 0)
     assert result[2] == ("context", 2, 2)
@@ -268,7 +333,9 @@ def test_demote_identical_modifications_downgrades_identical_text():
     operations = [("context", 0, 0), ("modify", 1, 1), ("context", 2, 2)]
     lhs_lines = ["same line one", "identical text", "same line three"]
     rhs_lines = ["same line one", "identical text", "same line three"]
-    result = difft_unified.demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    result = difft_unified.demote_identical_modifications(
+        operations, lhs_lines, rhs_lines
+    )
     assert result == [("context", 0, 0), ("context", 1, 1), ("context", 2, 2)]
 
 
@@ -276,7 +343,9 @@ def test_demote_identical_modifications_keeps_real_modifications():
     operations = [("modify", 0, 0)]
     lhs_lines = ["old text"]
     rhs_lines = ["new text"]
-    result = difft_unified.demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    result = difft_unified.demote_identical_modifications(
+        operations, lhs_lines, rhs_lines
+    )
     assert result == [("modify", 0, 0)]
 
 
@@ -284,8 +353,45 @@ def test_demote_identical_modifications_leaves_add_and_delete_untouched():
     operations = [("add", None, 0), ("delete", 0, None)]
     lhs_lines = ["deleted line"]
     rhs_lines = ["added line"]
-    result = difft_unified.demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    result = difft_unified.demote_identical_modifications(
+        operations, lhs_lines, rhs_lines
+    )
     assert result == operations
+
+
+def test_classify_lines_format_add_when_no_chunks():
+    aligned = [[0, 0], [None, 1], [None, 2], [1, 3]]
+    lhs_changes = {}
+    rhs_changes = {}
+    modified_pairs = set()
+    result = difft_unified.classify_lines(
+        aligned, lhs_changes, rhs_changes, modified_pairs
+    )
+    assert result[1] == ("format_add", None, 1)
+    assert result[2] == ("format_add", None, 2)
+
+
+def test_classify_lines_format_del_when_no_chunks():
+    aligned = [[0, 0], [1, None], [2, None], [3, 1]]
+    lhs_changes = {}
+    rhs_changes = {}
+    modified_pairs = set()
+    result = difft_unified.classify_lines(
+        aligned, lhs_changes, rhs_changes, modified_pairs
+    )
+    assert result[1] == ("format_del", 1, None)
+    assert result[2] == ("format_del", 2, None)
+
+
+def test_compute_hunks_format_operations_are_not_changes():
+    operations = [
+        ("context", 0, 0),
+        ("format_add", None, 1),
+        ("format_add", None, 2),
+        ("context", 1, 3),
+    ]
+    hunks = difft_unified.compute_hunks(operations, context_lines=3)
+    assert hunks == []
 
 
 def test_compute_hunks_single_change():
@@ -434,7 +540,23 @@ def test_render_changed_file_strips_end_of_file_sentinel_no_crash():
     rhs_lines = ["line1", "line2", "line3", "line4"]
     data = {
         "aligned_lines": [[0, 0], [1, 1], [2, 2], [None, 3], [3, 4]],
-        "chunks": [],
+        "chunks": [
+            [
+                {
+                    "rhs": {
+                        "line_number": 3,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 5,
+                                "content": "line4",
+                                "highlight": "normal",
+                            }
+                        ],
+                    }
+                }
+            ]
+        ],
         "language": "Text",
         "path": "sample.txt",
         "status": "changed",
@@ -509,7 +631,10 @@ def test_parse_arguments_rename_nine_parameter_form():
     ) = difft_unified.parse_arguments(argv)
     assert old_path == "old/path.nix"
     assert new_path == "new/path.nix"
-    assert rename_description == "similarity index 93%\nrename from old/path.nix\nrename to new/path.nix\n"
+    assert (
+        rename_description
+        == "similarity index 93%\nrename from old/path.nix\nrename to new/path.nix\n"
+    )
 
 
 def test_parse_arguments_invalid_argument_count_raises():

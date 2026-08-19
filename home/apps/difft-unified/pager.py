@@ -191,8 +191,9 @@ def read_search_input(tty_fd, tty_file, prompt, width):
     def draw_prompt():
         text = prompt + "".join(buf)
         tty_file.write(
-            f"\033[{height};1H{RESET}{PROMPT_FG}{text}{CLEAR_LINE}{SHOW_CURSOR}"
-            .encode("utf-8")
+            f"\033[{height};1H{RESET}{PROMPT_FG}{text}{CLEAR_LINE}{SHOW_CURSOR}".encode(
+                "utf-8"
+            )
         )
         tty_file.flush()
 
@@ -313,15 +314,23 @@ def run_pager(lines):
                     line = lines[line_index]
                     sliced = render_visible_slice(line, horizontal_offset, width)
                     plain = strip_ansi(sliced)
-                    search_ranges = compute_search_ranges(plain, search_pattern) if search_pattern else []
+                    search_ranges = (
+                        compute_search_ranges(plain, search_pattern)
+                        if search_pattern
+                        else []
+                    )
                     if line_index == cursor_row:
                         cursor_line = f"{CURSOR_BG}{plain}"
                         if search_ranges:
-                            cursor_line = overlay_on_ansi(cursor_line, search_ranges, SEARCH_HIT)
+                            cursor_line = overlay_on_ansi(
+                                cursor_line, search_ranges, SEARCH_HIT
+                            )
                         write(f"\r{cursor_line}{CURSOR_BG}{CLEAR_LINE}{RESET}\r\n")
                     else:
                         if search_ranges:
-                            rendered = overlay_on_ansi(sliced, search_ranges, SEARCH_HIT)
+                            rendered = overlay_on_ansi(
+                                sliced, search_ranges, SEARCH_HIT
+                            )
                             write(f"\r{RESET}{rendered}{CLEAR_LINE}{RESET}\r\n")
                         else:
                             write(f"\r{RESET}{sliced}{RESET}{CLEAR_LINE}\r\n")
@@ -338,7 +347,9 @@ def run_pager(lines):
                 status_message = ""
             else:
                 status_left = f"[pager] - line {cursor_row + 1} of {len(lines)}"
-            status_line = f"{status_left}{percentage.rjust(max(0, width - len(status_left)))}"
+            status_line = (
+                f"{status_left}{percentage.rjust(max(0, width - len(status_left)))}"
+            )
             write(f"{STATUS_BG}{status_line[:width]}{RESET}\r\n{RESET}{CLEAR_LINE}")
 
             tty_file.flush()
@@ -373,9 +384,7 @@ def run_pager(lines):
             elif key == "0":
                 horizontal_offset = 0
             elif key == "$":
-                max_visible = max(
-                    (visible_length(line) for line in lines), default=0
-                )
+                max_visible = max((visible_length(line) for line in lines), default=0)
                 horizontal_offset = max(0, max_visible - width)
             elif key in ("/", "?"):
                 search_direction = 1 if key == "/" else -1
@@ -385,7 +394,12 @@ def run_pager(lines):
                     match_lines = find_match_lines(lines, search_pattern)
                     _match_set = set(match_lines)
                     if match_lines:
-                        target = find_next(match_lines, cursor_row - search_direction, search_direction, True)
+                        target = find_next(
+                            match_lines,
+                            cursor_row - search_direction,
+                            search_direction,
+                            True,
+                        )
                         if target is not None:
                             cursor_row = target
                             match_index = match_lines.index(target) + 1

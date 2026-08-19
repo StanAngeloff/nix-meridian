@@ -25,6 +25,7 @@ def get_terminal_width():
             return os.get_terminal_size(tty.fileno()).columns
     except (OSError, AttributeError):
         import shutil
+
         return shutil.get_terminal_size().columns
 
 
@@ -63,7 +64,14 @@ def render_binary_notice(old_path, new_path, status):
 
 
 def render_file_header(
-    old_path, new_path, old_hex, old_mode, new_hex, new_mode, status, rename_description=None
+    old_path,
+    new_path,
+    old_hex,
+    old_mode,
+    new_hex,
+    new_mode,
+    status,
+    rename_description=None,
 ):
     terminal_width = get_terminal_width()
     parts = []
@@ -203,9 +211,15 @@ def classify_lines(aligned_lines, lhs_changes, rhs_changes, modified_pairs):
     operations = []
     for lhs_index, rhs_index in aligned_lines:
         if lhs_index is None:
-            operations.append(("add", None, rhs_index))
+            if rhs_index in rhs_changes:
+                operations.append(("add", None, rhs_index))
+            else:
+                operations.append(("format_add", None, rhs_index))
         elif rhs_index is None:
-            operations.append(("delete", lhs_index, None))
+            if lhs_index in lhs_changes:
+                operations.append(("delete", lhs_index, None))
+            else:
+                operations.append(("format_del", lhs_index, None))
         else:
             if (lhs_index, rhs_index) in modified_pairs:
                 operations.append(("modify", lhs_index, rhs_index))
@@ -218,7 +232,9 @@ def classify_lines(aligned_lines, lhs_changes, rhs_changes, modified_pairs):
 
 def demote_identical_modifications(operations, lhs_lines, rhs_lines):
     ignore_whitespace = os.environ.get("DFT_UNIFIED_IGNORE_WHITESPACE", "").lower() in (
-        "1", "true", "yes",
+        "1",
+        "true",
+        "yes",
     )
     demoted = []
     for operation, lhs_index, rhs_index in operations:
@@ -235,11 +251,14 @@ def demote_identical_modifications(operations, lhs_lines, rhs_lines):
     return demoted
 
 
+CHANGE_TYPES = frozenset({"add", "delete", "modify"})
+
+
 def compute_hunks(operations, context_lines=3):
     change_indices = [
         index
         for index, (operation, _, _) in enumerate(operations)
-        if operation != "context"
+        if operation in CHANGE_TYPES
     ]
 
     if not change_indices:
@@ -372,20 +391,27 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
         output_parts.append(render_hunk_header(hunk_operations))
 
         for operation, lhs_index, rhs_index in hunk_operations:
-            if operation == "context":
-                output_parts.append(f"{DEFAULT} {rhs_lines[rhs_index]}{RESET}")
+            if operation in ("context", "format_add"):
+                text = rhs_lines[rhs_index]
+                output_parts.append(f"{DEFAULT} {text}{RESET}")
+            elif operation == "format_del":
+                output_parts.append(f"{DEFAULT} {lhs_lines[lhs_index]}{RESET}")
             elif operation == "add":
                 output_parts.append(f"{GREEN}+{rhs_lines[rhs_index]}{RESET}")
             elif operation == "delete":
                 output_parts.append(f"{RED}-{lhs_lines[lhs_index]}{RESET}")
             elif operation == "modify":
                 lhs_emphasized = render_line_with_emphasis(
-                    lhs_lines[lhs_index], lhs_changes.get(lhs_index, []),
-                    RED, EMPHASIS_DEL
+                    lhs_lines[lhs_index],
+                    lhs_changes.get(lhs_index, []),
+                    RED,
+                    EMPHASIS_DEL,
                 )
                 rhs_emphasized = render_line_with_emphasis(
-                    rhs_lines[rhs_index], rhs_changes.get(rhs_index, []),
-                    GREEN, EMPHASIS_ADD
+                    rhs_lines[rhs_index],
+                    rhs_changes.get(rhs_index, []),
+                    GREEN,
+                    EMPHASIS_ADD,
                 )
                 output_parts.append(f"{RED}-{RESET}{lhs_emphasized}")
                 output_parts.append(f"{GREEN}+{RESET}{rhs_emphasized}")
@@ -479,7 +505,14 @@ def main():
     status = detect_status(old_file, new_file)
     print(
         render_file_header(
-            old_path, new_path, old_hex, old_mode, new_hex, new_mode, status, rename_description
+            old_path,
+            new_path,
+            old_hex,
+            old_mode,
+            new_hex,
+            new_mode,
+            status,
+            rename_description,
         )
     )
 
