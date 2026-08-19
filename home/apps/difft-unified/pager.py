@@ -11,6 +11,8 @@ ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 CURSOR_BG = "\033[37m\033[48;5;34m"
 STATUS_BG = "\033[37m\033[48;5;56m"
 SEARCH_HIT = "\033[30m\033[43m"
+MOVED_DEL = "\033[38;5;214m"
+MOVED_ADD = "\033[38;5;81m"
 RESET = "\033[0m"
 CLEAR_LINE = "\033[K"
 HIDE_CURSOR = "\033[?25l"
@@ -267,6 +269,95 @@ def find_next(match_lines, current, direction, wrap):
         return match_lines[-1] if wrap else None
 
 
+MIN_MOVED_ALNUM = 20
+
+
+def detect_moved_blocks(plain_lines):
+    """Detect code moved between diff hunks, matching git's colorMoved algorithm.
+
+    Scans all +/- lines in the diff output and finds blocks of consecutive
+    same-sign lines whose content appears verbatim as a consecutive block of
+    the opposite sign elsewhere. Blocks with fewer than MIN_MOVED_ALNUM
+    alphanumeric characters are rejected to avoid false positives on trivial
+    lines like closing braces or blank lines.
+    """
+    signs = []
+    contents = []
+
+    for plain in plain_lines:
+        if plain.startswith("-") and not plain.startswith("--- "):
+            signs.append("-")
+            contents.append(plain[1:])
+        elif plain.startswith("+") and not plain.startswith("+++ "):
+            signs.append("+")
+            contents.append(plain[1:])
+        else:
+            signs.append(None)
+            contents.append(None)
+
+    add_by_content = {}
+    for i, (sign, content) in enumerate(zip(signs, contents)):
+        if sign == "+":
+            add_by_content.setdefault(content, []).append(i)
+
+    moved = {}
+    matched = set()
+    total = len(plain_lines)
+
+    i = 0
+    while i < total:
+        if signs[i] != "-" or i in matched:
+            i += 1
+            continue
+
+        candidates = [
+            j
+            for j in add_by_content.get(contents[i], [])
+            if j not in matched
+        ]
+
+        found = False
+        for j in candidates:
+            block_length = 0
+            di, dj = i, j
+            while (
+                di < total
+                and dj < total
+                and signs[di] == "-"
+                and signs[dj] == "+"
+                and contents[di] == contents[dj]
+                and di not in matched
+                and dj not in matched
+            ):
+                block_length += 1
+                di += 1
+                dj += 1
+
+            if block_length == 0:
+                continue
+
+            alnum_count = sum(
+                sum(1 for character in contents[i + k] if character.isalnum())
+                for k in range(block_length)
+            )
+            if alnum_count < MIN_MOVED_ALNUM:
+                continue
+
+            for k in range(block_length):
+                moved[i + k] = "moved_del"
+                moved[j + k] = "moved_add"
+                matched.add(i + k)
+                matched.add(j + k)
+            i += block_length
+            found = True
+            break
+
+        if not found:
+            i += 1
+
+    return moved
+
+
 def run_pager(lines):
     tty_fd = os.open("/dev/tty", os.O_RDWR)
     tty_file = os.fdopen(tty_fd, "wb", buffering=0)
@@ -289,6 +380,7 @@ def run_pager(lines):
         status_message = ""
 
         plain_lines = [strip_ansi(expand_tabs(line)) for line in lines]
+        moved_lines = detect_moved_blocks(plain_lines)
         diff_boundaries = [
             i for i, plain in enumerate(plain_lines) if plain.startswith("diff --git ")
         ]
@@ -311,8 +403,15 @@ def run_pager(lines):
             for screen_row in range(viewable_height):
                 line_index = viewport_top + screen_row
                 if line_index < len(lines):
-                    line = lines[line_index]
-                    sliced = render_visible_slice(line, horizontal_offset, width)
+                    display_line = lines[line_index]
+                    if line_index in moved_lines:
+                        moved_color = (
+                            MOVED_DEL
+                            if moved_lines[line_index] == "moved_del"
+                            else MOVED_ADD
+                        )
+                        display_line = f"{moved_color}{plain_lines[line_index]}{RESET}"
+                    sliced = render_visible_slice(display_line, horizontal_offset, width)
                     plain = strip_ansi(sliced)
                     search_ranges = (
                         compute_search_ranges(plain, search_pattern)
