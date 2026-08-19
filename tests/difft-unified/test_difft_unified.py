@@ -19,15 +19,19 @@ spec.loader.exec_module(difft_unified)
 
 
 def test_detect_status_created():
-    assert difft_unified.detect_status("0000000", "/dev/null", "c5be89d", "/tmp/new") == "created"
+    assert difft_unified.detect_status("/dev/null", "/tmp/new") == "created"
 
 
 def test_detect_status_deleted():
-    assert difft_unified.detect_status("05839b0", "/tmp/old", "0000000", "/dev/null") == "deleted"
+    assert difft_unified.detect_status("/tmp/old", "/dev/null") == "deleted"
 
 
 def test_detect_status_changed():
-    assert difft_unified.detect_status("05839b0", "/tmp/old", "23c608e", "/tmp/new") == "changed"
+    assert difft_unified.detect_status("/tmp/old", "/tmp/new") == "changed"
+
+
+def test_detect_status_unstaged_modification():
+    assert difft_unified.detect_status("/tmp/old", "path/to/file.ts") == "changed"
 
 
 def test_is_binary_dev_null_is_not_binary():

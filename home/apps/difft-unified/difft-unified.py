@@ -26,10 +26,10 @@ def get_terminal_width():
         return 80
 
 
-def detect_status(old_hex, old_file, new_hex, new_file):
-    if all(character == "0" for character in old_hex) or old_file == "/dev/null":
+def detect_status(old_file, new_file):
+    if old_file == "/dev/null":
         return "created"
-    if all(character == "0" for character in new_hex) or new_file == "/dev/null":
+    if new_file == "/dev/null":
         return "deleted"
     return "changed"
 
@@ -466,7 +466,7 @@ def main():
         print(error, file=sys.stderr)
         sys.exit(1)
 
-    status = detect_status(old_hex, old_file, new_hex, new_file)
+    status = detect_status(old_file, new_file)
     print(
         render_file_header(
             old_path, new_path, old_hex, old_mode, new_hex, new_mode, status, rename_description
