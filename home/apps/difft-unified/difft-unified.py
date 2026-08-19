@@ -217,21 +217,21 @@ def classify_lines(aligned_lines, lhs_changes, rhs_changes, modified_pairs):
 
 
 def demote_identical_modifications(operations, lhs_lines, rhs_lines):
-    # Difftastic's structural diff can mark a line "modified" purely because it sits inside a
-    # larger node that was restructured elsewhere (for example, an inserted line inside a Nix
-    # multi-line string), even when that particular line's text is byte-for-byte identical on
-    # both sides. Treat those as context instead, matching what an actual text comparison (and a
-    # human reviewer) would consider unchanged; this also keeps unrelated hunks from merging
-    # around a stretch of lines difftastic re-annotated but did not actually change.
+    ignore_whitespace = os.environ.get("DFT_UNIFIED_IGNORE_WHITESPACE", "").lower() in (
+        "1", "true", "yes",
+    )
     demoted = []
     for operation, lhs_index, rhs_index in operations:
-        if (
-            operation == "modify"
-            and lhs_lines[lhs_index] == rhs_lines[rhs_index]
-        ):
-            demoted.append(("context", lhs_index, rhs_index))
-        else:
-            demoted.append((operation, lhs_index, rhs_index))
+        if operation == "modify":
+            lhs_text = lhs_lines[lhs_index]
+            rhs_text = rhs_lines[rhs_index]
+            if lhs_text == rhs_text:
+                demoted.append(("context", lhs_index, rhs_index))
+                continue
+            if ignore_whitespace and lhs_text.split() == rhs_text.split():
+                demoted.append(("context", lhs_index, rhs_index))
+                continue
+        demoted.append((operation, lhs_index, rhs_index))
     return demoted
 
 
