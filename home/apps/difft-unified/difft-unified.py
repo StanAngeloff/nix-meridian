@@ -536,10 +536,17 @@ def main():
     rhs_lines = read_lines(new_file)
 
     display_path = new_path if status != "deleted" else old_path
-    print(f"\033[2K\r\033[38;5;240mdifft: {display_path}\033[0m", end="", file=sys.stderr, flush=True)
+    if sys.stderr.isatty():
+        print(
+            f"\033[2K\r\033[38;5;240mdifft: {display_path}\033[0m",
+            end="",
+            file=sys.stderr,
+            flush=True,
+        )
     data = run_difft(old_file, new_file)
-    print("\033[2K\r", end="", file=sys.stderr, flush=True)
     if data is None:
+        if sys.stderr.isatty():
+            print("\033[2K\r", end="", file=sys.stderr, flush=True)
         return
 
     error_path = old_path if old_path == new_path else f"{old_path} -> {new_path}"
