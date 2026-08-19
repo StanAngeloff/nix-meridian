@@ -440,7 +440,7 @@ def test_render_changed_file_strips_end_of_file_sentinel_no_crash():
         "status": "changed",
     }
     result = difft_unified.render_changed_file("sample.txt", lhs_lines, rhs_lines, data)
-    assert f"{difft_unified.GREEN}+{difft_unified.RESET}" in result
+    assert f"{difft_unified.GREEN}+line4{difft_unified.RESET}" in result
     assert "line4" in result
 
 

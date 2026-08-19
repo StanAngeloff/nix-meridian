@@ -357,17 +357,9 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
             if operation == "context":
                 output_parts.append(f"{DEFAULT} {rhs_lines[rhs_index]}{RESET}")
             elif operation == "add":
-                changes = rhs_changes.get(rhs_index, [])
-                emphasized = render_line_with_emphasis(
-                    rhs_lines[rhs_index], changes, GREEN, EMPHASIS_ADD
-                )
-                output_parts.append(f"{GREEN}+{RESET}{emphasized}")
+                output_parts.append(f"{GREEN}+{rhs_lines[rhs_index]}{RESET}")
             elif operation == "delete":
-                changes = lhs_changes.get(lhs_index, [])
-                emphasized = render_line_with_emphasis(
-                    lhs_lines[lhs_index], changes, RED, EMPHASIS_DEL
-                )
-                output_parts.append(f"{RED}-{RESET}{emphasized}")
+                output_parts.append(f"{RED}-{lhs_lines[lhs_index]}{RESET}")
             elif operation == "modify":
                 lhs_emphasized = render_line_with_emphasis(
                     lhs_lines[lhs_index], lhs_changes.get(lhs_index, []),
