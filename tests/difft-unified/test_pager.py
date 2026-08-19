@@ -25,8 +25,8 @@ def test_detect_moved_blocks_cross_file():
         "@@ -1,6 +1,2 @@",
         " keep",
         "-def moved_function():",
-        '-    value = compute_something()',
-        '-    return value',
+        "-    value = compute_something()",
+        "-    return value",
         " keep",
         "diff --git a/new.py b/new.py",
         "--- a/new.py",
@@ -34,8 +34,8 @@ def test_detect_moved_blocks_cross_file():
         "@@ -1,2 +1,6 @@",
         " keep",
         "+def moved_function():",
-        '+    value = compute_something()',
-        '+    return value',
+        "+    value = compute_something()",
+        "+    return value",
         " keep",
     ]
     moved = pager.detect_moved_blocks(plain_lines)
@@ -84,15 +84,15 @@ def test_detect_moved_blocks_within_same_file():
         "diff --git a/file.py b/file.py",
         "@@ -1,10 +1,10 @@",
         "+def moved_function_with_long_name():",
-        '+    value = compute_something_important()',
-        '+    return value',
+        "+    value = compute_something_important()",
+        "+    return value",
         " ",
         " def other():",
         "     pass",
         " ",
         "-def moved_function_with_long_name():",
-        '-    value = compute_something_important()',
-        '-    return value',
+        "-    value = compute_something_important()",
+        "-    return value",
     ]
     moved = pager.detect_moved_blocks(plain_lines)
     assert moved[2] == "moved_add"
@@ -108,13 +108,13 @@ def test_detect_moved_blocks_rejects_two_line_block():
         "diff --git a/a.py b/a.py",
         "@@ -1,3 +1,1 @@",
         "-def some_function_with_long_name():",
-        '-    return compute_value_here()',
+        "-    return compute_value_here()",
         " x",
         "diff --git a/b.py b/b.py",
         "@@ -1,1 +1,3 @@",
         " x",
         "+def some_function_with_long_name():",
-        '+    return compute_value_here()',
+        "+    return compute_value_here()",
     ]
     moved = pager.detect_moved_blocks(plain_lines)
     assert moved == {}

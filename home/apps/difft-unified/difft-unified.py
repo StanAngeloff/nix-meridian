@@ -415,7 +415,9 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
         first_lhs = next(
             (lhs for _, lhs, _ in hunk_operations if lhs is not None), None
         )
-        funcname = find_funcname(lhs_lines, first_lhs) if first_lhs is not None else None
+        funcname = (
+            find_funcname(lhs_lines, first_lhs) if first_lhs is not None else None
+        )
         output_parts.append(render_hunk_header(hunk_operations, funcname))
 
         for operation, lhs_index, rhs_index in hunk_operations:
