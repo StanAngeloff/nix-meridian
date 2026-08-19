@@ -22,27 +22,31 @@ def test_detect_moved_blocks_cross_file():
         "diff --git a/old.py b/old.py",
         "--- a/old.py",
         "+++ b/old.py",
-        "@@ -1,5 +1,2 @@",
+        "@@ -1,6 +1,2 @@",
         " keep",
         "-def moved_function():",
-        '-    return "hello"',
+        '-    value = compute_something()',
+        '-    return value',
         " keep",
         "diff --git a/new.py b/new.py",
         "--- a/new.py",
         "+++ b/new.py",
-        "@@ -1,2 +1,5 @@",
+        "@@ -1,2 +1,6 @@",
         " keep",
         "+def moved_function():",
-        '+    return "hello"',
+        '+    value = compute_something()',
+        '+    return value',
         " keep",
     ]
     moved = pager.detect_moved_blocks(plain_lines)
     assert moved[5] == "moved_del"
     assert moved[6] == "moved_del"
-    assert moved[13] == "moved_add"
+    assert moved[7] == "moved_del"
     assert moved[14] == "moved_add"
+    assert moved[15] == "moved_add"
+    assert moved[16] == "moved_add"
     assert 4 not in moved
-    assert 7 not in moved
+    assert 8 not in moved
 
 
 def test_detect_moved_blocks_rejects_short_blocks():
@@ -78,24 +82,45 @@ def test_detect_moved_blocks_no_match_different_content():
 def test_detect_moved_blocks_within_same_file():
     plain_lines = [
         "diff --git a/file.py b/file.py",
-        "@@ -1,8 +1,8 @@",
+        "@@ -1,10 +1,10 @@",
         "+def moved_function_with_long_name():",
-        '+    return "hello world value"',
+        '+    value = compute_something_important()',
+        '+    return value',
         " ",
         " def other():",
         "     pass",
         " ",
         "-def moved_function_with_long_name():",
-        '-    return "hello world value"',
+        '-    value = compute_something_important()',
+        '-    return value',
     ]
     moved = pager.detect_moved_blocks(plain_lines)
     assert moved[2] == "moved_add"
     assert moved[3] == "moved_add"
-    assert moved[8] == "moved_del"
+    assert moved[4] == "moved_add"
     assert moved[9] == "moved_del"
+    assert moved[10] == "moved_del"
+    assert moved[11] == "moved_del"
 
 
-def test_detect_moved_blocks_context_breaks_consecutive_block():
+def test_detect_moved_blocks_rejects_two_line_block():
+    plain_lines = [
+        "diff --git a/a.py b/a.py",
+        "@@ -1,3 +1,1 @@",
+        "-def some_function_with_long_name():",
+        '-    return compute_value_here()',
+        " x",
+        "diff --git a/b.py b/b.py",
+        "@@ -1,1 +1,3 @@",
+        " x",
+        "+def some_function_with_long_name():",
+        '+    return compute_value_here()',
+    ]
+    moved = pager.detect_moved_blocks(plain_lines)
+    assert moved == {}
+
+
+def test_detect_moved_blocks_context_breaks_block_below_minimum():
     plain_lines = [
         "diff --git a/a.py b/a.py",
         "@@ -1,4 +1,1 @@",
@@ -111,8 +136,4 @@ def test_detect_moved_blocks_context_breaks_consecutive_block():
         '+    return "some_long_value_here"',
     ]
     moved = pager.detect_moved_blocks(plain_lines)
-    assert moved[2] == "moved_del"
-    assert moved[4] == "moved_del"
-    assert moved[9] == "moved_add"
-    assert moved[11] == "moved_add"
-    assert 3 not in moved
+    assert moved == {}

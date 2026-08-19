@@ -270,6 +270,7 @@ def find_next(match_lines, current, direction, wrap):
 
 
 MIN_MOVED_ALNUM = 20
+MIN_MOVED_LINES = 3
 
 
 def detect_moved_blocks(plain_lines):
@@ -311,9 +312,7 @@ def detect_moved_blocks(plain_lines):
             continue
 
         candidates = [
-            j
-            for j in add_by_content.get(contents[i], [])
-            if j not in matched
+            j for j in add_by_content.get(contents[i], []) if j not in matched
         ]
 
         found = False
@@ -340,7 +339,7 @@ def detect_moved_blocks(plain_lines):
                 sum(1 for character in contents[i + k] if character.isalnum())
                 for k in range(block_length)
             )
-            if alnum_count < MIN_MOVED_ALNUM:
+            if block_length < MIN_MOVED_LINES or alnum_count < MIN_MOVED_ALNUM:
                 continue
 
             for k in range(block_length):
@@ -411,7 +410,9 @@ def run_pager(lines):
                             else MOVED_ADD
                         )
                         display_line = f"{moved_color}{plain_lines[line_index]}{RESET}"
-                    sliced = render_visible_slice(display_line, horizontal_offset, width)
+                    sliced = render_visible_slice(
+                        display_line, horizontal_offset, width
+                    )
                     plain = strip_ansi(sliced)
                     search_ranges = (
                         compute_search_ranges(plain, search_pattern)
