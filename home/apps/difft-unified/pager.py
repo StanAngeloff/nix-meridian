@@ -81,20 +81,65 @@ def render_visible_slice(line, horizontal_offset, width):
     return "".join(result)
 
 
-def apply_search_highlights(plain_text, pattern):
-    """Overlay search match highlighting onto plain text, returning ANSI-decorated text."""
+def compute_search_ranges(plain_text, pattern):
+    """Return list of (start, end) visible-column ranges for search matches."""
     if not pattern:
-        return plain_text
-    result = []
-    last_end = 0
+        return []
+    ranges = []
     for match in pattern.finditer(plain_text):
         start, end = match.start(), match.end()
-        if start == end:
-            continue
-        result.append(plain_text[last_end:start])
-        result.append(f"{SEARCH_HIT}{plain_text[start:end]}{RESET}")
-        last_end = end
-    result.append(plain_text[last_end:])
+        if start < end:
+            ranges.append((start, end))
+    return ranges
+
+
+def overlay_on_ansi(ansi_text, highlight_ranges, highlight_escape):
+    """Overlay highlight_escape at specific visible-column ranges onto ANSI-colored text.
+
+    Preserves the original ANSI colors outside the highlighted ranges. Inside
+    a highlighted range, emits highlight_escape; on leaving, restores whatever
+    escapes were active before the range started.
+    """
+    if not highlight_ranges:
+        return ansi_text
+
+    segments = ANSI_RE.split(ansi_text)
+    escapes = ANSI_RE.findall(ansi_text)
+
+    result = []
+    active_escapes = []
+    visible_column = 0
+    in_highlight = False
+
+    for segment_index, segment in enumerate(segments):
+        for character in segment:
+            entering = not in_highlight and any(
+                start <= visible_column < end for start, end in highlight_ranges
+            )
+            leaving = in_highlight and not any(
+                start <= visible_column < end for start, end in highlight_ranges
+            )
+            if entering:
+                result.append(highlight_escape)
+                in_highlight = True
+            elif leaving:
+                result.append(RESET)
+                result.extend(active_escapes)
+                in_highlight = False
+            result.append(character)
+            visible_column += 1
+        if segment_index < len(escapes):
+            escape = escapes[segment_index]
+            if not in_highlight:
+                result.append(escape)
+            if escape == RESET:
+                active_escapes.clear()
+            else:
+                active_escapes.append(escape)
+
+    if in_highlight:
+        result.append(RESET)
+    result.append(RESET)
     return "".join(result)
 
 
@@ -255,16 +300,17 @@ def run_pager(lines):
                 if line_index < len(lines):
                     line = lines[line_index]
                     sliced = render_visible_slice(line, horizontal_offset, width)
+                    plain = strip_ansi(sliced)
+                    search_ranges = compute_search_ranges(plain, search_pattern) if search_pattern else []
                     if line_index == cursor_row:
-                        plain = strip_ansi(sliced)
-                        if search_pattern:
-                            plain = apply_search_highlights(plain, search_pattern)
-                        write(f"\r{CURSOR_BG}{plain}{CLEAR_LINE}{RESET}\r\n")
+                        cursor_line = f"{CURSOR_BG}{plain}"
+                        if search_ranges:
+                            cursor_line = overlay_on_ansi(cursor_line, search_ranges, SEARCH_HIT)
+                        write(f"\r{cursor_line}{CLEAR_LINE}{RESET}\r\n")
                     else:
-                        if search_pattern and line_index in _match_set:
-                            plain = strip_ansi(sliced)
-                            highlighted = apply_search_highlights(plain, search_pattern)
-                            write(f"\r{RESET}{highlighted}{RESET}{CLEAR_LINE}\r\n")
+                        if search_ranges:
+                            rendered = overlay_on_ansi(sliced, search_ranges, SEARCH_HIT)
+                            write(f"\r{RESET}{rendered}{CLEAR_LINE}{RESET}\r\n")
                         else:
                             write(f"\r{RESET}{sliced}{RESET}{CLEAR_LINE}\r\n")
                 else:
