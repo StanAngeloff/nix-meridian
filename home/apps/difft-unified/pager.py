@@ -189,9 +189,9 @@ def read_search_input(tty_fd, tty_file, prompt, width):
     buf = []
 
     def draw_prompt():
-        display = prompt + "".join(buf)
+        text = prompt + "".join(buf)
         tty_file.write(
-            f"\033[{height};1H{RESET}{PROMPT_FG}{display}{CLEAR_LINE}{RESET}{SHOW_CURSOR}"
+            f"\033[{height};1H{RESET}{PROMPT_FG}{text}{CLEAR_LINE}{SHOW_CURSOR}"
             .encode("utf-8")
         )
         tty_file.flush()
@@ -200,11 +200,15 @@ def read_search_input(tty_fd, tty_file, prompt, width):
     while True:
         raw = os.read(tty_fd, 1)
         if raw == b"\r" or raw == b"\n":
-            tty_file.write(HIDE_CURSOR.encode("utf-8"))
+            tty_file.write(
+                f"\033[{height};1H{RESET}{CLEAR_LINE}{HIDE_CURSOR}".encode("utf-8")
+            )
             tty_file.flush()
             return "".join(buf)
-        elif raw == b"\x1b":
-            tty_file.write(HIDE_CURSOR.encode("utf-8"))
+        elif raw in (b"\x1b", b"\x03"):
+            tty_file.write(
+                f"\033[{height};1H{RESET}{CLEAR_LINE}{HIDE_CURSOR}".encode("utf-8")
+            )
             tty_file.flush()
             return None
         elif raw == b"\x7f" or raw == b"\x08":
@@ -335,7 +339,7 @@ def run_pager(lines):
             tty_file.flush()
 
             key = read_key(tty_fd)
-            if key in ("q", "Q", "ESC"):
+            if key in ("q", "Q", "ESC", "\x03"):
                 break
             elif key in ("j", "DOWN", "\n"):
                 cursor_row = min(cursor_row + 1, len(lines) - 1)
@@ -370,9 +374,7 @@ def run_pager(lines):
                 horizontal_offset = max(0, max_visible - width)
             elif key in ("/", "?"):
                 search_direction = 1 if key == "/" else -1
-                termios.tcsetattr(tty_fd, termios.TCSADRAIN, old_settings)
                 pattern_text = read_search_input(tty_fd, tty_file, key, width)
-                tty.setraw(tty_fd)
                 if pattern_text:
                     search_pattern = compile_search(pattern_text)
                     match_lines = find_match_lines(lines, search_pattern)
