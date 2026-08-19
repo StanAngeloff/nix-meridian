@@ -69,7 +69,7 @@ def render_file_header(
     parts = []
 
     header_text = f"diff --git a/{old_path} b/{new_path}"
-    fill_length = max(0, terminal_width - len(header_text) - 1)
+    fill_length = max(0, terminal_width * 3 - len(header_text) - 1)
     parts.append(f"{YELLOW}{header_text}{GRAY240} {'─' * fill_length}{RESET}")
 
     if rename_description is not None:
