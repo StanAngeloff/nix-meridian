@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -17,6 +18,26 @@ GRAY240 = "\033[38;5;240m"
 BOLD = "\033[1m"
 EMPHASIS_DEL = "\033[38;5;210;48;5;52m"
 EMPHASIS_ADD = "\033[38;5;120;48;5;22m"
+
+
+FUNCNAME_RE = re.compile(r"^[a-zA-Z_$]")
+
+
+def find_funcname(lines, before_line):
+    """Walk backward from before_line to find the nearest function/class header.
+
+    Uses git's default funcname pattern: any line starting at column 0 with an
+    alphabetic character, underscore, or dollar sign. This matches what git shows
+    in hunk headers for files without a .gitattributes diff=<driver> override,
+    which is the vast majority.
+    """
+    for line_index in range(min(before_line, len(lines)) - 1, -1, -1):
+        if FUNCNAME_RE.match(lines[line_index]):
+            text = lines[line_index].rstrip()
+            if len(text) > 80:
+                text = text[:77] + "..."
+            return text
+    return None
 
 
 def get_terminal_width():
@@ -322,7 +343,7 @@ def render_line_with_emphasis(line_text, changes, base_color, emphasis_color):
     return "".join(result)
 
 
-def render_hunk_header(operations):
+def render_hunk_header(operations, funcname=None):
     lhs_line_numbers = []
     rhs_line_numbers = []
 
@@ -346,7 +367,10 @@ def render_hunk_header(operations):
         new_start = 0
         new_count = 0
 
-    return f"{MAGENTA}@@ -{old_start},{old_count} +{new_start},{new_count} @@{RESET}"
+    header = f"@@ -{old_start},{old_count} +{new_start},{new_count} @@"
+    if funcname:
+        header += f" {funcname}"
+    return f"{MAGENTA}{header}{RESET}"
 
 
 def strip_alignment_sentinel(aligned_lines, lhs_line_count, rhs_line_count):
@@ -388,7 +412,11 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
 
     for hunk_start, hunk_end in hunks:
         hunk_operations = operations[hunk_start:hunk_end]
-        output_parts.append(render_hunk_header(hunk_operations))
+        first_lhs = next(
+            (lhs for _, lhs, _ in hunk_operations if lhs is not None), None
+        )
+        funcname = find_funcname(lhs_lines, first_lhs) if first_lhs is not None else None
+        output_parts.append(render_hunk_header(hunk_operations, funcname))
 
         for operation, lhs_index, rhs_index in hunk_operations:
             if operation in ("context", "format_add"):
@@ -536,18 +564,22 @@ def main():
     rhs_lines = read_lines(new_file)
 
     display_path = new_path if status != "deleted" else old_path
-    if sys.stderr.isatty():
-        print(
-            f"\033[2K\r\033[38;5;240mdifft: {display_path}\033[0m",
-            end="",
-            file=sys.stderr,
-            flush=True,
-        )
+    try:
+        tty = open("/dev/tty", "w")
+    except OSError:
+        tty = None
+    if tty:
+        tty.write(f"\033[2K\r\033[38;5;240mdifft: {display_path}\033[0m")
+        tty.flush()
     data = run_difft(old_file, new_file)
     if data is None:
-        if sys.stderr.isatty():
-            print("\033[2K\r", end="", file=sys.stderr, flush=True)
+        if tty:
+            tty.write("\033[2K\r")
+            tty.flush()
+            tty.close()
         return
+    if tty:
+        tty.close()
 
     error_path = old_path if old_path == new_path else f"{old_path} -> {new_path}"
     body = render_changed_file(error_path, lhs_lines, rhs_lines, data)
