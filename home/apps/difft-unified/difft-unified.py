@@ -262,11 +262,27 @@ def compute_hunks(operations, context_lines=3):
     return hunks
 
 
+def merge_emphasis_ranges(ranges, line_text):
+    """Merge emphasis ranges when the gap between them is only whitespace."""
+    if len(ranges) < 2:
+        return ranges
+    merged = [ranges[0]]
+    for start, end in ranges[1:]:
+        prev_start, prev_end = merged[-1]
+        gap = line_text[prev_end:start]
+        if gap and not gap.strip():
+            merged[-1] = (prev_start, end)
+        else:
+            merged.append((start, end))
+    return merged
+
+
 def render_line_with_emphasis(line_text, changes, base_color, emphasis_color):
     if not changes:
         return f"{base_color}{line_text}{RESET}"
 
     emphasis_ranges = sorted((change["start"], change["end"]) for change in changes)
+    emphasis_ranges = merge_emphasis_ranges(emphasis_ranges, line_text)
 
     result = [base_color]
     in_emphasis = False
