@@ -313,7 +313,7 @@ def run_pager(lines):
                         cursor_line = f"{CURSOR_BG}{plain}"
                         if search_ranges:
                             cursor_line = overlay_on_ansi(cursor_line, search_ranges, SEARCH_HIT)
-                        write(f"\r{cursor_line}{CLEAR_LINE}{RESET}\r\n")
+                        write(f"\r{cursor_line}{CURSOR_BG}{CLEAR_LINE}{RESET}\r\n")
                     else:
                         if search_ranges:
                             rendered = overlay_on_ansi(sliced, search_ranges, SEARCH_HIT)
