@@ -10,6 +10,7 @@ import tty
 ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 CURSOR_BG = "\033[37m\033[48;5;34m"
 STATUS_BG = "\033[37m\033[48;5;56m"
+SEARCH_HIT = "\033[30m\033[43m"
 RESET = "\033[0m"
 CLEAR_LINE = "\033[K"
 HIDE_CURSOR = "\033[?25l"
@@ -80,6 +81,23 @@ def render_visible_slice(line, horizontal_offset, width):
     return "".join(result)
 
 
+def apply_search_highlights(plain_text, pattern):
+    """Overlay search match highlighting onto plain text, returning ANSI-decorated text."""
+    if not pattern:
+        return plain_text
+    result = []
+    last_end = 0
+    for match in pattern.finditer(plain_text):
+        start, end = match.start(), match.end()
+        if start == end:
+            continue
+        result.append(plain_text[last_end:start])
+        result.append(f"{SEARCH_HIT}{plain_text[start:end]}{RESET}")
+        last_end = end
+    result.append(plain_text[last_end:])
+    return "".join(result)
+
+
 def get_terminal_size():
     try:
         columns, rows = os.get_terminal_size()
@@ -117,6 +135,85 @@ def read_key(fd):
     return character.decode("utf-8", errors="replace")
 
 
+def read_search_input(tty_fd, tty_file, prompt, width):
+    """Read a search string from the user, rendering the prompt on the status line."""
+    height, _ = get_terminal_size()
+    buf = []
+
+    def draw_prompt():
+        display = prompt + "".join(buf)
+        tty_file.write(
+            f"\033[{height};1H{STATUS_BG}{display}{CLEAR_LINE}{RESET}{SHOW_CURSOR}"
+            .encode("utf-8")
+        )
+        tty_file.flush()
+
+    draw_prompt()
+    while True:
+        raw = os.read(tty_fd, 1)
+        if raw == b"\r" or raw == b"\n":
+            tty_file.write(HIDE_CURSOR.encode("utf-8"))
+            tty_file.flush()
+            return "".join(buf)
+        elif raw == b"\x1b":
+            tty_file.write(HIDE_CURSOR.encode("utf-8"))
+            tty_file.flush()
+            return None
+        elif raw == b"\x7f" or raw == b"\x08":
+            if buf:
+                buf.pop()
+                draw_prompt()
+        elif raw == b"\x15":
+            buf.clear()
+            draw_prompt()
+        elif raw == b"\x17":
+            while buf and buf[-1] == " ":
+                buf.pop()
+            while buf and buf[-1] != " ":
+                buf.pop()
+            draw_prompt()
+        else:
+            character = raw.decode("utf-8", errors="replace")
+            if character.isprintable():
+                buf.append(character)
+                draw_prompt()
+
+
+def compile_search(pattern_text):
+    """Compile a search pattern with smart-case: case-insensitive unless uppercase is present."""
+    if not pattern_text:
+        return None
+    flags = re.IGNORECASE if pattern_text == pattern_text.lower() else 0
+    try:
+        return re.compile(pattern_text, flags)
+    except re.error:
+        return re.compile(re.escape(pattern_text), flags)
+
+
+def find_match_lines(lines, pattern):
+    """Return sorted list of line indices that contain a match."""
+    if not pattern:
+        return []
+    plain_lines = [strip_ansi(expand_tabs(line)) for line in lines]
+    return [i for i, plain in enumerate(plain_lines) if pattern.search(plain)]
+
+
+def find_next(match_lines, current, direction, wrap):
+    """Find the next matching line index in the given direction."""
+    if not match_lines:
+        return None
+    if direction > 0:
+        for line_index in match_lines:
+            if line_index > current:
+                return line_index
+        return match_lines[0] if wrap else None
+    else:
+        for line_index in reversed(match_lines):
+            if line_index < current:
+                return line_index
+        return match_lines[-1] if wrap else None
+
+
 def run_pager(lines):
     tty_fd = os.open("/dev/tty", os.O_RDWR)
     tty_file = os.fdopen(tty_fd, "wb", buffering=0)
@@ -132,6 +229,11 @@ def run_pager(lines):
         viewport_top = 0
         horizontal_offset = 0
         horizontal_step = 8
+
+        search_pattern = None
+        search_direction = 1
+        match_lines = []
+        status_message = ""
 
         write(HIDE_CURSOR)
 
@@ -155,9 +257,16 @@ def run_pager(lines):
                     sliced = render_visible_slice(line, horizontal_offset, width)
                     if line_index == cursor_row:
                         plain = strip_ansi(sliced)
+                        if search_pattern:
+                            plain = apply_search_highlights(plain, search_pattern)
                         write(f"\r{CURSOR_BG}{plain}{CLEAR_LINE}{RESET}\r\n")
                     else:
-                        write(f"\r{RESET}{sliced}{RESET}{CLEAR_LINE}\r\n")
+                        if search_pattern and line_index in _match_set:
+                            plain = strip_ansi(sliced)
+                            highlighted = apply_search_highlights(plain, search_pattern)
+                            write(f"\r{RESET}{highlighted}{RESET}{CLEAR_LINE}\r\n")
+                        else:
+                            write(f"\r{RESET}{sliced}{RESET}{CLEAR_LINE}\r\n")
                 else:
                     write(f"\r{RESET}{CLEAR_LINE}\r\n")
 
@@ -166,8 +275,12 @@ def run_pager(lines):
                 pct = int(100 * (viewport_top + viewable_height) / len(lines))
                 pct = min(pct, 100)
                 percentage = f"{pct:>4d}%"
-            status_left = f"[pager] - line {cursor_row + 1} of {len(lines)}"
-            status_line = f"{status_left}{percentage.rjust(width - len(status_left))}"
+            if status_message:
+                status_left = status_message
+                status_message = ""
+            else:
+                status_left = f"[pager] - line {cursor_row + 1} of {len(lines)}"
+            status_line = f"{status_left}{percentage.rjust(max(0, width - len(status_left)))}"
             write(f"{STATUS_BG}{status_line[:width]}{RESET}")
 
             tty_file.flush()
@@ -206,12 +319,57 @@ def run_pager(lines):
                     (visible_length(line) for line in lines), default=0
                 )
                 horizontal_offset = max(0, max_visible - width)
+            elif key in ("/", "?"):
+                search_direction = 1 if key == "/" else -1
+                termios.tcsetattr(tty_fd, termios.TCSADRAIN, old_settings)
+                pattern_text = read_search_input(tty_fd, tty_file, key, width)
+                tty.setraw(tty_fd)
+                if pattern_text:
+                    search_pattern = compile_search(pattern_text)
+                    match_lines = find_match_lines(lines, search_pattern)
+                    _match_set = set(match_lines)
+                    if match_lines:
+                        target = find_next(match_lines, cursor_row - search_direction, search_direction, True)
+                        if target is not None:
+                            cursor_row = target
+                            match_index = match_lines.index(target) + 1
+                            status_message = f"Line {target + 1} matches '{pattern_text}' ({match_index} of {len(match_lines)})"
+                    else:
+                        status_message = f"No match found for '{pattern_text}'"
+                elif pattern_text == "" and search_pattern and match_lines:
+                    target = find_next(match_lines, cursor_row, search_direction, True)
+                    if target is not None:
+                        cursor_row = target
+                        match_index = match_lines.index(target) + 1
+                        status_message = f"Line {target + 1} matches '{search_pattern.pattern}' ({match_index} of {len(match_lines)})"
+            elif key == "n":
+                if search_pattern and match_lines:
+                    target = find_next(match_lines, cursor_row, search_direction, True)
+                    if target is not None:
+                        cursor_row = target
+                        match_index = match_lines.index(target) + 1
+                        status_message = f"Line {target + 1} matches '{search_pattern.pattern}' ({match_index} of {len(match_lines)})"
+                elif not search_pattern:
+                    status_message = "No previous search"
+            elif key == "N":
+                if search_pattern and match_lines:
+                    target = find_next(match_lines, cursor_row, -search_direction, True)
+                    if target is not None:
+                        cursor_row = target
+                        match_index = match_lines.index(target) + 1
+                        status_message = f"Line {target + 1} matches '{search_pattern.pattern}' ({match_index} of {len(match_lines)})"
+                elif not search_pattern:
+                    status_message = "No previous search"
     finally:
         termios.tcsetattr(tty_fd, termios.TCSADRAIN, old_settings)
         write(SHOW_CURSOR)
         write(CLEAR_SCREEN + HOME)
         tty_file.flush()
         tty_file.close()
+
+
+# Sentinel for match set (initialized on first search)
+_match_set = set()
 
 
 def main():
