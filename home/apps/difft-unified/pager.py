@@ -287,6 +287,11 @@ def run_pager(lines):
         match_lines = []
         status_message = ""
 
+        plain_lines = [strip_ansi(expand_tabs(line)) for line in lines]
+        diff_boundaries = [
+            i for i, plain in enumerate(plain_lines) if plain.startswith("diff --git ")
+        ]
+
         write(HIDE_CURSOR)
 
         while True:
@@ -411,6 +416,14 @@ def run_pager(lines):
                         status_message = f"Line {target + 1} matches '{search_pattern.pattern}' ({match_index} of {len(match_lines)})"
                 elif not search_pattern:
                     status_message = "No previous search"
+            elif key == "]":
+                target = find_next(diff_boundaries, cursor_row, 1, False)
+                if target is not None:
+                    cursor_row = target
+            elif key == "[":
+                target = find_next(diff_boundaries, cursor_row, -1, False)
+                if target is not None:
+                    cursor_row = target
     finally:
         termios.tcsetattr(tty_fd, termios.TCSADRAIN, old_settings)
         write(SHOW_CURSOR)

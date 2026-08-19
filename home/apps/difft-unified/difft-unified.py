@@ -21,9 +21,11 @@ EMPHASIS_ADD = "\033[38;5;120;48;5;22m"
 
 def get_terminal_width():
     try:
-        return os.get_terminal_size().columns
-    except OSError:
-        return 80
+        with open("/dev/tty") as tty:
+            return os.get_terminal_size(tty.fileno()).columns
+    except (OSError, AttributeError):
+        import shutil
+        return shutil.get_terminal_size().columns
 
 
 def detect_status(old_file, new_file):
