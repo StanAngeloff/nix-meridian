@@ -180,15 +180,18 @@ def read_key(fd):
     return character.decode("utf-8", errors="replace")
 
 
+PROMPT_FG = "\033[32m"
+
+
 def read_search_input(tty_fd, tty_file, prompt, width):
-    """Read a search string from the user, rendering the prompt on the status line."""
+    """Read a search string from the user, rendering the prompt on the bottom line."""
     height, _ = get_terminal_size()
     buf = []
 
     def draw_prompt():
         display = prompt + "".join(buf)
         tty_file.write(
-            f"\033[{height};1H{STATUS_BG}{display}{CLEAR_LINE}{RESET}{SHOW_CURSOR}"
+            f"\033[{height};1H{RESET}{PROMPT_FG}{display}{CLEAR_LINE}{RESET}{SHOW_CURSOR}"
             .encode("utf-8")
         )
         tty_file.flush()
@@ -284,7 +287,7 @@ def run_pager(lines):
 
         while True:
             height, width = get_terminal_size()
-            viewable_height = height - 1
+            viewable_height = height - 2
 
             max_viewport = max(0, len(lines) - viewable_height)
             if cursor_row < viewport_top:
@@ -327,7 +330,7 @@ def run_pager(lines):
             else:
                 status_left = f"[pager] - line {cursor_row + 1} of {len(lines)}"
             status_line = f"{status_left}{percentage.rjust(max(0, width - len(status_left)))}"
-            write(f"{STATUS_BG}{status_line[:width]}{RESET}")
+            write(f"{STATUS_BG}{status_line[:width]}{RESET}\r\n{RESET}{CLEAR_LINE}")
 
             tty_file.flush()
 
