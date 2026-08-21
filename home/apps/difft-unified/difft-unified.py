@@ -343,6 +343,17 @@ def render_line_with_emphasis(line_text, changes, base_color, emphasis_color):
     return "".join(result)
 
 
+def _emphasis_covers_entire_line(changes, line_text):
+    """Return True when the emphasis spans every non-whitespace character."""
+    if not changes:
+        return False
+    covered = set()
+    for change in changes:
+        for col in range(change["start"], change["end"]):
+            covered.add(col)
+    return all(col in covered for col, char in enumerate(line_text) if not char.isspace())
+
+
 def render_hunk_header(operations, funcname=None):
     lhs_line_numbers = []
     rhs_line_numbers = []
@@ -427,9 +438,29 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
             elif operation == "format_del":
                 output_parts.append(f"{DEFAULT} {lhs_lines[lhs_index]}{RESET}")
             elif operation == "add":
-                output_parts.append(f"{GREEN}+{rhs_lines[rhs_index]}{RESET}")
+                line_text = rhs_lines[rhs_index]
+                rhs_emphasis = rhs_changes.get(rhs_index, [])
+                if rhs_emphasis and not _emphasis_covers_entire_line(
+                    rhs_emphasis, line_text
+                ):
+                    rendered = render_line_with_emphasis(
+                        line_text, rhs_emphasis, GREEN, EMPHASIS_ADD
+                    )
+                    output_parts.append(f"{GREEN}+{RESET}{rendered}")
+                else:
+                    output_parts.append(f"{GREEN}+{line_text}{RESET}")
             elif operation == "delete":
-                output_parts.append(f"{RED}-{lhs_lines[lhs_index]}{RESET}")
+                line_text = lhs_lines[lhs_index]
+                lhs_emphasis = lhs_changes.get(lhs_index, [])
+                if lhs_emphasis and not _emphasis_covers_entire_line(
+                    lhs_emphasis, line_text
+                ):
+                    rendered = render_line_with_emphasis(
+                        line_text, lhs_emphasis, RED, EMPHASIS_DEL
+                    )
+                    output_parts.append(f"{RED}-{RESET}{rendered}")
+                else:
+                    output_parts.append(f"{RED}-{line_text}{RESET}")
             elif operation == "modify":
                 lhs_emphasized = render_line_with_emphasis(
                     lhs_lines[lhs_index],
