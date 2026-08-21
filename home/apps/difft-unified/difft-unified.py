@@ -351,7 +351,9 @@ def _emphasis_covers_entire_line(changes, line_text):
     for change in changes:
         for col in range(change["start"], change["end"]):
             covered.add(col)
-    return all(col in covered for col, char in enumerate(line_text) if not char.isspace())
+    return all(
+        col in covered for col, char in enumerate(line_text) if not char.isspace()
+    )
 
 
 def render_hunk_header(operations, funcname=None):

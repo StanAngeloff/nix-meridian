@@ -449,6 +449,77 @@ def test_compute_hunks_no_changes():
     assert hunks == []
 
 
+def test_emphasis_covers_entire_line_true():
+    changes = [{"start": 0, "end": 5, "content": "line4", "highlight": "normal"}]
+    assert difft_unified._emphasis_covers_entire_line(changes, "line4") is True
+
+
+def test_emphasis_covers_entire_line_with_leading_whitespace():
+    changes = [{"start": 4, "end": 5, "content": ",", "highlight": "normal"}]
+    assert difft_unified._emphasis_covers_entire_line(changes, "    ,") is True
+
+
+def test_emphasis_covers_entire_line_false_partial():
+    changes = [{"start": 48, "end": 49, "content": ",", "highlight": "normal"}]
+    line = "          translationKey: 'apiErrors:resetPasswordTokenExpired',"
+    assert difft_unified._emphasis_covers_entire_line(changes, line) is False
+
+
+def test_render_changed_file_add_with_partial_emphasis_shows_highlight():
+    lhs_lines = ["same", "old line"]
+    rhs_lines = ["same", "new content here", "extra trailing comma,"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1], [None, 2], [2, 3]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 8,
+                                "content": "old line",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 16,
+                                "content": "new content here",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+                {
+                    "rhs": {
+                        "line_number": 2,
+                        "changes": [
+                            {
+                                "start": 20,
+                                "end": 21,
+                                "content": ",",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+            ]
+        ],
+        "language": "TypeScript",
+        "path": "test.ts",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.ts", lhs_lines, rhs_lines, data)
+    assert difft_unified.EMPHASIS_ADD in result
+    assert "extra trailing comma" in result
+
+
 def test_render_line_with_emphasis_no_changes():
     result = difft_unified.render_line_with_emphasis(
         "hello world", [], difft_unified.RED, difft_unified.EMPHASIS_DEL
