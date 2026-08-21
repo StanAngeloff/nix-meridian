@@ -12,4 +12,8 @@ github_mount() {
 	bwrap_args+=(--dir "$home_path/.config/gh")
 	bwrap_args+=(--ro-bind-try "$(readlink -f "$home_path/.config/gh/config.yml")" "$home_path/.config/gh/config.yml")
 	bwrap_args+=(--ro-bind-try "$gh_empty_hosts" "$home_path/.config/gh/hosts.yml")
+
+	# Expose gh extensions (installed by Home Manager into the Nix store) so commands like `gh stack` work.
+	bwrap_args+=(--dir "$home_path/.local/share/gh")
+	bwrap_args+=(--ro-bind-try "$home_path/.local/share/gh/extensions" "$home_path/.local/share/gh/extensions")
 }
