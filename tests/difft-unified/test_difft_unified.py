@@ -394,6 +394,48 @@ def test_compute_hunks_format_operations_are_not_changes():
     assert hunks == []
 
 
+def test_demote_reformatted_lines_partial_emphasis_becomes_format_add():
+    operations = [("context", 0, 0), ("add", None, 1), ("context", 1, 2)]
+    lhs_lines = ["same"]
+    rhs_lines = [
+        "same",
+        "          translationKey: 'apiErrors:resetPasswordTokenExpired',",
+        "same",
+    ]
+    lhs_changes = {}
+    rhs_changes = {1: [{"start": 64, "end": 65, "content": ",", "highlight": "normal"}]}
+    result = difft_unified.demote_reformatted_lines(
+        operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
+    )
+    assert result[1] == ("format_add", None, 1)
+
+
+def test_demote_reformatted_lines_full_emphasis_stays_add():
+    operations = [("add", None, 0)]
+    lhs_lines = []
+    rhs_lines = ["brand new line"]
+    lhs_changes = {}
+    rhs_changes = {
+        0: [{"start": 0, "end": 14, "content": "brand new line", "highlight": "normal"}]
+    }
+    result = difft_unified.demote_reformatted_lines(
+        operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
+    )
+    assert result[0] == ("add", None, 0)
+
+
+def test_demote_reformatted_lines_no_emphasis_stays_format_add():
+    operations = [("format_add", None, 0)]
+    lhs_lines = []
+    rhs_lines = ["unchanged content"]
+    lhs_changes = {}
+    rhs_changes = {}
+    result = difft_unified.demote_reformatted_lines(
+        operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
+    )
+    assert result[0] == ("format_add", None, 0)
+
+
 def test_compute_hunks_single_change():
     operations = [
         ("context", 0, 0),

@@ -272,6 +272,35 @@ def demote_identical_modifications(operations, lhs_lines, rhs_lines):
     return demoted
 
 
+def demote_reformatted_lines(
+    operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
+):
+    """Demote add/delete to format_add/format_del when the line is predominantly old content.
+
+    A one-sided entry (None on one side) with chunk changes covering only part of the
+    line indicates existing content that was reformatted with a minor edit (like a
+    trailing comma after line-wrapping). The line is not genuinely new.
+    """
+    result = []
+    for operation, lhs_index, rhs_index in operations:
+        if operation == "add":
+            emphasis = rhs_changes.get(rhs_index, [])
+            if emphasis and not _emphasis_covers_entire_line(
+                emphasis, rhs_lines[rhs_index]
+            ):
+                result.append(("format_add", None, rhs_index))
+                continue
+        elif operation == "delete":
+            emphasis = lhs_changes.get(lhs_index, [])
+            if emphasis and not _emphasis_covers_entire_line(
+                emphasis, lhs_lines[lhs_index]
+            ):
+                result.append(("format_del", lhs_index, None))
+                continue
+        result.append((operation, lhs_index, rhs_index))
+    return result
+
+
 CHANGE_TYPES = frozenset({"add", "delete", "modify"})
 
 
@@ -419,6 +448,9 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
     lhs_changes, rhs_changes, modified_pairs = build_chunk_lookup(chunks)
     operations = classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
     operations = demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    operations = demote_reformatted_lines(
+        operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
+    )
     hunks = compute_hunks(operations)
 
     output_parts = []
