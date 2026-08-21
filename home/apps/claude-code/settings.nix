@@ -88,6 +88,9 @@ let
     };
     # Learn more at https://code.claude.com/docs/en/claude-directory#cleaned-up-automatically
     cleanupPeriodDays = 18250; # 50 years, effectively never
+    voice = {
+      enabled = false; # Don't hijack the <Space> key for voice input.
+    };
   };
 in
 {
