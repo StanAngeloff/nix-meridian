@@ -1,3 +1,39 @@
+typeset -gA _claude_model_aliases=(
+  [fable]=claude-fable-5
+  [opus]=claude-opus-4-6
+  [sonnet]=claude-sonnet-5
+)
+
+function _claude_expand_model_aliases() {
+  emulate -L zsh
+
+  local i
+  for (( i=1; i <= $#_cli_args; i++ )); do
+    case "${_cli_args[$i]}" in
+      -m|--model)
+        if (( i < $#_cli_args )); then
+          local next="${_cli_args[$i+1]}"
+          if (( ${+_claude_model_aliases[$next]} )); then
+            _cli_args[$i+1]="${_claude_model_aliases[$next]}"
+          fi
+        fi
+        ;;
+      --model=*)
+        local val="${_cli_args[$i]#--model=}"
+        if (( ${+_claude_model_aliases[$val]} )); then
+          _cli_args[$i]="--model=${_claude_model_aliases[$val]}"
+        fi
+        ;;
+      -m*)
+        local val="${_cli_args[$i]#-m}"
+        if (( ${+_claude_model_aliases[$val]} )); then
+          _cli_args[$i]="-m${_claude_model_aliases[$val]}"
+        fi
+        ;;
+    esac
+  done
+}
+
 function _claude_bubble_initialize() {
   emulate -L zsh
 

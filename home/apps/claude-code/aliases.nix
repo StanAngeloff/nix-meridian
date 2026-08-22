@@ -27,13 +27,17 @@ in
     source ${./initialize.zsh}
 
     function cc() {
-      _claude_bubble_initialize "$@" || return
-      ${launch claude-bubble bubbleArgs} "$@"
+      local -a _cli_args=( "$@" )
+      _claude_expand_model_aliases
+      _claude_bubble_initialize "''${_cli_args[@]}" || return
+      ${launch claude-bubble bubbleArgs} "''${_cli_args[@]}"
     }
 
     function ccc() {
-      _claude_bubble_initialize "$@" || return
-      ${launch claude-bubble (bubbleArgs ++ bypassArgs)} "$@"
+      local -a _cli_args=( "$@" )
+      _claude_expand_model_aliases
+      _claude_bubble_initialize "''${_cli_args[@]}" || return
+      ${launch claude-bubble (bubbleArgs ++ bypassArgs)} "''${_cli_args[@]}"
     }
   '';
 
