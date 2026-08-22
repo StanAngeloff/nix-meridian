@@ -73,15 +73,7 @@ in
     prefix = "C-s";
     terminal = "tmux-256color";
 
-    plugins = with pkgs.tmuxPlugins; [
-      {
-        plugin = fuzzback;
-        extraConfig = # tmux
-          ''
-            set -g @fuzzback-bind /
-          '';
-      }
-    ];
+    plugins = [ ];
 
     extraConfig = ''
       ${builtins.readFile ./claude-state.conf}
