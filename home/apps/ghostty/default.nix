@@ -110,6 +110,11 @@ in
         "no-sudo"
         "title"
       ];
+
+      app-notifications = builtins.concatStringsSep "," [
+        "no-clipboard-copy"
+        "config-reload"
+      ];
     };
   };
 
