@@ -496,20 +496,25 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
                 else:
                     output_parts.append(f"{RED}-{line_text}{RESET}")
             elif operation == "modify":
-                lhs_emphasized = render_line_with_emphasis(
-                    lhs_lines[lhs_index],
-                    lhs_changes.get(lhs_index, []),
-                    RED,
-                    EMPHASIS_DEL,
-                )
-                rhs_emphasized = render_line_with_emphasis(
-                    rhs_lines[rhs_index],
-                    rhs_changes.get(rhs_index, []),
-                    GREEN,
-                    EMPHASIS_ADD,
-                )
-                output_parts.append(f"{RED}-{RESET}{lhs_emphasized}")
-                output_parts.append(f"{GREEN}+{RESET}{rhs_emphasized}")
+                lhs_text = lhs_lines[lhs_index]
+                rhs_text = rhs_lines[rhs_index]
+                lhs_emph = lhs_changes.get(lhs_index, [])
+                rhs_emph = rhs_changes.get(rhs_index, [])
+                both_fully_emphasized = _emphasis_covers_entire_line(
+                    lhs_emph, lhs_text
+                ) and _emphasis_covers_entire_line(rhs_emph, rhs_text)
+                if both_fully_emphasized:
+                    output_parts.append(f"{RED}-{lhs_text}{RESET}")
+                    output_parts.append(f"{GREEN}+{rhs_text}{RESET}")
+                else:
+                    lhs_rendered = render_line_with_emphasis(
+                        lhs_text, lhs_emph, RED, EMPHASIS_DEL
+                    )
+                    rhs_rendered = render_line_with_emphasis(
+                        rhs_text, rhs_emph, GREEN, EMPHASIS_ADD
+                    )
+                    output_parts.append(f"{RED}-{RESET}{lhs_rendered}")
+                    output_parts.append(f"{GREEN}+{RESET}{rhs_rendered}")
 
     return "\n".join(output_parts)
 
