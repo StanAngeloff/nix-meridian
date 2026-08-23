@@ -507,6 +507,64 @@ def test_emphasis_covers_entire_line_false_partial():
     assert difft_unified._emphasis_covers_entire_line(changes, line) is False
 
 
+def test_render_changed_file_full_emphasis_modify_and_partial_emphasis_add():
+    lhs_lines = ["same", "old line"]
+    rhs_lines = ["same", "new content here", "extra trailing comma,"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1], [None, 2], [2, 3]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 8,
+                                "content": "old line",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 16,
+                                "content": "new content here",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+                {
+                    "rhs": {
+                        "line_number": 2,
+                        "changes": [
+                            {
+                                "start": 20,
+                                "end": 21,
+                                "content": ",",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+            ]
+        ],
+        "language": "TypeScript",
+        "path": "test.ts",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.ts", lhs_lines, rhs_lines, data)
+    assert difft_unified.EMPHASIS_ADD not in result
+    assert difft_unified.EMPHASIS_DEL not in result
+    assert f"{difft_unified.RED}-old line{difft_unified.RESET}" in result
+    assert f"{difft_unified.GREEN}+new content here{difft_unified.RESET}" in result
+    assert f"{difft_unified.DEFAULT} extra trailing comma,{difft_unified.RESET}" in result
+
+
 def test_modify_with_full_emphasis_both_sides_renders_flat():
     lhs_lines = ["same", "old line"]
     rhs_lines = ["same", "new content here"]
