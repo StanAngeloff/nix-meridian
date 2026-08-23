@@ -745,10 +745,10 @@ def test_render_changed_file_groups_deletions_before_additions():
     result = difft_unified.render_changed_file("test.py", lhs_lines, rhs_lines, data)
     lines = result.split("\n")
     change_lines = [
-        l
-        for l in lines
+        line
+        for line in lines
         if any(
-            l.startswith(pfx)
+            line.startswith(pfx)
             for pfx in [
                 difft_unified.RED + "-",
                 difft_unified.GREEN + "+",
@@ -756,8 +756,8 @@ def test_render_changed_file_groups_deletions_before_additions():
         )
     ]
     assert len(change_lines) == 4
-    assert all(l.startswith(difft_unified.RED) for l in change_lines[:2])
-    assert all(l.startswith(difft_unified.GREEN) for l in change_lines[2:])
+    assert all(line.startswith(difft_unified.RED) for line in change_lines[:2])
+    assert all(line.startswith(difft_unified.GREEN) for line in change_lines[2:])
 
 
 def test_render_changed_file_interleave_broken_by_context():
@@ -823,14 +823,14 @@ def test_render_changed_file_interleave_broken_by_context():
     }
     result = difft_unified.render_changed_file("test.txt", lhs_lines, rhs_lines, data)
     lines = result.split("\n")
-    non_header = [l for l in lines if not l.startswith(difft_unified.MAGENTA)]
+    non_header = [line for line in lines if not line.startswith(difft_unified.MAGENTA)]
     stripped = [
         (
             "DEL"
-            if difft_unified.RED in l
-            else "ADD" if difft_unified.GREEN in l else "CTX"
+            if difft_unified.RED in line
+            else "ADD" if difft_unified.GREEN in line else "CTX"
         )
-        for l in non_header
+        for line in non_header
     ]
     assert stripped == ["CTX", "DEL", "ADD", "CTX", "DEL", "ADD", "CTX"]
 
