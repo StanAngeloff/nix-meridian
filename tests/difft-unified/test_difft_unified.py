@@ -507,6 +507,34 @@ def test_emphasis_covers_entire_line_false_partial():
     assert difft_unified._emphasis_covers_entire_line(changes, line) is False
 
 
+def test_compute_text_emphasis_common_prefix_and_suffix():
+    old_changes, new_changes = difft_unified.compute_text_emphasis(
+        '      ${launch claude-bubble bubbleArgs} "$@"',
+        "      ${launch claude-bubble bubbleArgs} \"''${_cli_args[@]}\"",
+    )
+    assert len(old_changes) == 1
+    assert len(new_changes) == 1
+    assert old_changes[0]["start"] == 42
+    assert new_changes[0]["start"] == 42
+
+
+def test_compute_text_emphasis_too_different_returns_empty():
+    old_changes, new_changes = difft_unified.compute_text_emphasis(
+        '      _claude_bubble_initialize "$@" || return',
+        '      local -a _cli_args=( "$@" )',
+    )
+    assert old_changes == []
+    assert new_changes == []
+
+
+def test_compute_text_emphasis_identical_returns_empty():
+    old_changes, new_changes = difft_unified.compute_text_emphasis(
+        "identical line", "identical line"
+    )
+    assert old_changes == []
+    assert new_changes == []
+
+
 def test_render_changed_file_full_emphasis_modify_and_partial_emphasis_add():
     lhs_lines = ["same", "old line"]
     rhs_lines = ["same", "new content here", "extra trailing comma,"]
@@ -562,7 +590,9 @@ def test_render_changed_file_full_emphasis_modify_and_partial_emphasis_add():
     assert difft_unified.EMPHASIS_DEL not in result
     assert f"{difft_unified.RED}-old line{difft_unified.RESET}" in result
     assert f"{difft_unified.GREEN}+new content here{difft_unified.RESET}" in result
-    assert f"{difft_unified.DEFAULT} extra trailing comma,{difft_unified.RESET}" in result
+    assert (
+        f"{difft_unified.DEFAULT} extra trailing comma,{difft_unified.RESET}" in result
+    )
 
 
 def test_modify_with_full_emphasis_both_sides_renders_flat():
@@ -576,13 +606,23 @@ def test_modify_with_full_emphasis_both_sides_renders_flat():
                     "lhs": {
                         "line_number": 1,
                         "changes": [
-                            {"start": 0, "end": 8, "content": "old line", "highlight": "normal"}
+                            {
+                                "start": 0,
+                                "end": 8,
+                                "content": "old line",
+                                "highlight": "normal",
+                            }
                         ],
                     },
                     "rhs": {
                         "line_number": 1,
                         "changes": [
-                            {"start": 0, "end": 16, "content": "new content here", "highlight": "normal"}
+                            {
+                                "start": 0,
+                                "end": 16,
+                                "content": "new content here",
+                                "highlight": "normal",
+                            }
                         ],
                     },
                 }
@@ -600,8 +640,8 @@ def test_modify_with_full_emphasis_both_sides_renders_flat():
 
 
 def test_modify_with_partial_emphasis_shows_highlight():
-    lhs_lines = ["launch thing \"$@\""]
-    rhs_lines = ["launch thing \"${args[@]}\""]
+    lhs_lines = ['launch thing "$@"']
+    rhs_lines = ['launch thing "${args[@]}"']
     data = {
         "aligned_lines": [[0, 0], [1, 1]],
         "chunks": [
@@ -610,13 +650,23 @@ def test_modify_with_partial_emphasis_shows_highlight():
                     "lhs": {
                         "line_number": 0,
                         "changes": [
-                            {"start": 14, "end": 16, "content": "$@", "highlight": "normal"}
+                            {
+                                "start": 14,
+                                "end": 16,
+                                "content": "$@",
+                                "highlight": "normal",
+                            }
                         ],
                     },
                     "rhs": {
                         "line_number": 0,
                         "changes": [
-                            {"start": 14, "end": 24, "content": "${args[@]}", "highlight": "normal"}
+                            {
+                                "start": 14,
+                                "end": 24,
+                                "content": "${args[@]}",
+                                "highlight": "normal",
+                            }
                         ],
                     },
                 }

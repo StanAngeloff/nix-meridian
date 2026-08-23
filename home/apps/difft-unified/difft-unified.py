@@ -333,6 +333,51 @@ def compute_hunks(operations, context_lines=3):
     return hunks
 
 
+def compute_text_emphasis(old_text, new_text):
+    """Compute emphasis from raw text comparison when difft's AST data is unusable.
+
+    Finds the longest common prefix and suffix, then highlights the middle portion
+    that actually differs. Returns empty lists if the lines share less than 40% of
+    the shorter line's characters (indicating they're too different for word diff).
+    """
+    min_length = min(len(old_text), len(new_text))
+    if min_length == 0:
+        return [], []
+
+    prefix_length = 0
+    for i in range(min_length):
+        if old_text[i] == new_text[i]:
+            prefix_length += 1
+        else:
+            break
+
+    suffix_length = 0
+    max_suffix = min_length - prefix_length
+    for i in range(1, max_suffix + 1):
+        if old_text[-i] == new_text[-i]:
+            suffix_length += 1
+        else:
+            break
+
+    if (prefix_length + suffix_length) < min_length * 0.4:
+        return [], []
+
+    old_change_end = len(old_text) - suffix_length
+    new_change_end = len(new_text) - suffix_length
+
+    old_changes = (
+        [{"start": prefix_length, "end": old_change_end}]
+        if prefix_length < old_change_end
+        else []
+    )
+    new_changes = (
+        [{"start": prefix_length, "end": new_change_end}]
+        if prefix_length < new_change_end
+        else []
+    )
+    return old_changes, new_changes
+
+
 def merge_emphasis_ranges(ranges, line_text):
     """Merge emphasis ranges when the gap between them is only whitespace."""
     if len(ranges) < 2:
@@ -500,13 +545,11 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
                 rhs_text = rhs_lines[rhs_index]
                 lhs_emph = lhs_changes.get(lhs_index, [])
                 rhs_emph = rhs_changes.get(rhs_index, [])
-                both_fully_emphasized = _emphasis_covers_entire_line(
+                if _emphasis_covers_entire_line(
                     lhs_emph, lhs_text
-                ) and _emphasis_covers_entire_line(rhs_emph, rhs_text)
-                if both_fully_emphasized:
-                    output_parts.append(f"{RED}-{lhs_text}{RESET}")
-                    output_parts.append(f"{GREEN}+{rhs_text}{RESET}")
-                else:
+                ) and _emphasis_covers_entire_line(rhs_emph, rhs_text):
+                    lhs_emph, rhs_emph = compute_text_emphasis(lhs_text, rhs_text)
+                if lhs_emph or rhs_emph:
                     lhs_rendered = render_line_with_emphasis(
                         lhs_text, lhs_emph, RED, EMPHASIS_DEL
                     )
@@ -515,6 +558,9 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
                     )
                     output_parts.append(f"{RED}-{RESET}{lhs_rendered}")
                     output_parts.append(f"{GREEN}+{RESET}{rhs_rendered}")
+                else:
+                    output_parts.append(f"{RED}-{lhs_text}{RESET}")
+                    output_parts.append(f"{GREEN}+{rhs_text}{RESET}")
 
     return "\n".join(output_parts)
 
