@@ -681,6 +681,160 @@ def test_modify_with_partial_emphasis_shows_highlight():
     assert difft_unified.EMPHASIS_ADD in result
 
 
+def test_render_changed_file_groups_deletions_before_additions():
+    lhs_lines = ["context", "old_a = foo()", "old_b = bar()", "context"]
+    rhs_lines = ["context", "new_a = baz()", "new_b = qux()", "context"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 14,
+                                "content": "old_a = foo()",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 14,
+                                "content": "new_a = baz()",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+                {
+                    "lhs": {
+                        "line_number": 2,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 14,
+                                "content": "old_b = bar()",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 2,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 14,
+                                "content": "new_b = qux()",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+            ]
+        ],
+        "language": "Python",
+        "path": "test.py",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.py", lhs_lines, rhs_lines, data)
+    lines = result.split("\n")
+    change_lines = [
+        l
+        for l in lines
+        if any(
+            l.startswith(pfx)
+            for pfx in [
+                difft_unified.RED + "-",
+                difft_unified.GREEN + "+",
+            ]
+        )
+    ]
+    assert len(change_lines) == 4
+    assert all(l.startswith(difft_unified.RED) for l in change_lines[:2])
+    assert all(l.startswith(difft_unified.GREEN) for l in change_lines[2:])
+
+
+def test_render_changed_file_interleave_broken_by_context():
+    lhs_lines = ["ctx", "old_a", "ctx2", "old_b", "ctx"]
+    rhs_lines = ["ctx", "new_a", "ctx2", "new_b", "ctx"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 5,
+                                "content": "old_a",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 5,
+                                "content": "new_a",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+                {
+                    "lhs": {
+                        "line_number": 3,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 5,
+                                "content": "old_b",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 3,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 5,
+                                "content": "new_b",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+            ]
+        ],
+        "language": "Text",
+        "path": "test.txt",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.txt", lhs_lines, rhs_lines, data)
+    lines = result.split("\n")
+    non_header = [l for l in lines if not l.startswith(difft_unified.MAGENTA)]
+    stripped = [
+        (
+            "DEL"
+            if difft_unified.RED in l
+            else "ADD" if difft_unified.GREEN in l else "CTX"
+        )
+        for l in non_header
+    ]
+    assert stripped == ["CTX", "DEL", "ADD", "CTX", "DEL", "ADD", "CTX"]
+
+
 def test_render_line_with_emphasis_no_changes():
     result = difft_unified.render_line_with_emphasis(
         "hello world", [], difft_unified.RED, difft_unified.EMPHASIS_DEL

@@ -510,36 +510,50 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
         )
         output_parts.append(render_hunk_header(hunk_operations, funcname))
 
+        pending_del = []
+        pending_add = []
+
+        def flush_change_group():
+            output_parts.extend(pending_del)
+            output_parts.extend(pending_add)
+            pending_del.clear()
+            pending_add.clear()
+
+        def render_del_line(line_text, emphasis):
+            if emphasis and not _emphasis_covers_entire_line(emphasis, line_text):
+                rendered = render_line_with_emphasis(
+                    line_text, emphasis, RED, EMPHASIS_DEL
+                )
+                return f"{RED}-{RESET}{rendered}"
+            return f"{RED}-{line_text}{RESET}"
+
+        def render_add_line(line_text, emphasis):
+            if emphasis and not _emphasis_covers_entire_line(emphasis, line_text):
+                rendered = render_line_with_emphasis(
+                    line_text, emphasis, GREEN, EMPHASIS_ADD
+                )
+                return f"{GREEN}+{RESET}{rendered}"
+            return f"{GREEN}+{line_text}{RESET}"
+
         for operation, lhs_index, rhs_index in hunk_operations:
-            if operation in ("context", "format_add"):
-                text = rhs_lines[rhs_index]
-                output_parts.append(f"{DEFAULT} {text}{RESET}")
-            elif operation == "format_del":
-                output_parts.append(f"{DEFAULT} {lhs_lines[lhs_index]}{RESET}")
+            if operation in ("context", "format_add", "format_del"):
+                flush_change_group()
+                if operation == "format_del":
+                    output_parts.append(f"{DEFAULT} {lhs_lines[lhs_index]}{RESET}")
+                else:
+                    output_parts.append(f"{DEFAULT} {rhs_lines[rhs_index]}{RESET}")
             elif operation == "add":
-                line_text = rhs_lines[rhs_index]
-                rhs_emphasis = rhs_changes.get(rhs_index, [])
-                if rhs_emphasis and not _emphasis_covers_entire_line(
-                    rhs_emphasis, line_text
-                ):
-                    rendered = render_line_with_emphasis(
-                        line_text, rhs_emphasis, GREEN, EMPHASIS_ADD
+                pending_add.append(
+                    render_add_line(
+                        rhs_lines[rhs_index], rhs_changes.get(rhs_index, [])
                     )
-                    output_parts.append(f"{GREEN}+{RESET}{rendered}")
-                else:
-                    output_parts.append(f"{GREEN}+{line_text}{RESET}")
+                )
             elif operation == "delete":
-                line_text = lhs_lines[lhs_index]
-                lhs_emphasis = lhs_changes.get(lhs_index, [])
-                if lhs_emphasis and not _emphasis_covers_entire_line(
-                    lhs_emphasis, line_text
-                ):
-                    rendered = render_line_with_emphasis(
-                        line_text, lhs_emphasis, RED, EMPHASIS_DEL
+                pending_del.append(
+                    render_del_line(
+                        lhs_lines[lhs_index], lhs_changes.get(lhs_index, [])
                     )
-                    output_parts.append(f"{RED}-{RESET}{rendered}")
-                else:
-                    output_parts.append(f"{RED}-{line_text}{RESET}")
+                )
             elif operation == "modify":
                 lhs_text = lhs_lines[lhs_index]
                 rhs_text = rhs_lines[rhs_index]
@@ -549,18 +563,10 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
                     lhs_emph, lhs_text
                 ) and _emphasis_covers_entire_line(rhs_emph, rhs_text):
                     lhs_emph, rhs_emph = compute_text_emphasis(lhs_text, rhs_text)
-                if lhs_emph or rhs_emph:
-                    lhs_rendered = render_line_with_emphasis(
-                        lhs_text, lhs_emph, RED, EMPHASIS_DEL
-                    )
-                    rhs_rendered = render_line_with_emphasis(
-                        rhs_text, rhs_emph, GREEN, EMPHASIS_ADD
-                    )
-                    output_parts.append(f"{RED}-{RESET}{lhs_rendered}")
-                    output_parts.append(f"{GREEN}+{RESET}{rhs_rendered}")
-                else:
-                    output_parts.append(f"{RED}-{lhs_text}{RESET}")
-                    output_parts.append(f"{GREEN}+{rhs_text}{RESET}")
+                pending_del.append(render_del_line(lhs_text, lhs_emph))
+                pending_add.append(render_add_line(rhs_text, rhs_emph))
+
+        flush_change_group()
 
     return "\n".join(output_parts)
 
