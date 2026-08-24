@@ -38,6 +38,7 @@ in
     (import ./settings.nix { inherit claude-code-statusline; })
     ./mcp.nix
     ./notifications.nix
+    ./remote # phone remote access
   ];
 
   home.packages = [

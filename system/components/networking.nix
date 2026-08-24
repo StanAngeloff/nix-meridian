@@ -43,7 +43,7 @@ with lib.lists;
     openFirewall = true;
 
     # NOTE: Avahi is also useful for mDNS service discovery in local networks and required by programs such as UxPlay.
-    #       I DO NOT enable the "publish" option, however, as I DO NOT want this machine to be discoverable by other devices on the network.
+    #       DO NOT enable the "publish" option as I DO NOT want this machine's services to be discoverable on the network.
     #       This may be revisited in the future if I want to use AirPlay or similar technologies.
   };
 
