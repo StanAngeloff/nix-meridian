@@ -101,14 +101,10 @@ function _claude_bubble_initialize() {
   if [[ -n "$CLAUDE_BUBBLE_TMUX" && "$CLAUDE_BUBBLE_TMUX" != "0" \
      && "${(L)CLAUDE_BUBBLE_TMUX}" != "false" \
      && -n "$TMUX" && -n "$session_name" ]]; then
-    local git_common
-    git_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-    if [[ -n "$git_common" ]]; then
-      local repository_name="${${git_common%/.git}:t}"
-      local normalized="${session_name%%[/@#.!?[:space:]]*}"
-      if [[ -n "$repository_name" && -n "$normalized" ]]; then
-        tmux rename-window "${repository_name}@${normalized}"
-      fi
-    fi
+    # The rule itself lives in claude-window-name.sh, which the SessionStart hook re-applies after
+    # /resume and /branch land a different session in this pane.
+    local window_name
+    window_name=$("$_claude_window_name_command" --compute "$session_name" 2>/dev/null)
+    [[ -n "$window_name" ]] && tmux rename-window "$window_name"
   fi
 }
