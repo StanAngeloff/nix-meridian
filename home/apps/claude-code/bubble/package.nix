@@ -4,6 +4,7 @@
   bubblewrap,
   coreutils,
   findutils,
+  git,
   gnupg,
   jq,
   libsecret,
@@ -58,11 +59,13 @@ let
   ];
 
   # Fixed argument set every module.nix is called with; modules pattern-match what they need.
+  # Every module.nix ends in `...` so a new entry here cannot break the ones that do not want it.
   moduleArguments = {
     inherit
       lib
       writeShellApplication
       coreutils
+      git
       gnupg
       jq
       libsecret
