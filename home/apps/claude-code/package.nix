@@ -2,6 +2,7 @@
   lib,
   symlinkJoin,
   makeWrapper,
+  aspellWithDicts,
   libsecret,
   poppler-utils,
   claude-code-unwrapped,
@@ -16,8 +17,14 @@ symlinkJoin {
   nativeBuildInputs = [ makeWrapper ];
   postBuild = ''
     # Put poppler's pdftoppm on PATH so the Read tool can rasterise PDFs without a nix shell (which the sealed bubble blocks); --suffix defers to any poppler already on PATH.
+    # aspell is the spell checker for the prompt input (spellcheck setting in settings.json).
     wrapProgram $out/bin/claude \
-      --suffix PATH : ${lib.makeBinPath [ poppler-utils ]} \
+      --suffix PATH : ${
+        lib.makeBinPath [
+          poppler-utils
+          (aspellWithDicts (ds: [ ds.en ]))
+        ]
+      } \
       --run '
         # $TMPDIR resolves to different paths between sandboxed and unsandboxed commands in the same session.
         # On NixOS, TMP/TMPDIR may also be unset entirely, causing "$TMPDIR/file.txt" to collapse to "/file.txt".
