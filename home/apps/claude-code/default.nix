@@ -10,9 +10,6 @@ let
     claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
   };
   claude-code-statusline = pkgs.callPackage ./statusline/package.nix { };
-  # Owns the repository@session-name rule: initialize.zsh asks it for the name at launch,
-  # the SessionStart hook re-derives it after /resume and /branch.
-  claude-window-name = pkgs.callPackage ./hooks/window-name.nix { };
   # Panel indicator for the subscription limits. Polls the usage endpoint itself; see package.nix.
   claude-usage-tray = pkgs.callPackage ./usage-tray/package.nix { };
   integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
@@ -35,7 +32,6 @@ in
         claude-code
         claude-bubble
         bubbleSettings
-        claude-window-name
         ;
     })
     ./keybindings.nix

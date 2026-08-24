@@ -2,7 +2,6 @@
   lib,
   claude-code,
   claude-bubble,
-  claude-window-name,
   bubbleSettings,
 }:
 let
@@ -25,9 +24,6 @@ let
 in
 {
   programs.zsh.initContent = lib.mkOrder 1500 ''
-    # Interpolated rather than put on PATH: only initialize.zsh calls it here, and the hook reaches it
-    # through settings.json by store path.
-    typeset -g _claude_window_name_command=${lib.getExe claude-window-name}
     source ${./initialize.zsh}
 
     function cc() {
