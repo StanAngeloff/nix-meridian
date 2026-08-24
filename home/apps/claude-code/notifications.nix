@@ -43,19 +43,6 @@ let
     timeout = 5;
   };
 
-  # initialize.zsh names the tmux window before Claude Code starts, from the --name/--resume flag.
-  # /resume and /branch then put a different session in the pane, leaving that name describing something
-  # that is no longer there; both fire SessionStart, so the rename can follow them.
-  # /rename cannot be followed: it fires no hook at all -- verified against 2.1.233, where it lands
-  # between a SessionEnd and the next SessionStart without announcing itself. The window keeps the old
-  # name until something else re-derives it.
-  # The hook only dispatches, so the 5s timeout is not the wait; see the script for where that happens.
-  windowNameHook = {
-    type = "command";
-    command = lib.getExe (pkgs.callPackage ./hooks/window-name.nix { });
-    timeout = 5;
-  };
-
   # A session has no way to learn its own id, but every hook payload carries one.
   # KEY=value lines appended to $CLAUDE_ENV_FILE join the session environment for the rest of the run, so $CLAUDE_SESSION_ID reaches shell commands; later lines win, which is what makes a clear or a resume land on the new id.
   # The variable is undocumented -- present and working in 2.1.219 -- hence the guard: if it ever disappears the hook is a no-op rather than a failure.
@@ -69,7 +56,7 @@ let
   hooks = {
     # nixfmt: off
     SessionStart = [
-      { hooks = [ stateHook sessionIdHook windowNameHook ]; }
+      { hooks = [ stateHook sessionIdHook ]; }
     ];
     UserPromptSubmit = [ { hooks = [ stateHook ]; } ];
     PreToolUse = [

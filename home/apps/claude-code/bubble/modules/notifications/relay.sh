@@ -19,13 +19,6 @@ tail -n +1 -F "$event_file" 2>/dev/null | while IFS= read -r action; do
 		tmux set -pu -t "$tmux_pane" @tig_path 2>/dev/null || true
 		continue
 		;;
-	window-name:*)
-		# <session-id>:<source>. Backgrounded because the rename waits for Claude Code to write the new session name,
-		# and the tail loop must stay free to carry the state actions arriving meanwhile.
-		payload="${action#window-name:}"
-		claude-window-name --apply "$tmux_pane" "${payload%%:*}" "${payload##*:}" &
-		continue
-		;;
 	esac
 	if [ -n "$tmux_pane" ]; then
 		claude-tmux-state --apply "$tmux_pane" "$action" || true
