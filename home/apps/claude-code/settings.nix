@@ -88,6 +88,14 @@ let
     };
     # Learn more at https://code.claude.com/docs/en/claude-directory#cleaned-up-automatically
     cleanupPeriodDays = 18250; # 50 years, effectively never
+    footerLinksRegexes = [
+      {
+        type = "regex";
+        pattern = "\\bsc-(?<id>\\d+)\\b";
+        url = "https://app.shortcut.com/story/{id}";
+        label = "sc-{id}";
+      }
+    ];
     spellcheck = {
       enabled = true;
       language = "en_GB";
