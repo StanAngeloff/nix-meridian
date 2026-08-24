@@ -85,9 +85,9 @@ new_session_flow() {
 
 	local idx=-1
 	case "$selection" in
-		[1-9])
-			idx=$((count - selection))
-			;;
+	[1-9])
+		idx=$((count - selection))
+		;;
 	esac
 
 	if [ "$idx" -lt 0 ] || [ "$idx" -ge "$count" ]; then
@@ -143,11 +143,11 @@ ensure_remote_session() {
 
 color_for_verdict() {
 	case "$1" in
-		B) printf '\033[31m' ;;
-		W) printf '\033[33m' ;;
-		U) printf '\033[32m' ;;
-		R) printf '\033[2;32m' ;;
-		*) printf '\033[37m' ;;
+	B) printf '\033[31m' ;;
+	W) printf '\033[33m' ;;
+	U) printf '\033[32m' ;;
+	R) printf '\033[2;32m' ;;
+	*) printf '\033[37m' ;;
 	esac
 }
 
@@ -155,8 +155,8 @@ list_cc_panes() {
 	# Scoped to the default session, not -a: once the remote session exists it is grouped with
 	# default (shares its windows), and -a would walk every session's view of those same windows,
 	# listing each pane twice.
-	tmux list-panes -s -t default -F '#{pane_id}|#{window_id}|#{window_name}|#{E:@claude-pane-verdict}' 2>/dev/null \
-		| while IFS='|' read -r pane_id window_id window_name verdict; do
+	tmux list-panes -s -t default -F '#{pane_id}|#{window_id}|#{window_name}|#{E:@claude-pane-verdict}' 2>/dev/null |
+		while IFS='|' read -r pane_id window_id window_name verdict; do
 			[ -n "$verdict" ] || continue
 			printf '%s|%s|%s|%s\n' "$pane_id" "$window_id" "$window_name" "$verdict"
 		done
@@ -222,38 +222,38 @@ main() {
 		if read -rsn1 -t "$timeout" selection; then
 			printf '\033[?1000l\033[?1006l'
 			case "$selection" in
-				[1-9])
-					local idx=$((selection - 1))
-					if [ "$idx" -lt "$count" ]; then
+			[1-9])
+				local idx=$((selection - 1))
+				if [ "$idx" -lt "$count" ]; then
+					local entry="${entries[$idx]}"
+					local pane_id window_id
+					IFS='|' read -r pane_id window_id _ _ <<<"$entry"
+					select_and_attach "$pane_id" "$window_id"
+				fi
+				;;
+			$'\033')
+				local seq=""
+				while IFS= read -rsn1 -t 0.1 ch; do
+					seq="${seq}${ch}"
+					[[ "$ch" == [Mm] ]] && break
+				done
+				if [[ "$seq" =~ ^\[.?([0-9]+)\;([0-9]+)\;([0-9]+)[Mm]$ ]] && [ "${BASH_REMATCH[1]}" -eq 0 ]; then
+					local row="${BASH_REMATCH[3]}"
+					local idx=$((row - 3))
+					if [ "$idx" -ge 0 ] && [ "$idx" -lt "$count" ]; then
 						local entry="${entries[$idx]}"
 						local pane_id window_id
 						IFS='|' read -r pane_id window_id _ _ <<<"$entry"
 						select_and_attach "$pane_id" "$window_id"
 					fi
-					;;
-				$'\033')
-					local seq=""
-					while IFS= read -rsn1 -t 0.1 ch; do
-						seq="${seq}${ch}"
-						[[ "$ch" == [Mm] ]] && break
-					done
-					if [[ "$seq" =~ ^\[.?([0-9]+)\;([0-9]+)\;([0-9]+)[Mm]$ ]] && [ "${BASH_REMATCH[1]}" -eq 0 ]; then
-						local row="${BASH_REMATCH[3]}"
-						local idx=$((row - 3))
-						if [ "$idx" -ge 0 ] && [ "$idx" -lt "$count" ]; then
-							local entry="${entries[$idx]}"
-							local pane_id window_id
-							IFS='|' read -r pane_id window_id _ _ <<<"$entry"
-							select_and_attach "$pane_id" "$window_id"
-						fi
-					fi
-					;;
-				n)
-					new_session_flow
-					;;
-				q)
-					exit 0
-					;;
+				fi
+				;;
+			n)
+				new_session_flow
+				;;
+			q)
+				exit 0
+				;;
 			esac
 		fi
 		printf '\033[?1000l\033[?1006l'
