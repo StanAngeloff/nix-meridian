@@ -36,18 +36,20 @@ readonly poll_seconds=0.2
 # Prints "<name>\t<cwd>"; the cwd comes from the same record so the repository is resolved against the
 # session's own directory rather than whichever one this process happens to have inherited.
 resolve_session() {
-	local session_id="$1" waited=0 file record
+	local session_id="$1" waited=0 record
 	while :; do
-		for file in "$HOME"/.claude/sessions/*.json; do
-			[ -f "$file" ] || continue
-			record=$(jq -r --arg id "$session_id" \
-				'select(.sessionId == $id and (.name // "") != "") | [.name, .cwd] | @tsv' \
-				"$file" 2>/dev/null) || continue
-			if [ -n "$record" ]; then
-				printf '%s' "$record"
-				return 0
-			fi
-		done
+		# /resume reuses the sessionId of the target, so multiple files can carry the same id at once: the
+		# stale process that just exited and the new one that took it over. Picking the most recently updated
+		# file avoids returning the old collision-renamed name instead of the current one.
+		record=$(jq -r --arg id "$session_id" \
+			'select(.sessionId == $id and (.name // "") != "")
+			 | [.updatedAt // 0, .name, .cwd] | @tsv' \
+			"$HOME"/.claude/sessions/*.json 2>/dev/null |
+			sort -rnk1,1 | head -1 | cut -f2-)
+		if [ -n "$record" ]; then
+			printf '%s' "$record"
+			return 0
+		fi
 		# Integer arithmetic on a fractional poll interval: five polls per second, hence the *5.
 		waited=$((waited + 1))
 		[ "$waited" -lt $((wait_seconds * 5)) ] || return 1
