@@ -96,6 +96,7 @@ let
         label = "sc-{id}";
       }
     ];
+    promptSuggestionEnabled = false;
     spellcheck = {
       enabled = true;
       language = "en_GB";
