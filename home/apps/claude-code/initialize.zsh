@@ -1,6 +1,6 @@
 typeset -gA _claude_model_aliases=(
   [fable]=claude-fable-5
-  [opus]=claude-opus-4-6
+  [opus]=claude-opus-4-6[1m]
   [sonnet]=claude-sonnet-5
 )
 
