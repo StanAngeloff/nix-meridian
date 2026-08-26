@@ -105,7 +105,7 @@ function _claude_bubble_initialize() {
     git_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
     if [[ -n "$git_common" ]]; then
       local repository_name="${${git_common%/.git}:t}"
-      local normalized="${session_name%%[/@#.!?[:space:]]*}"
+      local normalized="${session_name%%[+/@#.!?[:space:]]*}"
       if [[ -n "$repository_name" && -n "$normalized" ]]; then
         tmux rename-window "${repository_name}@${normalized}"
       fi
