@@ -115,8 +115,13 @@ def render_file_header(
         elif status == "deleted":
             parts.append(f"{YELLOW}deleted file mode {old_mode}{RESET}")
 
-        mode = new_mode if status != "deleted" else old_mode
-        parts.append(f"{BLUE}index {old_hex}..{new_hex} {mode}{RESET}")
+        display_old_hex = "0000000" if old_hex == "." else old_hex[:7]
+        display_new_hex = "0000000" if new_hex == "." else new_hex[:7]
+        index_line = f"index {display_old_hex}..{display_new_hex}"
+        if status == "changed":
+            mode = new_mode if status != "deleted" else old_mode
+            index_line += f" {mode}"
+        parts.append(f"{BLUE}{index_line}{RESET}")
 
     old_side = "/dev/null" if status == "created" else f"a/{old_path}"
     new_side = "/dev/null" if status == "deleted" else f"b/{new_path}"
@@ -232,15 +237,9 @@ def classify_lines(aligned_lines, lhs_changes, rhs_changes, modified_pairs):
     operations = []
     for lhs_index, rhs_index in aligned_lines:
         if lhs_index is None:
-            if rhs_index in rhs_changes:
-                operations.append(("add", None, rhs_index))
-            else:
-                operations.append(("format_add", None, rhs_index))
+            operations.append(("add", None, rhs_index))
         elif rhs_index is None:
-            if lhs_index in lhs_changes:
-                operations.append(("delete", lhs_index, None))
-            else:
-                operations.append(("format_del", lhs_index, None))
+            operations.append(("delete", lhs_index, None))
         else:
             if (lhs_index, rhs_index) in modified_pairs:
                 operations.append(("modify", lhs_index, rhs_index))
@@ -272,6 +271,29 @@ def demote_identical_modifications(operations, lhs_lines, rhs_lines):
     return demoted
 
 
+def promote_different_context(operations, lhs_lines, rhs_lines):
+    """Promote context to modify when the aligned pair's text actually differs.
+
+    Difftastic's AST alignment sometimes pairs genuinely different lines (for
+    example, a one-line dict literal reformatted into a multi-line block) without
+    emitting any chunk entry, so classify_lines marks them as context. Rendering
+    context uses only rhs_lines, silently dropping the old-side text. Promoting
+    to modify ensures both sides appear as -/+ in the output.
+    """
+    promoted = []
+    for operation, lhs_index, rhs_index in operations:
+        if (
+            operation == "context"
+            and lhs_index is not None
+            and rhs_index is not None
+            and lhs_lines[lhs_index] != rhs_lines[rhs_index]
+        ):
+            promoted.append(("modify", lhs_index, rhs_index))
+            continue
+        promoted.append((operation, lhs_index, rhs_index))
+    return promoted
+
+
 def demote_reformatted_lines(
     operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
 ):
@@ -301,7 +323,55 @@ def demote_reformatted_lines(
     return result
 
 
+def collapse_split_identical_pairs(operations, lhs_lines, rhs_lines):
+    """Collapse a delete and a nearby add of identical text into a single context entry.
+
+    Difftastic's alignment is nondeterministic across invocation contexts (temp file
+    paths affect the language parser's tokenization). A line that exists unchanged on
+    both sides can appear as separate (delete, lhs, None) and (add, None, rhs) entries
+    instead of a single (context, lhs, rhs) pair. This recombines them.
+    """
+    result = list(operations)
+    i = 0
+    while i < len(result):
+        op_i, lhs_i, _ = result[i]
+        if op_i in ("delete", "modify") and lhs_i is not None:
+            del_text = lhs_lines[lhs_i]
+            for j in range(i + 1, min(i + 20, len(result))):
+                op_j, _, rhs_j = result[j]
+                if op_j in ("context", "format_add", "format_del"):
+                    break
+                if op_j == "add" and rhs_j is not None and rhs_lines[rhs_j] == del_text:
+                    if op_i == "modify":
+                        _, _, rhs_i = result[i]
+                        result[i] = ("add", None, rhs_i)
+                    else:
+                        result.pop(i)
+                        j -= 1
+                    result[j] = ("context", lhs_i, rhs_j)
+                    break
+            else:
+                i += 1
+                continue
+        i += 1
+    return result
+
+
 CHANGE_TYPES = frozenset({"add", "delete", "modify"})
+
+
+def get_context_lines():
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", "diff.context"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and result.stdout.strip().isdigit():
+            return int(result.stdout.strip())
+    except OSError:
+        pass
+    return 3
 
 
 def compute_hunks(operations, context_lines=3):
@@ -418,16 +488,24 @@ def render_line_with_emphasis(line_text, changes, base_color, emphasis_color):
 
 
 def _emphasis_covers_entire_line(changes, line_text):
-    """Return True when the emphasis spans every non-whitespace character."""
+    """Return True when the emphasis spans (nearly) every non-whitespace character.
+
+    Tolerates up to 2 uncovered non-whitespace characters. Difftastic's AST parser
+    occasionally excludes trivial tokens (a trailing line-continuation backslash, a
+    stray semicolon) from the emphasis even when the entire line is genuinely changed.
+    """
     if not changes:
         return False
     covered = set()
     for change in changes:
         for col in range(change["start"], change["end"]):
             covered.add(col)
-    return all(
-        col in covered for col, char in enumerate(line_text) if not char.isspace()
+    uncovered = sum(
+        1
+        for col, char in enumerate(line_text)
+        if not char.isspace() and col not in covered
     )
+    return uncovered <= 2
 
 
 def render_hunk_header(operations, funcname=None):
@@ -493,10 +571,12 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
     lhs_changes, rhs_changes, modified_pairs = build_chunk_lookup(chunks)
     operations = classify_lines(aligned, lhs_changes, rhs_changes, modified_pairs)
     operations = demote_identical_modifications(operations, lhs_lines, rhs_lines)
+    operations = promote_different_context(operations, lhs_lines, rhs_lines)
     operations = demote_reformatted_lines(
         operations, lhs_lines, rhs_lines, lhs_changes, rhs_changes
     )
-    hunks = compute_hunks(operations)
+    operations = collapse_split_identical_pairs(operations, lhs_lines, rhs_lines)
+    hunks = compute_hunks(operations, context_lines=get_context_lines())
 
     output_parts = []
 
@@ -559,10 +639,15 @@ def render_changed_file(path, lhs_lines, rhs_lines, data):
                 rhs_text = rhs_lines[rhs_index]
                 lhs_emph = lhs_changes.get(lhs_index, [])
                 rhs_emph = rhs_changes.get(rhs_index, [])
-                if _emphasis_covers_entire_line(
-                    lhs_emph, lhs_text
-                ) and _emphasis_covers_entire_line(rhs_emph, rhs_text):
-                    lhs_emph, rhs_emph = compute_text_emphasis(lhs_text, rhs_text)
+                lhs_full = _emphasis_covers_entire_line(lhs_emph, lhs_text)
+                rhs_full = _emphasis_covers_entire_line(rhs_emph, rhs_text)
+                both_partial = lhs_emph and rhs_emph and not lhs_full and not rhs_full
+                if not both_partial:
+                    text_lhs, text_rhs = compute_text_emphasis(lhs_text, rhs_text)
+                    if text_lhs or text_rhs:
+                        lhs_emph, rhs_emph = text_lhs, text_rhs
+                    elif lhs_full and rhs_full:
+                        lhs_emph, rhs_emph = [], []
                 pending_del.append(render_del_line(lhs_text, lhs_emph))
                 pending_add.append(render_add_line(rhs_text, rhs_emph))
 

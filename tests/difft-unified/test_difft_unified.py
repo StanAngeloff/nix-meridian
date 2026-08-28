@@ -96,6 +96,35 @@ def test_render_file_header_simple_changed():
     assert "rename from" not in result
 
 
+def test_render_file_header_created_file_dot_sentinel():
+    """Git passes '.' as old_hex for new files. The index line should show 0000000."""
+    result = difft_unified.render_file_header(
+        "new/file.nix",
+        "new/file.nix",
+        ".",
+        ".",
+        "abcdef1234567890abcdef1234567890abcdef12",
+        "100644",
+        "created",
+    )
+    assert "index 0000000..abcdef1" in result
+    assert "index 0000000..abcdef1 100644" not in result
+
+
+def test_render_file_header_deleted_file_dot_sentinel():
+    result = difft_unified.render_file_header(
+        "old/file.nix",
+        "old/file.nix",
+        "abcdef1234567890abcdef1234567890abcdef12",
+        "100644",
+        ".",
+        ".",
+        "deleted",
+    )
+    assert "index abcdef1..0000000" in result
+    assert "index abcdef1..0000000 100644" not in result
+
+
 def test_render_file_header_rename_prints_git_supplied_block_verbatim():
     # Git precomputes the entire rename/copy extended header (similarity index, rename
     # from/to, and an index line with abbreviated hashes) as one pre-formatted block,
@@ -349,6 +378,27 @@ def test_demote_identical_modifications_keeps_real_modifications():
     assert result == [("modify", 0, 0)]
 
 
+def test_promote_different_context_upgrades_mismatched_pair():
+    """Difftastic sometimes aligns genuinely different lines without emitting chunk entries,
+    so classify_lines marks them context. promote_different_context catches these and upgrades
+    to modify so both sides appear in the output."""
+    operations = [("context", 0, 0), ("context", 1, 1), ("context", 2, 2)]
+    lhs_lines = ["same", '{"start": 0, "end": 8}', "same"]
+    rhs_lines = ["same", "{", "same"]
+    result = difft_unified.promote_different_context(operations, lhs_lines, rhs_lines)
+    assert result[0] == ("context", 0, 0)
+    assert result[1] == ("modify", 1, 1)
+    assert result[2] == ("context", 2, 2)
+
+
+def test_promote_different_context_keeps_identical_context():
+    operations = [("context", 0, 0), ("context", 1, 1)]
+    lhs_lines = ["same", "also same"]
+    rhs_lines = ["same", "also same"]
+    result = difft_unified.promote_different_context(operations, lhs_lines, rhs_lines)
+    assert result == operations
+
+
 def test_demote_identical_modifications_leaves_add_and_delete_untouched():
     operations = [("add", None, 0), ("delete", 0, None)]
     lhs_lines = ["deleted line"]
@@ -359,7 +409,7 @@ def test_demote_identical_modifications_leaves_add_and_delete_untouched():
     assert result == operations
 
 
-def test_classify_lines_format_add_when_no_chunks():
+def test_classify_lines_add_when_no_chunks():
     aligned = [[0, 0], [None, 1], [None, 2], [1, 3]]
     lhs_changes = {}
     rhs_changes = {}
@@ -367,11 +417,11 @@ def test_classify_lines_format_add_when_no_chunks():
     result = difft_unified.classify_lines(
         aligned, lhs_changes, rhs_changes, modified_pairs
     )
-    assert result[1] == ("format_add", None, 1)
-    assert result[2] == ("format_add", None, 2)
+    assert result[1] == ("add", None, 1)
+    assert result[2] == ("add", None, 2)
 
 
-def test_classify_lines_format_del_when_no_chunks():
+def test_classify_lines_del_when_no_chunks():
     aligned = [[0, 0], [1, None], [2, None], [3, 1]]
     lhs_changes = {}
     rhs_changes = {}
@@ -379,8 +429,8 @@ def test_classify_lines_format_del_when_no_chunks():
     result = difft_unified.classify_lines(
         aligned, lhs_changes, rhs_changes, modified_pairs
     )
-    assert result[1] == ("format_del", 1, None)
-    assert result[2] == ("format_del", 2, None)
+    assert result[1] == ("delete", 1, None)
+    assert result[2] == ("delete", 2, None)
 
 
 def test_compute_hunks_format_operations_are_not_changes():
@@ -505,6 +555,19 @@ def test_emphasis_covers_entire_line_false_partial():
     changes = [{"start": 48, "end": 49, "content": ",", "highlight": "normal"}]
     line = "          translationKey: 'apiErrors:resetPasswordTokenExpired',"
     assert difft_unified._emphasis_covers_entire_line(changes, line) is False
+
+
+def test_emphasis_covers_entire_line_tolerates_trailing_backslash():
+    """Difft's AST parser sometimes excludes a trailing continuation backslash from
+    emphasis even when the whole line is genuinely new."""
+    line = "			 | [.updatedAt // 0, .name, .cwd] | @tsv' \\"
+    non_ws = [col for col, ch in enumerate(line) if not ch.isspace()]
+    changes = [
+        {"start": col, "end": col + 1, "content": line[col], "highlight": "normal"}
+        for col in non_ws
+        if line[col] != "\\"
+    ]
+    assert difft_unified._emphasis_covers_entire_line(changes, line) is True
 
 
 def test_compute_text_emphasis_common_prefix_and_suffix():
@@ -1026,3 +1089,385 @@ def test_parse_arguments_rename_nine_parameter_form():
 def test_parse_arguments_invalid_argument_count_raises():
     with pytest.raises(ValueError, match="Usage:"):
         difft_unified.parse_arguments(["difft-unified", "only-one-arg"])
+
+
+def test_one_sided_delete_without_chunks_stays_delete():
+    """Difft's chunk data is nondeterministic across language parsers: a genuinely deleted
+    line like `];` sometimes has no chunk entry. It must still render as a deletion, not
+    as context."""
+    lhs_lines = ["context", "plugins = with pkgs; [", "  fuzzback;", "];", "end"]
+    rhs_lines = ["context", "plugins = [ ];", "end"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1], [2, None], [3, None], [4, 2], [5, 3]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 1,
+                        "changes": [
+                            {
+                                "start": 10,
+                                "end": 22,
+                                "content": "with pkgs; [",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 1,
+                        "changes": [],
+                    },
+                },
+                {
+                    "lhs": {
+                        "line_number": 2,
+                        "changes": [
+                            {
+                                "start": 0,
+                                "end": 10,
+                                "content": "  fuzzback;",
+                                "highlight": "normal",
+                            }
+                        ],
+                    },
+                },
+            ]
+        ],
+        "language": "Nix",
+        "path": "test.nix",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.nix", lhs_lines, rhs_lines, data)
+    assert f"{difft_unified.RED}-];{difft_unified.RESET}" in result
+
+
+def test_one_sided_blank_line_add_without_chunks_renders_as_addition():
+    """A genuinely added blank line has no difft chunk entry (nothing to tokenize). It must
+    still render with a + prefix, not as unmarked context."""
+    lhs_lines = ["before", "after"]
+    rhs_lines = ["before", "", "after"]
+    data = {
+        "aligned_lines": [[0, 0], [None, 1], [1, 2], [2, 3]],
+        "chunks": [],
+        "language": "Text",
+        "path": "test.txt",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.txt", lhs_lines, rhs_lines, data)
+    lines = result.split("\n")
+    blank_line = [
+        line
+        for line in lines
+        if line.startswith(difft_unified.GREEN + "+")
+        and line.strip(difft_unified.GREEN + difft_unified.RESET + "+") == ""
+    ]
+    assert len(blank_line) == 1
+
+
+def test_modify_asymmetric_emphasis_uses_text_fallback():
+    """When difft reports emphasis on one side of a modify pair but not the other,
+    compute_text_emphasis should provide symmetric word-level highlights."""
+    lhs_lines = ["    plugins = with pkgs.tmuxPlugins; ["]
+    rhs_lines = ["    plugins = [ ];"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 0,
+                        "changes": [
+                            {
+                                "start": 14,
+                                "end": 18,
+                                "content": "with",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 19,
+                                "end": 23,
+                                "content": "pkgs",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 23,
+                                "end": 24,
+                                "content": ".",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 24,
+                                "end": 35,
+                                "content": "tmuxPlugins",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 35,
+                                "end": 36,
+                                "content": ";",
+                                "highlight": "normal",
+                            },
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 0,
+                        "changes": [],
+                    },
+                }
+            ]
+        ],
+        "language": "Nix",
+        "path": "test.nix",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.nix", lhs_lines, rhs_lines, data)
+    assert difft_unified.EMPHASIS_DEL in result
+    assert difft_unified.EMPHASIS_ADD in result
+
+
+def test_modify_both_full_emphasis_uses_text_fallback():
+    """When both sides have full emphasis, compute_text_emphasis should isolate the actual
+    change rather than showing no emphasis at all. Here '-alpha' is removed, so only the
+    deletion side gets a highlight; the addition side is the whole line minus that portion.
+    """
+    lhs_lines = ["    version = 0.1.0-alpha;"]
+    rhs_lines = ["    version = 0.1.0;"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 0,
+                        "changes": [
+                            {
+                                "start": 4,
+                                "end": 11,
+                                "content": "version",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 12,
+                                "end": 13,
+                                "content": "=",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 14,
+                                "end": 25,
+                                "content": "0.1.0-alpha",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 25,
+                                "end": 26,
+                                "content": ";",
+                                "highlight": "normal",
+                            },
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 0,
+                        "changes": [
+                            {
+                                "start": 4,
+                                "end": 11,
+                                "content": "version",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 12,
+                                "end": 13,
+                                "content": "=",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 14,
+                                "end": 19,
+                                "content": "0.1.0",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 19,
+                                "end": 20,
+                                "content": ";",
+                                "highlight": "normal",
+                            },
+                        ],
+                    },
+                }
+            ]
+        ],
+        "language": "Nix",
+        "path": "test.nix",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.nix", lhs_lines, rhs_lines, data)
+    assert difft_unified.EMPHASIS_DEL in result
+
+
+def test_modify_both_full_emphasis_symmetric_insertion():
+    """When both sides have full emphasis and the change is an insertion, compute_text_emphasis
+    should highlight the inserted portion on the addition side."""
+    lhs_lines = ["    plugins = [ ];"]
+    rhs_lines = ["    plugins = with pkgs; [ ];"]
+    data = {
+        "aligned_lines": [[0, 0], [1, 1]],
+        "chunks": [
+            [
+                {
+                    "lhs": {
+                        "line_number": 0,
+                        "changes": [
+                            {
+                                "start": 4,
+                                "end": 11,
+                                "content": "plugins",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 12,
+                                "end": 13,
+                                "content": "=",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 14,
+                                "end": 15,
+                                "content": "[",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 16,
+                                "end": 17,
+                                "content": "]",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 17,
+                                "end": 18,
+                                "content": ";",
+                                "highlight": "normal",
+                            },
+                        ],
+                    },
+                    "rhs": {
+                        "line_number": 0,
+                        "changes": [
+                            {
+                                "start": 4,
+                                "end": 11,
+                                "content": "plugins",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 12,
+                                "end": 13,
+                                "content": "=",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 14,
+                                "end": 18,
+                                "content": "with",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 19,
+                                "end": 23,
+                                "content": "pkgs",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 23,
+                                "end": 24,
+                                "content": ";",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 25,
+                                "end": 26,
+                                "content": "[",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 27,
+                                "end": 28,
+                                "content": "]",
+                                "highlight": "normal",
+                            },
+                            {
+                                "start": 28,
+                                "end": 29,
+                                "content": ";",
+                                "highlight": "normal",
+                            },
+                        ],
+                    },
+                }
+            ]
+        ],
+        "language": "Nix",
+        "path": "test.nix",
+        "status": "changed",
+    }
+    result = difft_unified.render_changed_file("test.nix", lhs_lines, rhs_lines, data)
+    assert difft_unified.EMPHASIS_ADD in result
+
+
+def test_collapse_split_identical_pairs_delete_then_add():
+    """When difft splits an unchanged line into a separate delete and add, the collapse
+    pass should recombine them into a single context entry."""
+    operations = [
+        ("context", 0, 0),
+        ("delete", 1, None),
+        ("add", None, 1),
+        ("add", None, 2),
+        ("context", 2, 3),
+    ]
+    lhs_lines = ["ctx", "unchanged line", "ctx"]
+    rhs_lines = ["ctx", "unchanged line", "new line", "ctx"]
+    result = difft_unified.collapse_split_identical_pairs(
+        operations, lhs_lines, rhs_lines
+    )
+    assert ("context", 1, 1) in result
+    assert ("delete", 1, None) not in result
+
+
+def test_collapse_split_identical_pairs_modify_then_add():
+    """When difft pairs a line with the wrong rhs (modify) and adds the real match
+    separately, the collapse pass should convert the modify to an add and the add to context.
+    """
+    operations = [
+        ("context", 0, 0),
+        ("modify", 1, 1),
+        ("add", None, 2),
+        ("context", 2, 3),
+    ]
+    lhs_lines = ["ctx", "wrapProgram $out \\", "ctx"]
+    rhs_lines = ["ctx", "# aspell comment", "wrapProgram $out \\", "ctx"]
+    result = difft_unified.collapse_split_identical_pairs(
+        operations, lhs_lines, rhs_lines
+    )
+    assert ("context", 1, 2) in result
+    assert ("add", None, 1) in result
+
+
+def test_collapse_split_identical_pairs_no_false_positives():
+    """Collapse must not merge delete+add when text differs."""
+    operations = [
+        ("delete", 0, None),
+        ("add", None, 0),
+    ]
+    lhs_lines = ["old text"]
+    rhs_lines = ["new text"]
+    result = difft_unified.collapse_split_identical_pairs(
+        operations, lhs_lines, rhs_lines
+    )
+    assert result == operations
+
+
+def test_get_context_lines_returns_integer():
+    result = difft_unified.get_context_lines()
+    assert isinstance(result, int)
+    assert result >= 1
