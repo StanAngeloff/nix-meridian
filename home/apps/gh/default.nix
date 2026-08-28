@@ -1,10 +1,14 @@
 { pkgs-unstable, ... }:
+let
+  gh = pkgs-unstable.gh;
+  gh-stack = pkgs-unstable.gh-stack;
+in
 {
   programs.gh = {
     enable = true;
-    package = pkgs-unstable.gh;
+    package = gh;
 
-    extensions = with pkgs-unstable; [
+    extensions = [
       gh-stack
     ];
 
@@ -15,4 +19,6 @@
       };
     };
   };
+
+  home.file.".claude/skills/gh-stack".source = "${gh-stack}/share/skills/gh-stack/gh-stack";
 }
