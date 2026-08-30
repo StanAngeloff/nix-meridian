@@ -1,0 +1,317 @@
+--- i/include/tig/diff.h
++++ w/include/tig/diff.h
+@@ -45,6 +45,11 @@
+ unsigned int diff_get_lineno(struct view *view, struct line *line, bool old);
+ const char *diff_get_pathname(struct view *view, struct line *line, bool old);
+ 
++void annotations_scan(void);
++bool annotations_exist(void);
++bool annotations_has(const char *file, unsigned int lineno);
++bool annotations_has_file(const char *file);
++
+ extern struct view diff_view;
+ 
+ static inline void
+--- i/include/tig/line.h
++++ w/include/tig/line.h
+@@ -43,6 +43,7 @@
+ 	_(DIFF_ADD_HIGHLIGHT,	""), \
+ 	_(DIFF_DEL_HIGHLIGHT,	""), \
+ 	_(DIFF_HEADER_FILL,	""), \
++	_(ANNOTATION_MARK,	""), \
+ 	_(PP_MERGE,		"Merge: "), \
+ 	_(PP_REFS,		"Refs: "), \
+ 	_(PP_REFLOG,		"Reflog: "), \
+--- i/src/diff.c
++++ w/src/diff.c
+@@ -22,6 +22,9 @@
+ #include "tig/draw.h"
+ #include "tig/apps.h"
+ 
++#include <dirent.h>
++#include <sys/stat.h>
++
+ static enum status_code
+ diff_open(struct view *view, enum open_flags flags)
+ {
+@@ -885,6 +888,160 @@
+ 	diff_common_select(view, line, "Changes");
+ }
+ 
++/*
++ * Annotation marks: scan .git/tig-annotate/ for annotation files and
++ * expose a lookup so draw_view_line() can append a marker to annotated
++ * lines.  The companion shell tool (tig-annotate) stores one file per
++ * annotation, named "{encoded_path}:{lineno}.md" where "/" in the path
++ * is replaced with U+00B7 MIDDLE DOT, and lineno is "file" for
++ * file-level annotations.  We cache the directory listing and gate
++ * rescans on mtime+ctime so that scrolling costs only one stat().
++ */
++
++#define ANNOTATION_MAX_ENTRIES 4096
++
++static char *annotation_cache[ANNOTATION_MAX_ENTRIES];
++static size_t annotation_cache_count;
++static time_t annotation_last_mtime;
++static time_t annotation_last_ctime;
++
++static void
++annotations_do_scan(const char *path)
++{
++	DIR *dp;
++	struct dirent *ent;
++	size_t i;
++
++	for (i = 0; i < annotation_cache_count; i++)
++		free(annotation_cache[i]);
++	annotation_cache_count = 0;
++
++	dp = opendir(path);
++	if (!dp)
++		return;
++
++	while ((ent = readdir(dp)) != NULL &&
++	       annotation_cache_count < ANNOTATION_MAX_ENTRIES) {
++		const char *name = ent->d_name;
++		size_t len = strlen(name);
++
++		if (len < 4 || strcmp(name + len - 3, ".md") != 0)
++			continue;
++
++		annotation_cache[annotation_cache_count] = strndup(name, len - 3);
++		if (annotation_cache[annotation_cache_count])
++			annotation_cache_count++;
++	}
++
++	closedir(dp);
++}
++
++void
++annotations_scan(void)
++{
++	char path[SIZEOF_STR];
++	struct stat st;
++
++	if (!*repo.git_dir)
++		return;
++
++	if (!string_format(path, "%s/tig-annotate", repo.git_dir))
++		return;
++
++	if (stat(path, &st) != 0) {
++		if (annotation_cache_count > 0) {
++			size_t i;
++
++			for (i = 0; i < annotation_cache_count; i++)
++				free(annotation_cache[i]);
++			annotation_cache_count = 0;
++		}
++		annotation_last_mtime = 0;
++		annotation_last_ctime = 0;
++		return;
++	}
++
++	if (st.st_mtime == annotation_last_mtime &&
++	    st.st_ctime == annotation_last_ctime)
++		return;
++
++	annotation_last_mtime = st.st_mtime;
++	annotation_last_ctime = st.st_ctime;
++	annotations_do_scan(path);
++}
++
++bool
++annotations_exist(void)
++{
++	return annotation_cache_count > 0;
++}
++
++static size_t
++encode_annotation_path(char *dst, size_t dstlen, const char *file)
++{
++	size_t pos = 0;
++	const char *p;
++
++	/* Replace '/' with U+00B7 MIDDLE DOT (UTF-8: C2 B7), matching
++	 * the encoding used by the tig-annotate shell script. */
++	for (p = file; *p && pos < dstlen - 3; p++) {
++		if (*p == '/') {
++			dst[pos++] = '\xc2';
++			dst[pos++] = '\xb7';
++		} else {
++			dst[pos++] = *p;
++		}
++	}
++	dst[pos] = '\0';
++	return pos;
++}
++
++bool
++annotations_has(const char *file, unsigned int lineno)
++{
++	char encoded[SIZEOF_STR];
++	char key[SIZEOF_STR];
++	size_t i;
++
++	if (!annotation_cache_count || !file)
++		return false;
++
++	encode_annotation_path(encoded, sizeof(encoded), file);
++
++	if (lineno > 0)
++		string_format(key, "%s:%u", encoded, lineno);
++	else
++		string_format(key, "%s:file", encoded);
++
++	for (i = 0; i < annotation_cache_count; i++) {
++		if (strcmp(annotation_cache[i], key) == 0)
++			return true;
++	}
++
++	return false;
++}
++
++bool
++annotations_has_file(const char *file)
++{
++	char encoded[SIZEOF_STR];
++	size_t encoded_len;
++	size_t i;
++
++	if (!annotation_cache_count || !file)
++		return false;
++
++	encoded_len = encode_annotation_path(encoded, sizeof(encoded), file);
++
++	for (i = 0; i < annotation_cache_count; i++) {
++		if (strncmp(annotation_cache[i], encoded, encoded_len) == 0 &&
++		    annotation_cache[i][encoded_len] == ':')
++			return true;
++	}
++
++	return false;
++}
++
+ static struct view_ops diff_ops = {
+ 	"line",
+ 	argv_env.commit,
+--- i/src/draw.c
++++ w/src/draw.c
+@@ -14,6 +14,8 @@
+ #include "tig/tig.h"
+ #include "tig/graph.h"
+ #include "tig/draw.h"
++#include "tig/diff.h"
++#include "tig/status.h"
+ #include "tig/options.h"
+ #include "tig/display.h"
+ #include "compat/hashtab.h"
+@@ -712,6 +714,92 @@
+ 		}
+ 	}
+ 
++	if (annotations_exist()) {
++		bool has = false;
++
++		switch (line->type) {
++		case LINE_DIFF_ADD:
++		case LINE_DIFF_ADD2:
++		case LINE_DIFF_DEL:
++		case LINE_DIFF_DEL2: {
++			/* Deleted lines only exist in the old file, so look up
++			 * the old-file line number to match tig-annotate's
++			 * %(lineno)/%(lineno_old) fallback logic. */
++			bool use_old = (line->type == LINE_DIFF_DEL ||
++					line->type == LINE_DIFF_DEL2);
++			const char *file = diff_get_pathname(view, line, use_old);
++
++			if (file) {
++				unsigned int file_lineno = diff_get_lineno(view, line, use_old);
++
++				has = file_lineno > 0 &&
++				      annotations_has(file, file_lineno);
++			}
++			break;
++		}
++		/* Context lines (unchanged) use the new-file line number. */
++		case LINE_DEFAULT: {
++			unsigned int file_lineno = diff_get_lineno(view, line, false);
++
++			if (file_lineno > 0) {
++				const char *file = diff_get_pathname(view, line, false);
++
++				has = file != NULL && annotations_has(file, file_lineno);
++			}
++			break;
++		}
++		case LINE_DIFF_HEADER: {
++			const char *file = diff_get_pathname(view, line, false);
++
++			has = file && annotations_has(file, 0);
++			break;
++		}
++		case LINE_STAT_STAGED:
++		case LINE_STAT_UNSTAGED:
++		case LINE_STAT_UNTRACKED: {
++			const struct status *status = line->data;
++
++			has = status && annotations_has_file(status->new.name);
++			break;
++		}
++		default:
++			break;
++		}
++
++		if (has) {
++			int y, x;
++			int max_x = getmaxx(view->win);
++
++			getyx(view->win, y, x);
++			if (y == (int) lineno) {
++				/* Status view pads filenames to column width;
++				 * rewind past the padding to place the mark
++				 * right after the filename text. */
++				if (line->type == LINE_STAT_STAGED ||
++				    line->type == LINE_STAT_UNSTAGED ||
++				    line->type == LINE_STAT_UNTRACKED) {
++					while (x > 0 &&
++					       (mvwinch(view->win, y, x - 1) & A_CHARTEXT) == ' ')
++						x--;
++				}
++
++				/* For lines wider than the window, place the
++				 * mark at the right edge, overlaying text. */
++				if (x > max_x - 2)
++					x = max_x - 2;
++
++				/* U+203B REFERENCE MARK (UTF-8: E2 80 BB).
++				 * On selected status lines, skip wattrset so
++				 * the mark inherits the cursor color. */
++				if (x >= 0) {
++					if (!line->selected)
++						(void) wattrset(view->win, get_view_attr(view, LINE_ANNOTATION_MARK));
++					mvwaddstr(view->win, y, x, " \xe2\x80\xbb");
++				}
++			}
++		}
++	}
++
+ 	return ok;
+ }
+ 
+@@ -721,6 +809,7 @@
+ 	bool dirty = false;
+ 	int lineno;
+ 
++	annotations_scan();
+ 	for (lineno = 0; lineno < view->height; lineno++) {
+ 		if (view->pos.offset + lineno >= view->lines)
+ 			break;
+@@ -740,6 +829,7 @@
+ redraw_view_from(struct view *view, int lineno)
+ {
+ 	assert(0 <= lineno && lineno < view->height);
++	annotations_scan();
+ 
+ 	if (view->columns && view_column_info_changed(view, false)) {
+ 		int i;

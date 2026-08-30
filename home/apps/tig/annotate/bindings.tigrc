@@ -1,4 +1,6 @@
 
+color annotation-mark color214 default
+
 bind generic cn +sh -c "\
   f='%(file)'; \
   [ -n \"$f\" ] && \
