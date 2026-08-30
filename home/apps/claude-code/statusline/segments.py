@@ -262,9 +262,9 @@ def _context(payload):
     if used is None:
         return None
     percent = percent_of(used)
-    colour = (
-        palette.AMBER if payload.get("exceeds_200k_tokens") else palette.PASTEL_GREEN
-    )
+    window_size = window.get("context_window_size") or 1_000_000
+    tokens_used = int(float(used) * window_size / 100)
+    colour = palette.context_color(tokens_used)
 
     def bar(columns):
         filled = min(columns, percent * columns // 100)

@@ -128,10 +128,36 @@ class ContextSegment(unittest.TestCase):
             [form.penalty for form in by_key(FULL_PAYLOAD, "ctx").forms], [0, 2, 8]
         )
 
-    def test_is_green_normally_and_amber_beyond_two_hundred_thousand(self):
-        self.assertIn(palette.PASTEL_GREEN, by_key(FULL_PAYLOAD, "ctx").forms[0].text)
-        payload = dict(FULL_PAYLOAD, exceeds_200k_tokens=True)
-        self.assertIn(palette.AMBER, by_key(payload, "ctx").forms[0].text)
+    def test_is_green_below_100k_and_graduates_through_amber_orange_to_red(self):
+        low = {
+            "context_window": {"context_window_size": 1_000_000, "used_percentage": 5.0}
+        }
+        self.assertIn(palette.context_color(50_000), by_key(low, "ctx").forms[0].text)
+
+        mid = {
+            "context_window": {
+                "context_window_size": 1_000_000,
+                "used_percentage": 14.0,
+            }
+        }
+        self.assertIn(palette.context_color(140_000), by_key(mid, "ctx").forms[0].text)
+
+        hot = {
+            "context_window": {
+                "context_window_size": 1_000_000,
+                "used_percentage": 30.0,
+            }
+        }
+        self.assertIn(palette.context_color(300_000), by_key(hot, "ctx").forms[0].text)
+
+    def test_context_color_changes_across_keypoints(self):
+        green = palette.context_color(50_000)
+        amber = palette.context_color(140_000)
+        orange = palette.context_color(200_000)
+        red = palette.context_color(500_000)
+        self.assertNotEqual(green, amber)
+        self.assertNotEqual(amber, orange)
+        self.assertNotEqual(orange, red)
 
     def test_has_no_drop(self):
         self.assertTrue(all(form.text for form in by_key(FULL_PAYLOAD, "ctx").forms))
