@@ -15,8 +15,8 @@ import unicodedata
 
 import palette
 
-# Colour sequences only. This status line emits no cursor movement or erase sequences.
-ANSI_SEQUENCE = re.compile(r"\x1b\[[0-9;]*m")
+# SGR colour sequences and OSC 8 hyperlink open/close markers — all zero-width.
+ANSI_SEQUENCE = re.compile(r"\x1b\[[0-9;]*m|\x1b\]8;;[^\x1b]*\x1b\\")
 
 # East Asian Width classes that occupy two terminal columns. "A" (ambiguous) is deliberately absent:
 # Claude Code counts it as one, matching Node's string-width default, and almost every glyph on this

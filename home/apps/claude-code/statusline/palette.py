@@ -20,3 +20,8 @@ AMBER = "\x1b[38;2;255;191;0m"
 def paint(text, colour):
     """`text` in `colour`, reset afterwards."""
     return f"{colour}{text}{RESET}"
+
+
+def link(text, url):
+    """`text` as a clickable OSC 8 hyperlink."""
+    return f"\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\"

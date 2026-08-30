@@ -8,6 +8,7 @@ The penalties are the whole tuning surface. They are ratios in practice, not abs
 is a form's penalty against the columns it saves, because that ratio is what the fitter sorts on.
 """
 
+import re
 import fit
 import palette
 
@@ -22,6 +23,7 @@ ELLIPSIS = "…"
 CONTEXT_BAR_WIDE = 10
 CONTEXT_BAR_NARROW = 6
 BRANCH_SHORT_COLUMNS = 12
+BRANCH_PREFIX_RE = re.compile(r"[+/@#.!?\s]")
 
 # The five-hour window only earns its reset countdown once it is half spent. Below that the
 # percentage alone is the whole story, and the countdown is nineteen columns that buy nothing.
@@ -97,7 +99,7 @@ def reset_countdown(resets_at, now_epoch):
     return f"{hours}h{minutes}m" if hours else f"{minutes}m"
 
 
-def build(payload, branch="", now_epoch=0):
+def build(payload, branch="", now_epoch=0, github_url=""):
     """Every segment that has data to show, in the order it renders.
 
     The clock and the branch arrive as arguments rather than being read here, which keeps this module
@@ -105,7 +107,7 @@ def build(payload, branch="", now_epoch=0):
     """
     candidates = (
         _model(payload),
-        _branch(branch),
+        _branch(branch, github_url=github_url),
         _cost(payload),
         _duration(payload),
         _diff(payload),
@@ -140,21 +142,41 @@ def _model(payload):
     )
 
 
-def _branch(branch):
+def _branch_prefix(branch):
+    """The leading token before the first separator, mirroring the tmux window-title normalisation."""
+    match = BRANCH_PREFIX_RE.search(branch)
+    if match:
+        return branch[: match.start()]
+    return ""
+
+
+def _branch_label(text, branch, github_url):
+    painted = palette.paint(text, palette.GREEN)
+    if github_url:
+        return palette.link(painted, f"{github_url}/tree/{branch}")
+    return painted
+
+
+def _branch(branch, github_url=""):
     if not branch:
         return None
-    short = branch
-    if len(branch) > BRANCH_SHORT_COLUMNS:
-        short = branch[: BRANCH_SHORT_COLUMNS - 1] + ELLIPSIS
-    return fit.Segment(
-        "branch",
-        "branch",
-        (
-            fit.Form(palette.paint(branch, palette.GREEN), 0),
-            fit.Form(palette.paint(short, palette.GREEN), 5),
+    prefix = _branch_prefix(branch)
+    if prefix and len(prefix) < len(branch):
+        forms = (
+            fit.Form(_branch_label(branch, branch, github_url), 0),
+            fit.Form(_branch_label(prefix, branch, github_url), 1),
             fit.Form(fit.DROP, 30),
-        ),
-    )
+        )
+    else:
+        short = branch
+        if len(branch) > BRANCH_SHORT_COLUMNS:
+            short = branch[: BRANCH_SHORT_COLUMNS - 1] + ELLIPSIS
+        forms = (
+            fit.Form(_branch_label(branch, branch, github_url), 0),
+            fit.Form(_branch_label(short, branch, github_url), 5),
+            fit.Form(fit.DROP, 30),
+        )
+    return fit.Segment("branch", "branch", tuple(forms))
 
 
 def _cost(payload):

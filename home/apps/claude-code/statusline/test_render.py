@@ -29,6 +29,15 @@ class VisibleWidth(unittest.TestCase):
     def test_counts_genuinely_wide_characters_as_two_columns(self):
         self.assertEqual(render.visible_width("漢"), 2)
 
+    def test_ignores_osc8_hyperlink_sequences(self):
+        linked = palette.link("trunk", "https://github.com/user/repo/tree/trunk")
+        self.assertEqual(render.visible_width(linked), 5)
+
+    def test_ignores_osc8_wrapping_coloured_text(self):
+        painted = palette.paint("trunk", palette.GREEN)
+        linked = palette.link(painted, "https://github.com/user/repo/tree/trunk")
+        self.assertEqual(render.visible_width(linked), 5)
+
     def test_is_zero_for_empty_and_colour_only_text(self):
         self.assertEqual(render.visible_width(""), 0)
         self.assertEqual(render.visible_width(palette.RESET), 0)

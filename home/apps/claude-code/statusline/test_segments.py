@@ -173,26 +173,89 @@ class RateLimitSegments(unittest.TestCase):
 
 
 class BranchSegment(unittest.TestCase):
-    def test_short_branch_has_an_identical_middle_form(self):
+    def test_short_branch_without_separator_has_no_prefix_form(self):
         branch = by_key(FULL_PAYLOAD, "branch", branch="trunk")
         self.assertEqual(
             [plain(branch, level) for level in range(len(branch.forms))],
             ["trunk", "trunk", ""],
         )
 
-    def test_long_branch_truncates_to_twelve_columns(self):
-        branch = by_key(FULL_PAYLOAD, "branch", branch="feature/very-long-name")
-        self.assertEqual(plain(branch, 1), "feature/ver…")
+    def test_long_branch_without_separator_truncates_to_twelve_columns(self):
+        branch = by_key(FULL_PAYLOAD, "branch", branch="very-long-branch-name")
+        self.assertEqual(plain(branch, 1), "very-long-b…")
         self.assertEqual(render.visible_width(branch.forms[1].text), 12)
+
+    def test_branch_with_separator_degrades_to_prefix(self):
+        branch = by_key(FULL_PAYLOAD, "branch", branch="sc-54321/story-title-goes-here")
+        self.assertEqual(
+            [plain(branch, level) for level in range(len(branch.forms))],
+            ["sc-54321/story-title-goes-here", "sc-54321", ""],
+        )
+
+    def test_prefix_degrades_cheaply_so_other_segments_keep_their_rich_forms(self):
+        branch = by_key(FULL_PAYLOAD, "branch", branch="sc-54321/story-title-goes-here")
+        self.assertEqual(
+            [f.penalty for f in branch.forms],
+            [0, 1, 30],
+        )
+
+    def test_prefix_form_handles_all_separator_characters(self):
+        for separator in ["/", "+", "@", "#", ".", "!", "?"]:
+            name = f"prefix{separator}rest"
+            branch = by_key(FULL_PAYLOAD, "branch", branch=name)
+            forms = [plain(branch, level) for level in range(len(branch.forms))]
+            self.assertIn(
+                "prefix", forms, f"separator {separator!r} should yield prefix form"
+            )
 
     def test_absent_without_a_branch(self):
         self.assertIsNone(by_key(FULL_PAYLOAD, "branch", branch=""))
 
-    def test_penalties_match_the_table(self):
+    def test_penalties_without_separator(self):
         self.assertEqual(
             [f.penalty for f in by_key(FULL_PAYLOAD, "branch", branch="trunk").forms],
             [0, 5, 30],
         )
+
+    def test_link_wraps_branch_when_github_url_is_provided(self):
+        branch = by_key(
+            FULL_PAYLOAD,
+            "branch",
+            branch="trunk",
+            github_url="https://github.com/user/repo",
+        )
+        self.assertIn(
+            "\x1b]8;;https://github.com/user/repo/tree/trunk\x1b\\",
+            branch.forms[0].text,
+        )
+        self.assertIn("\x1b]8;;\x1b\\", branch.forms[0].text)
+
+    def test_link_uses_full_branch_in_url_even_when_text_is_prefix(self):
+        branch = by_key(
+            FULL_PAYLOAD,
+            "branch",
+            branch="sc-54321/story-title",
+            github_url="https://github.com/user/repo",
+        )
+        self.assertEqual(plain(branch, 1), "sc-54321")
+        self.assertIn("/tree/sc-54321/story-title", branch.forms[1].text)
+
+    def test_link_costs_zero_visible_columns(self):
+        plain_branch = by_key(FULL_PAYLOAD, "branch", branch="trunk")
+        linked_branch = by_key(
+            FULL_PAYLOAD,
+            "branch",
+            branch="trunk",
+            github_url="https://github.com/user/repo",
+        )
+        self.assertEqual(
+            render.visible_width(plain_branch.forms[0].text),
+            render.visible_width(linked_branch.forms[0].text),
+        )
+
+    def test_no_link_without_github_url(self):
+        branch = by_key(FULL_PAYLOAD, "branch", branch="trunk")
+        self.assertNotIn("\x1b]8", branch.forms[0].text)
 
 
 class CheapSegments(unittest.TestCase):

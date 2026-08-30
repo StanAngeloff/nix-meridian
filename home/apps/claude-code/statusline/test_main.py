@@ -73,6 +73,80 @@ class GitBranch(unittest.TestCase):
             self.assertEqual(main.git_branch(directory), "")
 
 
+class GitHubRepoUrl(unittest.TestCase):
+    def test_parses_ssh_remote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(
+                ["git", "init", "--quiet", "--initial-branch=trunk", directory],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    directory,
+                    "remote",
+                    "add",
+                    "origin",
+                    "git@github.com:user/repo.git",
+                ],
+                check=True,
+            )
+            self.assertEqual(
+                main.github_repo_url(directory), "https://github.com/user/repo"
+            )
+
+    def test_parses_https_remote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(
+                ["git", "init", "--quiet", "--initial-branch=trunk", directory],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    directory,
+                    "remote",
+                    "add",
+                    "origin",
+                    "https://github.com/user/repo.git",
+                ],
+                check=True,
+            )
+            self.assertEqual(
+                main.github_repo_url(directory), "https://github.com/user/repo"
+            )
+
+    def test_is_empty_for_non_github_remote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(
+                ["git", "init", "--quiet", "--initial-branch=trunk", directory],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    directory,
+                    "remote",
+                    "add",
+                    "origin",
+                    "git@gitlab.com:user/repo.git",
+                ],
+                check=True,
+            )
+            self.assertEqual(main.github_repo_url(directory), "")
+
+    def test_is_empty_without_origin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(
+                ["git", "init", "--quiet", "--initial-branch=trunk", directory],
+                check=True,
+            )
+            self.assertEqual(main.github_repo_url(directory), "")
+
+
 class LineFor(unittest.TestCase):
     PAYLOAD = {
         "model": {"id": "claude-opus-4-6[1m]", "display_name": "Opus 4.6 (1M context)"},

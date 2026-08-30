@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -59,6 +60,20 @@ def git_branch(directory):
     )
 
 
+_GITHUB_SSH = re.compile(r"^git@github\.com:(.+?)(?:\.git)?$")
+_GITHUB_HTTPS = re.compile(r"^https?://github\.com/(.+?)(?:\.git)?$")
+
+
+def github_repo_url(directory):
+    """The https://github.com/owner/repo URL for origin, or "" when it is not GitHub."""
+    remote = _git(directory, "remote", "get-url", "origin")
+    for pattern in (_GITHUB_SSH, _GITHUB_HTTPS):
+        match = pattern.match(remote)
+        if match:
+            return f"https://github.com/{match.group(1)}"
+    return ""
+
+
 def publish_rate_limits(payload, config_directory):
     """Hand the rate limit windows to the usage tray, which shows them in the GNOME panel.
 
@@ -90,9 +105,11 @@ def publish_rate_limits(payload, config_directory):
             pass
 
 
-def line_for(payload, branch, now_epoch, budget):
+def line_for(payload, branch, now_epoch, budget, github_url=""):
     """The finished line for this payload at this width, or "" when there is nothing to show."""
-    built = segments.build(payload, branch=branch, now_epoch=now_epoch)
+    built = segments.build(
+        payload, branch=branch, now_epoch=now_epoch, github_url=github_url
+    )
     if not built:
         return ""
     measure = render.measure_with(built)
@@ -114,7 +131,11 @@ def main():
         or os.getcwd()
     )
     line = line_for(
-        payload, git_branch(directory), int(time.time()), budget_from(os.environ)
+        payload,
+        git_branch(directory),
+        int(time.time()),
+        budget_from(os.environ),
+        github_url=github_repo_url(directory),
     )
     if line:
         print(line)
