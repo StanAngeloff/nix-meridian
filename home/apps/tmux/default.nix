@@ -40,20 +40,18 @@ let
     echo "$name"
   '';
 
+  popupNvim = import ../../../modules/lib/popup-nvim.nix { inherit pkgs; };
+
   scratchNote = pkgs.writeShellScript "tmux-scratch-note" ''
     pane_id="$1"
     pane_pid="$2"
-    dir="$HOME/.cache/tmux-scratch-notes"
-    mkdir -p "$dir"
-    note="$dir/$pane_id-$pane_pid.md"
-    exec nvim \
-      -c 'set noswapfile nobackup noundofile' \
-      -c 'set laststatus=0 showtabline=0 signcolumn=no nonumber norelativenumber cmdheight=0 fillchars=eob:\ ' \
-      -c 'set textwidth=0 wrapmargin=0 wrap linebreak breakindent' \
-      -c 'nnoremap <Esc> :silent write <Bar> quit<CR>' \
-      -c 'autocmd VimLeavePre * silent! write' \
-      -c 'startinsert' \
-      "$note"
+    notes_path="$HOME/.cache/tmux-scratch-notes"
+    mkdir -p "$notes_path"
+    note="$notes_path/$pane_id-$pane_pid.md"
+    ${popupNvim}/bin/popup-nvim "$note"
+    if [ -f "$note" ] && ! grep -q '[^[:space:]]' "$note"; then
+      rm -f "$note"
+    fi
   '';
 in
 {

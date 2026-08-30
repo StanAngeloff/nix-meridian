@@ -12,7 +12,7 @@ in
     ./clipboard.nix
     ./commands.nix
     ./issues.nix
-    ./keymaps.nix
+    ./keymaps
     ./options.nix
     ./plugins
   ];

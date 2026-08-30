@@ -1,0 +1,17 @@
+
+bind generic cn +sh -c "\
+  f='%(file)'; \
+  [ -n \"$f\" ] && \
+  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
+bind generic cc +sh -c "@tigAnnotate@ copy '%(repo:git-dir)'"
+bind generic cl +sh -c "@tigAnnotate@ list '%(repo:git-dir)'"
+
+bind pager <Enter> +sh -c "\
+  f='%(file)'; [ -n \"$f\" ] && \
+  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
+bind stage <Enter> +sh -c "\
+  f='%(file)'; [ -n \"$f\" ] && \
+  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
+bind diff <Enter> +sh -c "\
+  f='%(file)'; [ -n \"$f\" ] && \
+  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
