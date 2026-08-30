@@ -306,15 +306,15 @@ class ParseProfile(unittest.TestCase):
 class ProfileRow(unittest.TestCase):
     def test_renders_the_full_banner(self):
         profile = usage.Profile(
-            name="cosuno",
-            email="stan@cosuno.de",
+            name="acme",
+            email="stan@acme.inc",
             subscription="team",
-            organization="Cosuno",
+            organization="ACME Inc.",
         )
 
         self.assertEqual(
             _text(usage.profile_row(profile)),
-            "\U0001faaa COSUNO  ·  stan@cosuno.de  ·  team (Cosuno)",
+            "\U0001faaa ACME  ·  stan@acme.inc  ·  team (ACME Inc.)",
         )
 
     def test_omits_the_organization_when_there_is_none(self):
@@ -355,10 +355,10 @@ class ProfileRow(unittest.TestCase):
 
     def test_highlights_only_the_profile_name(self):
         profile = usage.Profile(
-            name="cosuno",
-            email="stan@cosuno.de",
+            name="acme",
+            email="stan@acme.inc",
             subscription="team",
-            organization="Cosuno",
+            organization="ACME Inc.",
         )
 
         row = usage.profile_row(profile)
