@@ -33,6 +33,11 @@ note_filename() {
 cmd_add() {
 	local git_dir="$1" file="$2" lineno="${3:-0}" lineno_old="${4:-0}"
 
+	if ! git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+		echo "Cannot annotate untracked files"
+		return 0
+	fi
+
 	local effective_lineno="$lineno"
 	if [ "$effective_lineno" = "0" ]; then
 		effective_lineno="$lineno_old"
