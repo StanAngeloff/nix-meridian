@@ -39,6 +39,7 @@ in
     ./mcp.nix
     ./notifications.nix
     ./remote # phone remote access
+    ./skills
   ];
 
   home.packages = [
