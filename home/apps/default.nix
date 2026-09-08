@@ -26,6 +26,7 @@ in
     ./ghostty
     ./git
     ./git-lines
+    ./slopsift
     ./httpie
     ./jq
     ./less

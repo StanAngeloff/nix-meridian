@@ -9,6 +9,7 @@ final: prev: {
   heidisql = final.qt6Packages.callPackage ./heidisql/package.nix { };
   ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = prev.ghostty; };
   git-lines = final.callPackage ./git-lines/package.nix { };
+  slopsift = final.callPackage ./slopsift/package.nix { };
   mcp-server-trello = final.callPackage ./mcp-server-trello/package.nix { };
   mutter = final.callPackage ./mutter/overlay.nix { mutter = prev.mutter; };
   mcporter = final.callPackage ./mcporter/package.nix { };
