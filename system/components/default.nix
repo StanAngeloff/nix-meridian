@@ -5,6 +5,7 @@
     ./bluetooth.nix
     ./console.nix
     ./desktop.nix
+    ./diagnostics.nix
     ./filesystem.nix
     ./firmware.nix
     ./fonts.nix
