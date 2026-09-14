@@ -1,5 +1,5 @@
 typeset -gA _claude_model_aliases=(
-  [fable]=claude-fable-5
+  [fable]=claude-fable-5-1
   [opus]=claude-opus-4-6[1m]
   [sonnet]=claude-sonnet-5
 )
@@ -7,6 +7,7 @@ typeset -gA _claude_model_aliases=(
 function _claude_expand_model_aliases() {
   emulate -L zsh
 
+  local resolved_model=""
   local i
   for (( i=1; i <= $#_cli_args; i++ )); do
     case "${_cli_args[$i]}" in
@@ -16,22 +17,56 @@ function _claude_expand_model_aliases() {
           if (( ${+_claude_model_aliases[$next]} )); then
             _cli_args[$i+1]="${_claude_model_aliases[$next]}"
           fi
+          resolved_model="${_cli_args[$i+1]}"
         fi
         ;;
       --model=*)
         local val="${_cli_args[$i]#--model=}"
         if (( ${+_claude_model_aliases[$val]} )); then
           _cli_args[$i]="--model=${_claude_model_aliases[$val]}"
+          val="${_claude_model_aliases[$val]}"
         fi
+        resolved_model="$val"
         ;;
       -m*)
         local val="${_cli_args[$i]#-m}"
         if (( ${+_claude_model_aliases[$val]} )); then
           _cli_args[$i]="-m${_claude_model_aliases[$val]}"
+          val="${_claude_model_aliases[$val]}"
         fi
+        resolved_model="$val"
         ;;
     esac
   done
+
+  # Per-model effort caps (pattern-matched on the resolved model identifier).
+  local effort=""
+  case "$resolved_model" in
+    *fable*) effort=high ;;
+  esac
+
+  if [[ -n "$effort" ]]; then
+    local replaced=0
+    for (( i=1; i <= $#_cli_args; i++ )); do
+      case "${_cli_args[$i]}" in
+        --effort)
+          if (( i < $#_cli_args )); then
+            _cli_args[$i+1]="$effort"
+            replaced=1
+          fi
+          break
+          ;;
+        --effort=*)
+          _cli_args[$i]="--effort=${effort}"
+          replaced=1
+          break
+          ;;
+      esac
+    done
+    if (( ! replaced )); then
+      _cli_args+=( "--effort" "$effort" )
+    fi
+  fi
 }
 
 function _claude_bubble_initialize() {
