@@ -16,6 +16,33 @@ let
       PERPLEXITY_API_KEY = "\${PERPLEXITY_API_KEY}";
     };
   };
+
+  # `gh api` is one command reaching every GitHub REST and GraphQL endpoint, so gating it by name gates reading too.
+  # It defaults to GET. A GET changes nothing on GitHub, so we gate on the method.
+  # Two flags take a call off that default: an explicit method override and a body field.
+  # gh switches the method to POST as soon as any field is present, so `-f ref=v0.12.0` turns a plain file read into a POST.
+  # An invocation carrying none of these flags is a read and runs unprompted.
+  #
+  # The `-X` rules match the flag whole rather than one rule per write method. Catching `-X GET` too costs a handful of prompts.
+  # Enumerating POST/PUT/PATCH/DELETE instead would let an unexpected spelling through unasked.
+  # Each flag needs both forms, because the `*` in "gh api * -f*" cannot match the empty gap in "gh api -f body=x".
+  #
+  # GraphQL carries its document in `-f query=`, so reads and mutations are one shape here. Both ask.
+  ghApiAsk =
+    lib.concatMap
+      (flag: [
+        "Bash(gh api ${flag}*)"
+        "Bash(gh api * ${flag}*)"
+      ])
+      [
+        "-X"
+        "--method"
+        "-f"
+        "-F"
+        "--field"
+        "--raw-field"
+        "--input"
+      ];
 in
 {
   # ── MCPorter-managed servers ──
@@ -115,7 +142,6 @@ in
         "Bash(gh repo create *)"
         "Bash(gh repo delete *)"
         "Bash(gh repo edit *)"
-        "Bash(gh api *)"
         "Bash(gh workflow run *)"
         "Bash(gh secret set *)"
         "Bash(gh variable set *)"
@@ -131,7 +157,9 @@ in
         "mcp__github__request_*"
         "mcp__github__run_*"
         "mcp__github__*_write"
-      ];
+      ]
+      # gh api is gated by request shape rather than by subcommand name. See ghApiAsk above.
+      ++ ghApiAsk;
       # ~/.claude/.claude.json carries only a "Bearer ${GH_TOKEN}" placeholder; the bubble resolves the real token host-side.
       secrets = [ "GH_TOKEN" ];
     };
