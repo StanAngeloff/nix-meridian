@@ -53,7 +53,7 @@ let
     # Human checkpoint. ask rules are evaluated BEFORE the classifier and always prompt — in every mode,
     # including auto and --dangerously-skip-permissions — regardless of whether the action was explicitly requested.
     # This is the deterministic gate for anything with an external side effect done on our behalf.
-    # Precedence is deny > ask > allow (specificity is ignored), so writes live here while reads stay in the project-scope allow list.
+    # Precedence is deny > ask > allow, with specificity ignored. A tool matching both lists prompts anyway.
     #
     # Learn more at https://code.claude.com/docs/en/permissions
     permissions = {
@@ -74,6 +74,10 @@ let
         "Bash(export -p)"
       ];
       ask = lib.concatMap (integration: integration.claude.ask or [ ]) (lib.attrValues integrations);
+      # The read-only half of each server, named one tool at a time rather than globbed.
+      # A tool listed here resolves before the auto-mode classifier runs, which saves a model round trip on the calls we make most.
+      # Claude Code ignores MCP's own readOnlyHint annotation, so a server's safe tools reach the classifier until they are named here.
+      allow = lib.concatMap (integration: integration.claude.allow or [ ]) (lib.attrValues integrations);
     };
     # Learn more at https://code.claude.com/docs/en/settings#attribution-settings
     attribution = {

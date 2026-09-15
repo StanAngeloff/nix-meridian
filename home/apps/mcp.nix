@@ -7,6 +7,7 @@
 #   .mcporter        — connection config for the MCPorter aggregator (home/apps/mcporter)
 #   .claude.mcp      — Claude Code server definition, merged into the user scope of ~/.claude/.claude.json (home/apps/claude-code/mcp.nix)
 #   .claude.ask      — Claude Code permission-prompt globs (permissions.ask); these prompt even in auto mode / --dangerously-skip-permissions
+#   .claude.allow    — Claude Code auto-approve globs (permissions.allow) for the read-only half of a server; ask beats allow, so the two must not overlap
 #   .claude.secrets  — env-var names the Claude Code bubble resolves from the keyring host-side and injects (bubble keyringVariables)
 let
   # One stdio server, two consumers. Claude Code and MCPorter share the schema, so the definition is written once.
@@ -68,6 +69,10 @@ in
         "mcp__notion__notion-duplicate-*"
         "mcp__notion__notion-move-*"
       ];
+      allow = [
+        "mcp__notion__notion-fetch"
+        "mcp__notion__notion-search"
+      ];
     };
   };
 
@@ -90,6 +95,9 @@ in
         "mcp__shortcut__*-unassign-*"
         "mcp__shortcut__*-upload-*"
       ];
+      allow = [
+        "mcp__shortcut__stories-get-by-id"
+      ];
     };
   };
 
@@ -102,6 +110,13 @@ in
         "mcp__datadog__create_*"
         "mcp__datadog__edit_*"
         "mcp__datadog__upsert_*"
+      ];
+      allow = [
+        "mcp__datadog__aggregate_rum_events"
+        "mcp__datadog__list_datadog_skills"
+        "mcp__datadog__load_datadog_skill"
+        "mcp__datadog__search_datadog_logs"
+        "mcp__datadog__search_datadog_rum_events"
       ];
     };
   };
@@ -160,6 +175,10 @@ in
       ]
       # gh api is gated by request shape rather than by subcommand name. See ghApiAsk above.
       ++ ghApiAsk;
+      allow = [
+        "mcp__github__pull_request_read"
+        "mcp__github__search_pull_requests"
+      ];
       # ~/.claude/.claude.json carries only a "Bearer ${GH_TOKEN}" placeholder; the bubble resolves the real token host-side.
       secrets = [ "GH_TOKEN" ];
     };
