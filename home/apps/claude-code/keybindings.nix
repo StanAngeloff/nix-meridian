@@ -6,14 +6,24 @@ let
       {
         context = "Global";
         bindings = {
+          # See "[BUG] v2.1.94 silently changed Ctrl+L default" https://github.com/anthropics/claude-code/issues/45364
           "ctrl+l" = "app:redraw";
         };
       }
-      # See "[BUG] v2.1.94 silently changed Ctrl+L default" https://github.com/anthropics/claude-code/issues/45364
       {
         context = "Chat";
         bindings = {
+          # Disable Ctrl+L to avoid conflicts with the overridden behavior.
           "ctrl+l" = null;
+          # Disable Escape, it's so easy to interrupt a long-running request with it… Ctrl+C still works.
+          "escape" = null;
+        };
+      }
+      {
+        context = "Confirmation";
+        bindings = {
+          # Disable Escape which may accidentally dismiss a confirmation prompt.
+          "escape" = null;
         };
       }
     ];
