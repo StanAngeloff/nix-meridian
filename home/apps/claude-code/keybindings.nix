@@ -15,14 +15,7 @@ let
         bindings = {
           # Disable Ctrl+L to avoid conflicts with the overridden behavior.
           "ctrl+l" = null;
-          # Disable Escape, it's so easy to interrupt a long-running request with it… Ctrl+C still works.
-          "escape" = null;
-        };
-      }
-      {
-        context = "Confirmation";
-        bindings = {
-          # Disable Escape which may accidentally dismiss a confirmation prompt.
+          # Disable Escape from cancelling on-going turns. Ctrl+C still works.
           "escape" = null;
         };
       }
