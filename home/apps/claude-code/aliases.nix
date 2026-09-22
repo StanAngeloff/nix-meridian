@@ -5,10 +5,11 @@
   bubbleSettings,
 }:
 let
+  # NOTE: initialize.zsh treats a missing -m as this model and overrides its effort (see _claude_expand_model_aliases).
   baseArgs = [
     # nixfmt: off
     "--effort" "max"
-    "--model" "claude-opus-4-6[1m]"
+    "--model" "claude-opus-5-5[1m]"
     # nixfmt: on, as: shell-args
   ];
   # NOTE: The bubble adds OS-isolation mode and the inner-Bash-sandbox-off settings on top.

@@ -1,69 +1,88 @@
-typeset -gA _claude_model_aliases=(
-  [fable]=claude-fable-5-1
-  [opus]=claude-opus-4-6[1m]
-  [sonnet]=claude-sonnet-5
+# Ordered (extended regex, model) pairs; the first regex matching the whole -m value wins.
+# A '.' in a regex stands for an optional separator: '-', '_', '.' or nothing.
+typeset -ga _claude_model_aliases=(
+  'fable'       'claude-fable-5-1'
+  'opus'        'claude-opus-5-5[1m]'
+  'opus.4(.6)?' 'claude-opus-4-6[1m]'
+  'sonnet'      'claude-sonnet-5'
 )
+
+# Sets REPLY to the model an alias stands for, or to the value unchanged when no alias matches.
+function _claude_resolve_model_alias() {
+  emulate -L zsh
+  local MATCH MBEGIN MEND
+  local -a match mbegin mend
+
+  local pattern model
+  for pattern model in "${_claude_model_aliases[@]}"; do
+    if [[ "$1" =~ "^(${pattern//./[-_.]?})\$" ]]; then
+      REPLY="$model"
+      return
+    fi
+  done
+  REPLY="$1"
+}
 
 function _claude_expand_model_aliases() {
   emulate -L zsh
 
+  local REPLY
   local resolved_model=""
   local i
   for (( i=1; i <= $#_cli_args; i++ )); do
     case "${_cli_args[$i]}" in
       -m|--model)
         if (( i < $#_cli_args )); then
-          local next="${_cli_args[$i+1]}"
-          if (( ${+_claude_model_aliases[$next]} )); then
-            _cli_args[$i+1]="${_claude_model_aliases[$next]}"
-          fi
-          resolved_model="${_cli_args[$i+1]}"
+          _claude_resolve_model_alias "${_cli_args[$i+1]}"
+          _cli_args[$i+1]="$REPLY"
+          resolved_model="$REPLY"
         fi
         ;;
       --model=*)
-        local val="${_cli_args[$i]#--model=}"
-        if (( ${+_claude_model_aliases[$val]} )); then
-          _cli_args[$i]="--model=${_claude_model_aliases[$val]}"
-          val="${_claude_model_aliases[$val]}"
-        fi
-        resolved_model="$val"
+        _claude_resolve_model_alias "${_cli_args[$i]#--model=}"
+        _cli_args[$i]="--model=${REPLY}"
+        resolved_model="$REPLY"
         ;;
       -m*)
-        local val="${_cli_args[$i]#-m}"
-        if (( ${+_claude_model_aliases[$val]} )); then
-          _cli_args[$i]="-m${_claude_model_aliases[$val]}"
-          val="${_claude_model_aliases[$val]}"
-        fi
-        resolved_model="$val"
+        _claude_resolve_model_alias "${_cli_args[$i]#-m}"
+        _cli_args[$i]="-m${REPLY}"
+        resolved_model="$REPLY"
         ;;
     esac
   done
 
-  # Per-model effort caps (pattern-matched on the resolved model identifier).
+  # Per-model effort, pattern-matched on the resolved model identifier; empty means the default model from aliases.nix.
+  # A forced level replaces an explicit --effort; otherwise the explicit --effort wins.
   local effort=""
+  local is_forced=0
   case "$resolved_model" in
-    *fable*) effort=high ;;
+    *fable*) effort=high; is_forced=1 ;;
+    ""|*opus-5-5*) effort=xhigh ;;
   esac
 
   if [[ -n "$effort" ]]; then
-    local replaced=0
+    local has_effort=0
     for (( i=1; i <= $#_cli_args; i++ )); do
       case "${_cli_args[$i]}" in
         --effort)
           if (( i < $#_cli_args )); then
-            _cli_args[$i+1]="$effort"
-            replaced=1
+            if (( is_forced )); then
+              _cli_args[$i+1]="$effort"
+            fi
+            has_effort=1
           fi
           break
           ;;
         --effort=*)
-          _cli_args[$i]="--effort=${effort}"
-          replaced=1
+          if (( is_forced )); then
+            _cli_args[$i]="--effort=${effort}"
+          fi
+          has_effort=1
           break
           ;;
       esac
     done
-    if (( ! replaced )); then
+    if (( ! has_effort )); then
       _cli_args+=( "--effort" "$effort" )
     fi
   fi
