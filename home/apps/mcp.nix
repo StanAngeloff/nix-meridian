@@ -184,6 +184,13 @@ in
     };
   };
 
+  # Google Developer Knowledge: project-local HTTP MCP, API-key-authenticated. Secret only; server config is project-managed.
+  google-developer-knowledge = {
+    claude = {
+      secrets = [ "GOOGLE_DEVELOPER_KNOWLEDGE_API_KEY" ];
+    };
+  };
+
   # CircleCI: project-local MCP, CIRCLECI_TOKEN-authenticated.
   circleci = {
     claude = {
