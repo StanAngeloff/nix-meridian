@@ -3,13 +3,13 @@
   claude-code,
   claude-bubble,
   bubbleSettings,
+  baseModel,
 }:
 let
-  # NOTE: initialize.zsh treats a missing -m as this model and overrides its effort (see _claude_expand_model_aliases).
   baseArgs = [
     # nixfmt: off
     "--effort" "max"
-    "--model" "claude-opus-5-5[1m]"
+    "--model" baseModel
     # nixfmt: on, as: shell-args
   ];
   # NOTE: The bubble adds OS-isolation mode and the inner-Bash-sandbox-off settings on top.
@@ -29,14 +29,14 @@ in
 
     function cc() {
       local -a _cli_args=( "$@" )
-      _claude_expand_model_aliases
+      _claude_expand_model_aliases ${lib.escapeShellArg baseModel}
       _claude_bubble_initialize "''${_cli_args[@]}" || return
       ${launch claude-bubble bubbleArgs} "''${_cli_args[@]}"
     }
 
     function ccc() {
       local -a _cli_args=( "$@" )
-      _claude_expand_model_aliases
+      _claude_expand_model_aliases ${lib.escapeShellArg baseModel}
       _claude_bubble_initialize "''${_cli_args[@]}" || return
       ${launch claude-bubble (bubbleArgs ++ bypassArgs)} "''${_cli_args[@]}"
     }

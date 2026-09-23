@@ -1,4 +1,4 @@
-{ claude-code-statusline }:
+{ claude-code-statusline, baseModel }:
 {
   config,
   lib,
@@ -27,6 +27,7 @@ let
   settings = {
     "$schema" = "https://json.schemastore.org/claude-code-settings.json";
     alwaysThinkingEnabled = true;
+    model = baseModel;
     effortLevel = "high";
     showThinkingSummaries = true;
     spinnerTipsEnabled = false;

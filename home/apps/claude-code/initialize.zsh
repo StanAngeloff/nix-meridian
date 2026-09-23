@@ -23,11 +23,12 @@ function _claude_resolve_model_alias() {
   REPLY="$1"
 }
 
+# $1 is the model the launcher passes when no -m is given.
 function _claude_expand_model_aliases() {
   emulate -L zsh
 
   local REPLY
-  local resolved_model=""
+  local resolved_model="$1"
   local i
   for (( i=1; i <= $#_cli_args; i++ )); do
     case "${_cli_args[$i]}" in
@@ -58,13 +59,13 @@ function _claude_expand_model_aliases() {
     esac
   done
 
-  # Per-model effort, pattern-matched on the resolved model identifier; empty means the default model from aliases.nix.
+  # Per-model effort, pattern-matched on the resolved model identifier.
   # A forced level replaces an explicit --effort; otherwise the explicit --effort wins.
   local effort=""
   local is_forced=0
   case "$resolved_model" in
     *fable*) effort=high; is_forced=1 ;;
-    ""|*opus-5-5*) effort=xhigh ;;
+    *opus-5-5*) effort=xhigh ;;
   esac
 
   if [[ -n "$effort" ]]; then

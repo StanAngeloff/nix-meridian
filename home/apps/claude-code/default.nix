@@ -23,6 +23,8 @@ let
   };
   # High-precedence --settings layer that turns the inner Bash sandbox off inside the bubble.
   bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit pkgs; };
+  # cc/ccc pass it as --model; bare `claude` reads it from settings.json, where every switch also resets what /model saved.
+  baseModel = "claude-opus-5-5[1m]";
 in
 {
   imports = [
@@ -32,10 +34,11 @@ in
         claude-code
         claude-bubble
         bubbleSettings
+        baseModel
         ;
     })
     ./keybindings.nix
-    (import ./settings.nix { inherit claude-code-statusline; })
+    (import ./settings.nix { inherit claude-code-statusline baseModel; })
     ./mcp.nix
     ./notifications.nix
     ./remote # phone remote access
