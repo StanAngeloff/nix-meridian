@@ -48,6 +48,13 @@ function _claude_expand_model_aliases() {
         _cli_args[$i]="-m${REPLY}"
         resolved_model="$REPLY"
         ;;
+      # Claude Code has no short form for --effort; rewriting it here lets the per-model effort below see it.
+      -e)
+        _cli_args[$i]="--effort"
+        ;;
+      -e?*)
+        _cli_args[$i]="--effort=${_cli_args[$i]#-e}"
+        ;;
     esac
   done
 
