@@ -60,7 +60,7 @@ def default_state_path():
 def default_activity_path():
     """Where the status line hook publishes Claude Code's own rate-limit figures.
 
-    Written by home/apps/claude-code/statusline/statusline.sh, which puts the `rate_limits` object
+    Written by home/apps/claude-code/statusline/main.py, which puts the `rate_limits` object
     from its input in here verbatim. Claude Code recomputes those numbers from the inference API's
     rate-limit headers on every render, so while a session is working this is both fresher than a
     poll and free.

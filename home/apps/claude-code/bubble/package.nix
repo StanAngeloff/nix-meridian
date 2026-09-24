@@ -26,7 +26,9 @@
 # shellcheck (via writeShellApplication) gates the fully assembled script, so cross-module breakage fails the build.
 let
   # Assembly order = bwrap argument order (later mounts layer over earlier ones). Hard edges:
-  #  - home before every module that binds under $HOME (claude, git, gpg, ssh, github, nvim, pnpm);
+  #  - system before nix and ssh (nix masks sockets inside its /nix bind; ssh binds its filtered ssh_config over a store path there);
+  #  - home before every module that binds under $HOME (claude, profiles, git, gpg, ssh, github, tools, nvim, pnpm);
+  #  - claude before profiles (profiles masks ~/.claude/profiles inside the ~/.claude bind);
   #  - xdg before gpg, ssh, clipboard and podman (their sockets re-expose into its tmpfs mask);
   #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into).
   moduleNames = [
