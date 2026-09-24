@@ -6,12 +6,19 @@
   baseModel,
 }:
 let
+  # No --effort here: cc/ccc get exactly one from the per-model table in initialize.zsh.
   baseArgs = [
     # nixfmt: off
-    "--effort" "max"
     "--model" baseModel
     # nixfmt: on, as: shell-args
   ];
+  # _cc/_ccc skip that table, so they carry their own level; without one, Claude Code falls back to settings.json.
+  fallbackArgs = [
+    # nixfmt: off
+    "--effort" "max"
+    # nixfmt: on, as: shell-args
+  ]
+  ++ baseArgs;
   # NOTE: The bubble adds OS-isolation mode and the inner-Bash-sandbox-off settings on top.
   bubbleArgs = baseArgs ++ [
     # nixfmt: off
@@ -47,7 +54,7 @@ in
     # Delete these two lines (and this comment) once cc/ccc are trusted. Nothing else is exclusive to them —
     # bare `claude` keeps the inner-sandbox config in settings.nix,
     # and the package wrapper injects GH_TOKEN for all un-bubbled invocations.
-    _cc = launch claude-code baseArgs;
-    _ccc = launch claude-code (baseArgs ++ bypassArgs);
+    _cc = launch claude-code fallbackArgs;
+    _ccc = launch claude-code (fallbackArgs ++ bypassArgs);
   };
 }

@@ -59,40 +59,41 @@ function _claude_expand_model_aliases() {
     esac
   done
 
-  # Per-model effort, pattern-matched on the resolved model identifier.
+  # Per-model effort, pattern-matched on the resolved model identifier; it is the only --effort cc/ccc pass.
+  # Every model gets a level, max unless listed: without an explicit --effort, Claude Code falls back to settings.json.
   # A forced level replaces an explicit --effort; otherwise the explicit --effort wins.
-  local effort=""
+  local effort=max
   local is_forced=0
   case "$resolved_model" in
     *fable*) effort=high; is_forced=1 ;;
     *opus-5-5*) effort=xhigh ;;
   esac
 
-  if [[ -n "$effort" ]]; then
-    local has_effort=0
-    for (( i=1; i <= $#_cli_args; i++ )); do
-      case "${_cli_args[$i]}" in
-        --effort)
-          if (( i < $#_cli_args )); then
-            if (( is_forced )); then
-              _cli_args[$i+1]="$effort"
-            fi
-            has_effort=1
-          fi
-          break
-          ;;
-        --effort=*)
+  local has_effort=0
+  for (( i=1; i <= $#_cli_args; i++ )); do
+    case "${_cli_args[$i]}" in
+      --effort)
+        if (( i < $#_cli_args )); then
           if (( is_forced )); then
-            _cli_args[$i]="--effort=${effort}"
+            _cli_args[$i+1]="$effort"
           fi
           has_effort=1
-          break
-          ;;
-      esac
-    done
-    if (( ! has_effort )); then
-      _cli_args+=( "--effort" "$effort" )
-    fi
+        fi
+        break
+        ;;
+      --effort=*)
+        if (( is_forced )); then
+          _cli_args[$i]="--effort=${effort}"
+        fi
+        has_effort=1
+        break
+        ;;
+    esac
+  done
+  if (( ! has_effort )); then
+    # Prepended: the launcher drops everything before a profiles subcommand, so the flag never reaches
+    # claude auth login (which rejects it), and a trailing "profiles" (cc -p profiles) stays a prompt instead of a handoff.
+    _cli_args=( "--effort" "$effort" "${_cli_args[@]}" )
   fi
 }
 
