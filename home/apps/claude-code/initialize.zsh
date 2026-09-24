@@ -97,8 +97,34 @@ function _claude_expand_model_aliases() {
   fi
 }
 
+# Succeeds when the launcher will hand these arguments to claude-profiles instead of starting a session.
+# Mirrors the launcher's rule in bubble/bubble.sh (the word "profiles" followed by a subcommand, after -m and -v/--volume
+# have consumed their values), so the two must change together.
+function _claude_is_profiles_handoff() {
+  emulate -L zsh
+
+  local i
+  for (( i=1; i <= $#; i++ )); do
+    case "${@[$i]}" in
+      -m)
+        if (( i < $# )); then (( i += 1 )); fi
+        ;;
+      -v|--volume)
+        if [[ "${@[$i+1]}" == /* ]]; then (( i += 1 )); fi
+        ;;
+      profiles)
+        if (( i < $# )); then return 0; fi
+        ;;
+    esac
+  done
+  return 1
+}
+
 function _claude_bubble_initialize() {
   emulate -L zsh
+
+  # A profiles subcommand never starts a session, so the session-name rules and the window rename do not apply.
+  if _claude_is_profiles_handoff "$@"; then return 0; fi
 
   local prefix_on="" error_on="" off=""
   if [[ -t 2 && -z "${NO_COLOR:-}" ]]; then
