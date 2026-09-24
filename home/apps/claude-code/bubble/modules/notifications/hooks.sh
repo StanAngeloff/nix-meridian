@@ -1,5 +1,5 @@
 # Host-side notification bridge: relay.sh (its own writeShellApplication, see module.nix) runs as a companion process, tailing the event file and applying the tmux state light + chime host-side, so tmux and PipeWire sockets never cross the boundary.
-# relay_pid is global: it crosses from the before-run hook to the after-run hook.
+# relay_pid is global: it crosses from the before-run hook to the after-run and cleanup hooks.
 
 notifications_prepare() {
 	# Event channel to the relay; lives under the writable ~/.claude so in-bubble hooks can append to it and the host relay can read it.
@@ -30,6 +30,8 @@ notifications_before_run() {
 notifications_after_run() {
 	if [[ -n "$relay_pid" ]]; then
 		kill -- -"$relay_pid" 2>/dev/null || true
+		# Cleared so the cleanup hook does not signal the group again, by then possibly a new one reusing the number.
+		relay_pid=""
 		tmux set -pu -t "$TMUX_PANE" @claude-pane 2>/dev/null || true
 		tmux set -pu -t "$TMUX_PANE" @claude-blocked 2>/dev/null || true
 		tmux set -pu -t "$TMUX_PANE" @claude-unread 2>/dev/null || true
@@ -38,5 +40,11 @@ notifications_after_run() {
 }
 
 notifications_cleanup() {
+	# After-run is skipped when the session ends through the EXIT trap alone, as when its pane is closed.
+	# The relay runs in its own session outside the session scope, so nothing else stops it: it would tail the deleted file forever.
+	if [[ -n "${relay_pid:-}" ]]; then
+		kill -- -"$relay_pid" 2>/dev/null || true
+		relay_pid=""
+	fi
 	if [[ -n "${event_file:-}" ]]; then rm -f "$event_file"; fi
 }
