@@ -88,17 +88,26 @@ scratch_path="$(mktemp -d "/tmp/claude-bubble.$user_id.XXXXXX")"
 
 @moduleFunctions@
 
-# Cleanup hooks run twice on the happy path (the explicit call at the end, then the EXIT trap) and once on error paths, possibly before prepare ever ran — they must be idempotent and tolerate never-created paths.
+# Cleanup hooks run twice on the happy path (the explicit call at the end, then the EXIT trap) and once on error paths,
+# possibly before prepare ever ran — they must be idempotent and tolerate never-created paths.
+# The hooks run before the scratch directory is removed, because what they tear down may live there:
+# the seeded gnupg homedir the gpg agent is found by, sockets, the bubble's /tmp.
+# Both call sites run it best-effort (`|| true` also suspends set -e inside it),
+# so a failing hook skips neither the hooks after it nor the scratch removal;
+# a closed pane takes the terminal with it, and any status line a hook prints then fails.
 # Installed before the prepare hooks so nothing they create can leak.
 cleanup() {
-	rm -rf "$scratch_path"
 	@cleanupCalls@
+	rm -rf "$scratch_path"
 }
-trap cleanup EXIT
+trap 'cleanup || true' EXIT
 
 @prepareCalls@
 
 bwrap_args=()
+# Command prefix for modules that need to wrap bwrap itself (the lifetime module runs it inside a systemd scope);
+# left empty, bwrap runs directly.
+launcher_args=()
 
 @mountCalls@
 
@@ -134,9 +143,16 @@ bwrap_args+=(--chdir "$project_path")
 @beforeRunCalls@
 
 set +e
-# The arguments go in on a file descriptor rather than the command line: /proc/<pid>/cmdline is world-readable, and the secrets module's --setenv pairs carry live credentials, so expanding the array here would publish them to every process on the host for the lifetime of the session. Process substitution keeps them in a pipe; a temporary file would trade that for the on-disk exposure the keyring migration closed, and a here-string cannot carry NUL separators because command substitution strips them. The whole array goes through, not just the secrets, so a module that starts injecting a value later is covered without revisiting this.
+# The arguments go in on a file descriptor rather than the command line: /proc/<pid>/cmdline is world-readable,
+# and the secrets module's --setenv pairs carry live credentials,
+# so expanding the array here would publish them to every process on the host for the lifetime of the session.
+# Process substitution keeps them in a pipe;
+# a temporary file would trade that for the on-disk exposure the keyring migration closed,
+# and a here-string cannot carry NUL separators because command substitution strips them.
+# The whole array goes through, not just the secrets,
+# so a module that starts injecting a value later is covered without revisiting this.
 # The trade-off is that `ps` no longer shows the bubble's mount layout.
-bwrap --args 3 -- "$claudeBin" "${claude_args[@]}" 3< <(printf '%s\0' "${bwrap_args[@]}")
+"${launcher_args[@]}" bwrap --args 3 -- "$claudeBin" "${claude_args[@]}" 3< <(printf '%s\0' "${bwrap_args[@]}")
 exit_code=$?
 set -e
 
@@ -150,6 +166,6 @@ if [[ -n "$help_requested" ]]; then
 fi
 
 # Not redundant with the trap: without a direct call shellcheck cannot see the cleanup hooks invoked (SC2329).
-cleanup
+cleanup || true
 
 exit "$exit_code"

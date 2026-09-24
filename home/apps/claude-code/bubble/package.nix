@@ -11,6 +11,7 @@
   procps,
   tmux,
   pipewire,
+  systemd,
   util-linux,
   wl-clipboard,
   claude-code,
@@ -30,6 +31,7 @@ let
   #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into).
   moduleNames = [
     "system"
+    "lifetime"
     "home"
     "xdg"
     "claude"
@@ -70,6 +72,7 @@ let
       procps
       tmux
       pipewire
+      systemd
       util-linux
       wl-clipboard
       keyringVariables
