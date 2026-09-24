@@ -1,112 +1,88 @@
 {
   lib,
   stdenv,
-  fetchFromGitHub,
+  buildNpmPackage,
+  fetchzip,
+  fetchurl,
   nodejs_24,
-  makeWrapper,
   autoPatchelfHook,
   util-linux,
-  cacert,
 }:
 let
+  # Claude Code ingests this skill as a prompt, verbatim, so it is pinned by content rather than by trust.
+  # It has a pin of its own so that a routine bump for a bug fix cannot carry rewritten instructions along with it, silently.
+  # A changed file fails the fetch instead, so changing what Claude is told stays a deliberate act.
+  # Update it only after reading the upstream diff, which update.sh shows before it asks.
+  skillSha256 = "9877757bb95743b19894b750ac20d314ee0343a531b522f180216c8bd62ee8f0";
+in
+buildNpmPackage (finalAttrs: {
   pname = "slopsift";
   version = "0.11.0";
 
-  src = fetchFromGitHub {
-    owner = "NikhilVerma";
-    repo = "writinglint";
-    tag = "slopsift@${version}";
-    hash = "sha256-2PLBfAZO8ftMGtmiFDdwyo3Gw2X3pHmtTNGVtRxYCSQ=";
+  # The published npm package, which ships dist/cli.js already compiled and the ONNX model it runs.
+  src = fetchzip {
+    url = "https://registry.npmjs.org/slopsift/-/slopsift-${finalAttrs.version}.tgz";
+    hash = "sha256-UglXnVcop5YWI3THjIibS4ZxKkBqR0qtVm7zEs7oyfY=";
   };
+
+  # The npm package has no lockfile, so package-lock.json next to this file pins its dependency tree.
+  # slopsift declares its dependencies as version ranges,
+  # so without the lockfile each build would take whatever npm serves that day.
+  # update.sh regenerates it with `npm install --package-lock-only` inside the unpacked npm package.
+  postPatch = ''
+    cp ${./package-lock.json} package-lock.json
+  '';
+
+  npmDepsHash = "sha256-bEX0ruYFwMY8H3NdiS6eiXhYTX3VaBJchDJlnGQ+KhA=";
 
   nodejs = nodejs_24;
 
-  # Claude Code ingests this skill as a prompt, verbatim, so it is pinned by content rather than by trust.
-  # The source hash covers the file already, but it covers everything else too: without a separate pin,
-  # a routine bump for a bug fix would carry any rewritten instructions along with it, silently.
-  # postInstall checks this digest and fails the build instead, so changing what Claude is told stays a deliberate act.
-  # Update it only after reading the upstream diff.
-  skillSha256 = "9877757bb95743b19894b750ac20d314ee0343a531b522f180216c8bd62ee8f0";
+  # The build and prepack scripts recompile dist/ with TypeScript, which is not among the package's dependencies.
+  dontNpmBuild = true;
+  npmPackFlags = [ "--ignore-scripts" ];
 
-  # Fixed-output derivation: npm install produces the full node_modules tree.
-  # The output hash pins the exact closure; a version bump requires updating it.
-  npmDeps = stdenv.mkDerivation {
-    name = "${pname}-${version}-npm-deps";
+  # onnxruntime-node's install script downloads the binaries it does not bundle (the CUDA builds) from NuGet.
+  # The bundled CPU binaries are all slopsift needs.
+  env.ONNXRUNTIME_NODE_INSTALL = "skip";
 
-    dontUnpack = true;
-    nativeBuildInputs = [ nodejs ];
+  # onnxruntime-node ships prebuilt linux binaries that link libstdc++. autoPatchelfHook patches them during fixup.
+  nativeBuildInputs = [ autoPatchelfHook ];
+  buildInputs = [ stdenv.cc.cc.lib ];
 
-    buildPhase = ''
-      export HOME=$TMPDIR
-      export npm_config_cache=$TMPDIR/npm-cache
-      export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
-      export NODE_EXTRA_CA_CERTS=${cacert}/etc/ssl/certs/ca-bundle.crt
-
-      cat > package.json <<'PACKAGE'
-      {"name":"slopsift-nix","private":true,"dependencies":{"slopsift":"${version}"}}
-      PACKAGE
-
-      npm install --ignore-scripts --no-audit --no-fund
-    '';
-
-    installPhase = ''
-      cp -rL node_modules $out
-    '';
-
-    outputHashAlgo = "sha256";
-    outputHashMode = "recursive";
-    outputHash = "sha256-DrlKW/npUaFAG/LmpSOWRjVs4EGRDfmPKnlK3K7KbrY=";
-  };
-in
-stdenv.mkDerivation {
-  inherit pname version src;
-
-  dontConfigure = true;
-  dontBuild = true;
-
-  nativeBuildInputs = [
-    autoPatchelfHook
-    makeWrapper
+  makeWrapperArgs = [
+    # ONNX Runtime includes Microsoft's telemetry client, which keeps a device ID under ~/.cache/Microsoft.
+    # The network namespace below blocks what it would send. ORT_DISABLE_TELEMETRY turns it off.
+    # nixfmt: off
+    "--set" "ORT_DISABLE_TELEMETRY" "1"
+    "--add-flags"
+    "--no-download"
+    # nixfmt: on, as: shell-args
   ];
 
-  # onnxruntime-node ships prebuilt linux/x64 binaries that link libstdc++.
-  buildInputs = [
-    stdenv.cc.cc.lib
-  ];
-
-  installPhase = ''
-    runHook preInstall
-
-    # Library tree: the npm-installed node_modules with pre-built dist/cli.js and bundled ONNX model.
-    mkdir -p $out/lib/slopsift
-    cp -r ${npmDeps} $out/lib/slopsift/node_modules
-    chmod -R u+w $out/lib/slopsift/node_modules
-
+  postInstall = ''
     # Strip non-linux native binaries to save ~40 MB in the store.
-    rm -rf $out/lib/slopsift/node_modules/onnxruntime-node/bin/napi-v6/{darwin,win32}
-
-    # autoPatchelfHook runs during fixup and patches the linux .so and .node files.
+    rm -rf $out/lib/node_modules/slopsift/node_modules/onnxruntime-node/bin/napi-v6/{darwin,win32}
 
     # Sandboxed wrapper: unshare --user --net creates an isolated network namespace.
     # Even if a future version adds telemetry or the model-download fallback fires,
     # fetch() will fail — the tool literally cannot open a socket.
-    mkdir -p $out/bin
-    makeWrapper ${nodejs}/bin/node $out/bin/.slopsift-unwrapped \
-      --add-flags "$out/lib/slopsift/node_modules/slopsift/dist/cli.js" \
-      --add-flags "--no-download"
-
+    mv $out/bin/slopsift $out/bin/.slopsift-unwrapped
     cat > $out/bin/slopsift <<EOF
     #!/bin/sh
     exec ${util-linux}/bin/unshare --user --net -- $out/bin/.slopsift-unwrapped "\$@"
     EOF
     chmod +x $out/bin/slopsift
 
-    # Skill file, content-pinned.
-    echo "${skillSha256}  skills/slopsift/SKILL.md" | sha256sum -c -
-    install -Dm444 skills/slopsift/SKILL.md -t $out/share/claude-code/skills/slopsift/
-
-    runHook postInstall
+    install -Dm444 ${finalAttrs.passthru.skill} $out/share/claude-code/skills/slopsift/SKILL.md
   '';
+
+  passthru = {
+    skill = fetchurl {
+      url = "https://raw.githubusercontent.com/NikhilVerma/writinglint/slopsift@${finalAttrs.version}/skills/slopsift/SKILL.md";
+      sha256 = skillSha256;
+    };
+    updateScript = ./update.sh;
+  };
 
   meta = {
     description = "AI writing-tell linter — network-sandboxed, local ONNX inference";
@@ -115,4 +91,4 @@ stdenv.mkDerivation {
     platforms = [ "x86_64-linux" ];
     mainProgram = "slopsift";
   };
-}
+})
