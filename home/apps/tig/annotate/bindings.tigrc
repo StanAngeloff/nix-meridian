@@ -1,19 +1,13 @@
-
 color annotation-mark color214 default
 
-bind generic cn +sh -c "\
-  f='%(file)'; \
-  [ -n \"$f\" ] && \
-  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
-bind generic cc +sh -c "@tigAnnotate@ copy '%(repo:git-dir)'"
-bind generic cl +sh -c "@tigAnnotate@ list '%(repo:git-dir)'"
+# The c prefix is free because vim.tigrc binds "generic c none" and this file is appended after it.
+bind generic cc +@tigAnnotate@ copy %(repo:git-dir)
+bind generic cl +@tigAnnotate@ list %(repo:git-dir)
 
-bind pager <Enter> +sh -c "\
-  f='%(file)'; [ -n \"$f\" ] && \
-  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
-bind stage <Enter> +sh -c "\
-  f='%(file)'; [ -n \"$f\" ] && \
-  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
-bind diff <Enter> +sh -c "\
-  f='%(file)'; [ -n \"$f\" ] && \
-  @tigAnnotate@ add '%(repo:git-dir)' \"$f\" '%(lineno)' '%(lineno_old)'"
+# %(annotation) is only set in these three views; key=value arguments survive tig dropping empty ones.
+bind pager cn +@tigAnnotate@ add %(repo:git-dir) annotation=%(annotation) text=%(text)
+bind diff cn +@tigAnnotate@ add %(repo:git-dir) annotation=%(annotation) text=%(text)
+bind stage cn +@tigAnnotate@ add %(repo:git-dir) annotation=%(annotation) text=%(text)
+bind pager <Enter> +@tigAnnotate@ add %(repo:git-dir) annotation=%(annotation) text=%(text)
+bind diff <Enter> +@tigAnnotate@ add %(repo:git-dir) annotation=%(annotation) text=%(text)
+bind stage <Enter> +@tigAnnotate@ add %(repo:git-dir) annotation=%(annotation) text=%(text)

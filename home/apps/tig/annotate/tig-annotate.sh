@@ -1,57 +1,18 @@
-resolve_git_dir() {
-	local git_dir="$1"
-	if [ -f "$git_dir" ]; then
-		local target
-		target=$(sed -n 's/^gitdir: //p' "$git_dir")
-		if [[ "$target" != /* ]]; then
-			target="$(cd "$(dirname "$git_dir")" && cd "$(dirname "$target")" && pwd)/$(basename "$target")"
-		fi
-		git_dir="$target"
-	fi
-	if [[ "$git_dir" != /* ]]; then
-		git_dir="$(cd "$(dirname "$git_dir")" && pwd)/$(basename "$git_dir")"
-	fi
-	printf '%s' "$git_dir"
-}
-
-encode_path() {
-	printf '%s' "$1" | sed 's|/|·|g'
-}
-
-decode_path() {
-	printf '%s' "$1" | sed 's|·|/|g'
-}
-
-notes_path() {
-	printf '%s/tig-annotate' "$(resolve_git_dir "$1")"
-}
-
-note_filename() {
-	printf '%s:%s.md' "$(encode_path "$1")" "$2"
-}
-
 cmd_add() {
-	local git_dir="$1" file="$2" lineno="${3:-0}" lineno_old="${4:-0}"
+	local git_dir="$1"
+	shift
 
-	if ! git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
-		echo "Cannot annotate untracked files"
+	# tig-annotate-store owns the store: it validates the anchor, records the sidecar, and names the note.
+	local prepared
+	if ! prepared=$(tig-annotate-store prepare "$git_dir" "$@"); then
+		printf '%s\n' "$prepared"
 		return 0
 	fi
-
-	local effective_lineno="$lineno"
-	if [ "$effective_lineno" = "0" ]; then
-		effective_lineno="$lineno_old"
-	fi
-	if [ "$effective_lineno" = "0" ]; then
-		effective_lineno="file"
-	fi
-
-	local annotations_path
-	annotations_path=$(notes_path "$git_dir")
-	mkdir -p "$annotations_path"
-
-	local note_file
-	note_file="$annotations_path/$(note_filename "$file" "$effective_lineno")"
+	local note_file popup_title
+	{
+		read -r note_file
+		read -r popup_title
+	} <<<"$prepared"
 
 	local popup_height=6 popup_x=0 popup_y popup_w
 	if [ -f "$note_file" ] && grep -q '[^[:space:]]' "$note_file"; then
@@ -134,89 +95,67 @@ print(best_row)
 	local self
 	self=$(realpath "$0")
 
+	# -T is a tmux format, so "#" in a file name is doubled to stay literal. A command given as separate arguments
+	# runs without a shell, so quotes in the note path stay literal too.
 	tmux display-popup -EE \
 		-c "$tmux_client" \
 		-t "$tmux_target" \
-		-T " $file:$effective_lineno " \
+		-T " ${popup_title//\#/##} " \
 		-x "$popup_x" \
 		-y "$popup_y" \
 		-w "$popup_w" -h "$popup_height" \
 		-b heavy \
 		-s 'bg=#081018' \
 		-S 'bg=#081018,fg=#6f9f9f' \
-		"'$self' _edit_note '$note_file'"
+		"$self" _edit_note "$note_file"
 
-	if [ -f "$note_file" ] && ! grep -q '[^[:space:]]' "$note_file"; then
-		rm -f "$note_file"
-	elif [ -f "$note_file" ]; then
-		echo "Annotated: $file:$effective_lineno"
-	fi
+	tig-annotate-store settle "$note_file"
 }
 
 cmd_copy() {
-	local git_dir="$1"
-	local annotations_path
-	annotations_path=$(notes_path "$git_dir")
-
-	if [ ! -d "$annotations_path" ] || [ -z "$(ls -A "$annotations_path" 2>/dev/null)" ]; then
-		echo "No annotations to copy"
-		return 0
-	fi
-
-	local output="" count=0
-	for note_file in "$annotations_path"/*.md; do
-		[ -f "$note_file" ] || continue
-		grep -q '[^[:space:]]' "$note_file" || continue
-		local base
-		base=$(basename "$note_file" .md)
-		local encoded_path="${base%:*}"
-		local lineno="${base##*:}"
-		local file_path
-		file_path=$(decode_path "$encoded_path")
-		local content
-		content=$(cat "$note_file")
-
-		if [ $count -gt 0 ]; then
-			output+=$'\n\n---\n\n'
-		fi
-		output+="> $file_path:$lineno"$'\n'"$content"
-		count=$((count + 1))
-	done
-
-	printf '%s\n' "$output" | wl-copy >/dev/null 2>&1
-	echo "Copied $count annotation(s) to clipboard"
+	tig-annotate-store copy "$1"
 }
 
 cmd_list() {
 	local git_dir="$1"
-	local annotations_path
-	annotations_path=$(notes_path "$git_dir")
 
-	if [ ! -d "$annotations_path" ] || [ -z "$(ls -A "$annotations_path" 2>/dev/null)" ]; then
+	if [ -z "$(tig-annotate-store entries "$git_dir")" ]; then
 		echo "No annotations"
 		return 0
 	fi
 
 	local self
 	self=$(realpath "$0")
+	local tmux_client tmux_target
+	tmux_client=$(tmux display-message -p '#{client_name}')
+	tmux_target=$(tmux display-message -p '#{session_name}:#{window_index}.#{pane_index}')
 
+	# tig passes a relative ".git" at the top level, and a popup would start in the session's start directory:
+	# start it here, so the store it lists and the working tree it compares against are this repository's.
+	# -d is a tmux format, hence the doubled "#".
 	tmux display-popup -EE \
+		-c "$tmux_client" \
+		-t "$tmux_target" \
+		-d "${PWD//\#/##}" \
 		-T ' annotations ' \
 		-xC -yC -w 80% -h 80% \
 		-b heavy \
 		-s 'bg=#081018' \
 		-S 'bg=#081018,fg=#6f9f9f' \
-		"'$self' _fzf_list '$annotations_path' '$git_dir'"
+		"$self" _fzf_list "$git_dir"
 }
 
 cmd_fzf_list() {
-	local annotations_path="$1" git_dir="$2"
+	local git_dir="$1"
 	local self
 	self=$(realpath "$0")
 
+	# fzf ends an action at ")+" or ")," however the text is quoted, so the directory reaches the reload through
+	# the environment, expanded by fzf's action shell, and the action text stays constant.
 	local selected
+	# shellcheck disable=SC2016
 	selected=$(
-		"$self" _build_entries "$annotations_path" | fzf \
+		tig-annotate-store entries "$git_dir" | TIG_ANNOTATE_GIT_DIR=$git_dir fzf \
 			--multi \
 			--ansi \
 			--delimiter=$'\t' \
@@ -224,54 +163,27 @@ cmd_fzf_list() {
 			--preview='cat {1}' \
 			--header='Enter: copy | C-e: edit | C-t: trash | C-a: all | Esc: close' \
 			--bind 'ctrl-a:select-all' \
-			--bind "ctrl-t:execute-silent(gio trash {+1})+reload($self _build_entries $annotations_path)" \
+			--bind 'ctrl-t:execute-silent(tig-annotate-store trash {+1})+reload(tig-annotate-store entries "$TIG_ANNOTATE_GIT_DIR")' \
 			--bind "ctrl-e:execute($self _edit_note {1})"
 	) || true
 
 	[ -z "$selected" ] && return 0
 
-	local output="" count=0
-	while IFS=$'\t' read -r note_file _rest; do
-		[ -f "$note_file" ] || continue
-		local base
-		base=$(basename "$note_file" .md)
-		local encoded_path="${base%:*}"
-		local lineno="${base##*:}"
-		local file_path
-		file_path=$(decode_path "$encoded_path")
-		local content
-		content=$(cat "$note_file")
-		[ $count -gt 0 ] && output+=$'\n\n---\n\n'
-		output+="> $file_path:$lineno"$'\n'"$content"
-		count=$((count + 1))
+	local note_files=() note_file
+	while IFS=$'\t' read -r note_file _; do
+		note_files+=("$note_file")
 	done <<<"$selected"
 
-	printf '%s\n' "$output" | wl-copy >/dev/null 2>&1
+	local summary
+	summary=$(tig-annotate-store copy "$git_dir" "${note_files[@]}")
 	notify-send \
 		--app-name=tig-annotate \
 		--icon=edit-copy \
 		--category=transfer.complete \
 		--urgency=low \
 		--transient \
-		"Copied $count annotation(s)" \
-		"$count annotation(s) copied to clipboard"
-}
-
-cmd_build_entries() {
-	local annotations_path="$1"
-	for note_file in "$annotations_path"/*.md; do
-		[ -f "$note_file" ] || continue
-		grep -q '[^[:space:]]' "$note_file" || continue
-		local base
-		base=$(basename "$note_file" .md)
-		local encoded_path="${base%:*}"
-		local lineno="${base##*:}"
-		local file_path
-		file_path=$(decode_path "$encoded_path")
-		local first_line
-		first_line=$(head -1 "$note_file")
-		printf '%s\t%s:%s — %s\n' "$note_file" "$file_path" "$lineno" "$first_line"
-	done
+		"tig-annotate" \
+		"$summary"
 }
 
 cmd_edit_note() {
@@ -294,10 +206,6 @@ list)
 _fzf_list)
 	shift
 	cmd_fzf_list "$@"
-	;;
-_build_entries)
-	shift
-	cmd_build_entries "$@"
 	;;
 _edit_note)
 	shift

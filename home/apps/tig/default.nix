@@ -9,6 +9,9 @@ let
 
   popupNvim = import ../../../modules/lib/popup-nvim.nix { inherit pkgs; };
 
+  # Owns the note store and the export; see annotate/store.py.
+  tigAnnotateStore = pkgs.callPackage ./annotate/store.nix { };
+
   tigAnnotate = pkgs.writeShellApplication {
     name = "tig-annotate";
     bashOptions = [
@@ -16,13 +19,12 @@ let
       "nounset"
     ];
     runtimeInputs = [
+      tigAnnotateStore
       popupNvim
       pkgs.tmux
       pkgs.python3
       pkgs.fzf
-      pkgs.wl-clipboard
       pkgs.util-linux
-      pkgs.glib
       pkgs.libnotify
     ];
     text = builtins.readFile ./annotate/tig-annotate.sh;
