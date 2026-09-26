@@ -11,7 +11,7 @@
   # See "Agents go idle without responding" https://github.com/anthropics/claude-code/issues/29163
   # See "Sub-agents go idle immediately without executing prompt" https://github.com/anthropics/claude-code/issues/61547
   # See "Lead loops on idle notifications, burns tokens" https://github.com/anthropics/claude-code/issues/47930
-  # CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
+  CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = 1;
   # Learn more at https://code.claude.com/docs/en/data-usage
   DISABLE_TELEMETRY = 1;
   DISABLE_ERROR_REPORTING = 1;
