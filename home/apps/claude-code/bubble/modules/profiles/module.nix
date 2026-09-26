@@ -18,7 +18,11 @@ let
 in
 {
   runtimeInputs = [ jq ];
-  substitutions = {
-    profilesHandler = lib.getExe handler;
-  };
+  subcommands = [
+    {
+      name = "profiles";
+      handler = lib.getExe handler;
+      description = "Switch between saved Claude Code accounts (migrate, add, list, which, select, remove)";
+    }
+  ];
 }

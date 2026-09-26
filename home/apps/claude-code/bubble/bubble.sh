@@ -32,7 +32,7 @@ abbreviate_home() {
 	fi
 }
 
-# Arguments the bubble owns: --with-<grant>/--without-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
+# Arguments the bubble owns: --with-<grant>/--without-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), subcommand words followed by more arguments (handed to their handler), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
 declare -A bubble_grants=()
 @defaultGrantInitializers@
 bubble_volumes=()
@@ -72,12 +72,12 @@ while [[ $index -lt ${#args[@]} ]]; do
 		[[ "$model" != claude-* ]] && model="claude-${model}"
 		claude_args+=("--model" "$model")
 	else
-		# A "profiles" argument followed by a subcommand hands off to the standalone profile-switching
-		# command, before any bubble machinery starts. Requiring a trailing argument keeps a Claude
-		# option value that happens to be the word "profiles" (e.g. -p profiles) from being hijacked.
-		# _claude_is_profiles_handoff in ../initialize.zsh mirrors this rule for cc's session checks; change both together.
-		if [[ "$argument" == "profiles" && $((index + 1)) -lt ${#args[@]} ]]; then
-			exec @profilesHandler@ "${args[@]:$((index + 1))}"
+		# A registered subcommand word followed by at least one more argument hands off to that subcommand's handler,
+		# before any bubble machinery starts. Requiring a trailing argument keeps a Claude option value that happens to be
+		# a subcommand word (e.g. -p profiles) from being hijacked. The cases are generated from the registry in package.nix.
+		# _claude_is_subcommand_handoff in ../initialize.zsh mirrors this rule for cc's session checks; change both together.
+		if [[ $((index + 1)) -lt ${#args[@]} ]]; then
+			@subcommandDispatch@
 		fi
 		if [[ "$argument" == "--help" || "$argument" == "-h" ]]; then help_requested=1; fi
 		claude_args+=("$argument")
@@ -163,6 +163,7 @@ set -e
 if [[ -n "$help_requested" ]]; then
 	printf '%s' '@grantsHelp@'
 	printf '\n  -v, --volume HOST[:CONTAINER[:MODE]]\n        Bind-mount HOST into the bubble at CONTAINER (default: same path).\n        MODE is rw (default) or ro. May be repeated.\n'
+	printf '%s' '@subcommandsHelp@'
 	printf '\nEnvironment:\n  CLAUDE_BUBBLE_ARGS\n        Arguments prepended to the command line, parsed with shell quoting.\n        Export it from a project .envrc for per-directory defaults; whatever\n        is given at the prompt is parsed afterwards and wins.\n'
 fi
 

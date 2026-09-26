@@ -91,16 +91,17 @@ function _claude_expand_model_aliases() {
     esac
   done
   if (( ! has_effort )); then
-    # Prepended: the launcher drops everything before a profiles subcommand, so the flag never reaches
-    # claude auth login (which rejects it), and a trailing "profiles" (cc -p profiles) stays a prompt instead of a handoff.
+    # Prepended: the launcher drops everything before a subcommand word, so the flag never reaches a handler
+    # (claude auth login rejects it), and a trailing subcommand word (cc -p profiles) stays a prompt instead of a handoff.
     _cli_args=( "--effort" "$effort" "${_cli_args[@]}" )
   fi
 }
 
-# Succeeds when the launcher will hand these arguments to claude-profiles instead of starting a session.
-# Mirrors the launcher's rule in bubble/bubble.sh (the word "profiles" followed by a subcommand, after -m and -v/--volume
-# have consumed their values), so the two must change together.
-function _claude_is_profiles_handoff() {
+# Succeeds when the launcher will hand these arguments to a subcommand handler instead of starting a session.
+# Mirrors the launcher's rule in bubble/bubble.sh (a registered subcommand word followed by at least one more argument,
+# after -m and -v/--volume have consumed their values), so the two must change together.
+# The words are in _claude_subcommand_names, which aliases.nix sets from the launcher's own registry.
+function _claude_is_subcommand_handoff() {
   emulate -L zsh
 
   local i
@@ -112,8 +113,8 @@ function _claude_is_profiles_handoff() {
       -v|--volume)
         if [[ "${@[$i+1]}" == /* ]]; then (( i += 1 )); fi
         ;;
-      profiles)
-        if (( i < $# )); then return 0; fi
+      *)
+        if (( ${_claude_subcommand_names[(Ie)${@[$i]}]:-0} && i < $# )); then return 0; fi
         ;;
     esac
   done
@@ -123,8 +124,8 @@ function _claude_is_profiles_handoff() {
 function _claude_bubble_initialize() {
   emulate -L zsh
 
-  # A profiles subcommand never starts a session, so the session-name rules and the window rename do not apply.
-  if _claude_is_profiles_handoff "$@"; then return 0; fi
+  # A subcommand never starts a session, so the session-name rules and the window rename do not apply.
+  if _claude_is_subcommand_handoff "$@"; then return 0; fi
 
   local prefix_on="" error_on="" off=""
   if [[ -t 2 && -z "${NO_COLOR:-}" ]]; then

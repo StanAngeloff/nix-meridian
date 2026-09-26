@@ -20,6 +20,7 @@
     ./security.nix
     ./shell.nix
     ./smartcard.nix
+    ./tailscale.nix
     ./udev.nix
     ./upgrades.nix
   ];

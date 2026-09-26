@@ -17,11 +17,14 @@
   claude-code,
   # Keyring var names the secrets module injects into the bubble.
   keyringVariables ? [ "GH_TOKEN" ],
+  # Subcommands that are not bubble modules, as { name, handler, description }; modules declare theirs in module.nix.
+  subcommands ? [ ],
 }:
 # Builds `claude-bubble` by assembling bubble.sh (the skeleton) from the modules under modules/<name>/hooks.sh.
 # Each hooks.sh defines <module>_<phase>() hook functions (hyphens become underscores, e.g. notifications_before_run); the assembler concatenates every hooks.sh into the skeleton's functions slot and generates the per-phase call lines.
 # A hook is detected only when defined at column zero as `<name>() {`, so a typo'd name gets no call line and fails the build via shellcheck's SC2329 (function never invoked).
 # Modules may also declare `grants` in module.nix ({ name, description, default ? false }): each becomes an accepted `--with-<name>`/`--without-<name>` launcher flag, consumed by the skeleton into the bubble_grants array that hooks branch on, and documented after Claude Code's own --help output.
+# Modules may also declare `subcommands` in module.nix ({ name, handler, description }), as may the caller through the `subcommands` argument: `cc <name> <arguments…>` then execs the handler before any bubble machinery starts, and `cc -h` lists it.
 # Two-pass substitution: pass 1 fills the slots, pass 2 fills every value placeholder (the skeleton's claudeBin plus each module.nix's substitutions) — builtins.replaceStrings never rescans replaced text, and the hook bodies carry value placeholders of their own.
 # shellcheck (via writeShellApplication) gates the fully assembled script, so cross-module breakage fails the build.
 let
@@ -157,11 +160,46 @@ let
       + ")\n"
     ) grantList
   );
+  # Names become case patterns in the launcher and words in a zsh array, so they are kept to lowercase words.
+  subcommandList = map (
+    subcommand:
+    assert lib.assertMsg (
+      builtins.match "[a-z][a-z-]*" subcommand.name != null
+    ) "claude-bubble: subcommand name '${subcommand.name}' must be a lowercase word";
+    subcommand
+  ) (lib.concatMap (module: module.metadata.subcommands or [ ]) modules ++ subcommands);
+  subcommandNames =
+    let
+      names = map (subcommand: subcommand.name) subcommandList;
+    in
+    assert lib.assertMsg (lib.unique names == names) "claude-bubble: duplicate subcommand name";
+    names;
+  # The launcher runs this only when the word is followed by at least one more argument (see bubble.sh).
+  subcommandDispatch =
+    "case \"$argument\" in\n"
+    + lib.concatMapStrings (
+      subcommand:
+      "${subcommand.name}) exec ${lib.escapeShellArg subcommand.handler} \"\${args[@]:$((index + 1))}\" ;;\n"
+    ) subcommandList
+    + "esac";
+  # Rendered after the bubble options. Spliced into a single-quoted shell string like grantsHelp, so descriptions must not contain single quotes.
+  subcommandsHelp = lib.optionalString (subcommandList != [ ]) (
+    "\nSubcommands (handled by claude-bubble before any session starts):\n"
+    + lib.concatMapStrings (
+      subcommand: "  ${subcommand.name} <command>\n        ${subcommand.description}\n"
+    ) subcommandList
+  );
   valueSubstitutions =
     lib.foldl' (accumulated: module: accumulated // (module.metadata.substitutions or { }))
       {
         claudeBin = lib.getExe claude-code;
-        inherit grantNames defaultGrantInitializers grantsHelp;
+        inherit
+          grantNames
+          defaultGrantInitializers
+          grantsHelp
+          subcommandDispatch
+          subcommandsHelp
+          ;
       }
       modules;
 in
@@ -176,4 +214,6 @@ writeShellApplication {
     ++ lib.concatMap (module: module.metadata.runtimeInputs or [ ]) modules
   );
   text = substitute valueSubstitutions (substitute slotSubstitutions (builtins.readFile ./bubble.sh));
+  # aliases.nix hands these to initialize.zsh, whose session checks mirror the launcher's handoff rule.
+  passthru = { inherit subcommandNames; };
 }

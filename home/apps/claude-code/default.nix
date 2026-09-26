@@ -1,6 +1,7 @@
 {
   inputs,
   lib,
+  osConfig,
   pkgs,
   pkgs-unstable,
   ...
@@ -13,6 +14,11 @@ let
   # Panel indicator for the subscription limits. Polls the usage endpoint itself; see package.nix.
   claude-usage-tray = pkgs.callPackage ./usage-tray/package.nix { };
   integrations = import ../mcp.nix { inherit lib pkgs pkgs-unstable; };
+  # `cc remote`: phone pairing over Tailscale; see remote/package.nix.
+  cc-remote = pkgs.callPackage ./remote/package.nix {
+    tailscale = osConfig.services.tailscale.package;
+    firstLoginCommand = "tailscale up ${lib.concatStringsSep " " osConfig.services.tailscale.extraSetFlags}";
+  };
   # Bubblewrap isolation wrapper that cc/ccc launch through; also profile-installed so it is runnable directly by name.
   claude-bubble = pkgs.callPackage ./bubble/package.nix {
     inherit claude-code;
@@ -20,6 +26,13 @@ let
     keyringVariables = lib.unique (
       lib.concatMap (integration: integration.claude.secrets or [ ]) (lib.attrValues integrations)
     );
+    subcommands = [
+      {
+        name = "remote";
+        handler = lib.getExe cc-remote;
+        description = "Reach cc sessions from the phone over Tailscale (setup)";
+      }
+    ];
   };
   # High-precedence --settings layer that turns the inner Bash sandbox off inside the bubble.
   bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit pkgs; };

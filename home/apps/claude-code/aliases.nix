@@ -32,6 +32,8 @@ let
 in
 {
   programs.zsh.initContent = lib.mkOrder 1500 ''
+    # Words the launcher hands to a subcommand handler (bubble/package.nix); initialize.zsh mirrors its rule.
+    typeset -ga _claude_subcommand_names=( ${lib.concatStringsSep " " claude-bubble.subcommandNames} )
     source ${./initialize.zsh}
 
     function cc() {
