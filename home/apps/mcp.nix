@@ -44,6 +44,24 @@ let
         "--raw-field"
         "--input"
       ];
+
+  # Destructive local git commands: each discards work that has no other copy, so each one asks.
+  # Prefix rules cannot spare the harmless forms: `git restore --staged` and `git clean -n` ask too.
+  # Each form comes twice, right after the subcommand and after other arguments, for the reason ghApiAsk gives.
+  gitDestructiveAsk = [
+    "Bash(git checkout -- *)"
+    "Bash(git checkout * -- *)"
+    "Bash(git checkout .)"
+    "Bash(git checkout * .)"
+    "Bash(git checkout -f*)"
+    "Bash(git checkout * -f*)"
+    "Bash(git checkout --force*)"
+    "Bash(git checkout * --force*)"
+    "Bash(git restore *)"
+    "Bash(git clean *)"
+    "Bash(git stash drop*)"
+    "Bash(git stash clear*)"
+  ];
 in
 {
   # ── MCPorter-managed servers ──
@@ -174,7 +192,9 @@ in
         "mcp__github__*_write"
       ]
       # gh api is gated by request shape rather than by subcommand name. See ghApiAsk above.
-      ++ ghApiAsk;
+      ++ ghApiAsk
+      # git's destructive local commands. See gitDestructiveAsk above.
+      ++ gitDestructiveAsk;
       allow = [
         "mcp__github__pull_request_read"
         "mcp__github__search_pull_requests"
@@ -199,6 +219,9 @@ in
         "mcp__circleci-mcp-server__run_pipeline"
         "mcp__circleci-mcp-server__run_rollback_pipeline"
         "mcp__circleci-mcp-server__run_evaluation_tests"
+        # Approving a hold job through a helper script (`… auto-approve <branch>`), however the script is invoked.
+        # The arbiter's engine judges a script by its file, not its arguments, so this is left to a glob.
+        "Bash(*auto-approve*)"
       ];
       secrets = [ "CIRCLECI_TOKEN" ];
     };

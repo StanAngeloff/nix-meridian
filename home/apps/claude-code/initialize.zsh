@@ -59,7 +59,7 @@ function _claude_expand_model_aliases() {
     esac
   done
 
-  # Per-model effort, pattern-matched on the resolved model identifier; it is the only --effort cc/ccc pass.
+  # Per-model effort, pattern-matched on the resolved model identifier; it is the only --effort cc passes.
   # Every model gets a level, max unless listed: without an explicit --effort, Claude Code falls back to settings.json.
   # A forced level replaces an explicit --effort; otherwise the explicit --effort wins.
   local effort=max

@@ -42,7 +42,8 @@ let
       ];
       allowUnsandboxedCommands = true;
     };
-    # Auto mode (enabled by the cc alias) routes tool calls through a classifier. We do NOT customize the classifier:
+    # Auto mode routes tool calls through a classifier. cc starts in bypass mode instead,
+    # so a session only runs in auto mode when switched to it. We do NOT customize the classifier:
     # its built-in rules are a comprehensive backstop, it already trusts the repo you're working in, and the real checkpoint is permissions.ask below.
     # classifyAllShell is deliberately left OFF — routing every command (even ls/cat) through the classifier was far too slow.
     # Any autoMode.* override would go here, user scope only.
@@ -53,7 +54,8 @@ let
     skipAutoPermissionPrompt = true;
     # Human checkpoint. ask rules are evaluated BEFORE the classifier and always prompt — in every mode,
     # including auto and --dangerously-skip-permissions — regardless of whether the action was explicitly requested.
-    # This is the deterministic gate for anything with an external side effect done on our behalf.
+    # These rules are the deterministic stop for anything with an external side effect done on our behalf,
+    # and for local git discards.
     # Precedence is deny > ask > allow, with specificity ignored. A tool matching both lists prompts anyway.
     #
     # Learn more at https://code.claude.com/docs/en/permissions
@@ -73,6 +75,9 @@ let
         "Bash(printenv)"
         "Bash(printenv *)"
         "Bash(export -p)"
+        # Claude Code's own OAuth tokens: nothing a session does needs them, and the bubble binds ~/.claude read-write.
+        # Bash reads Claude Code can see (`cat`, a `<` redirect) are refused as well; `bash -c` or a script still gets through.
+        "Read(~/.claude/.credentials.json)"
       ];
       ask = lib.concatMap (integration: integration.claude.ask or [ ]) (lib.attrValues integrations);
       # The read-only half of each server, named one tool at a time rather than globbed.

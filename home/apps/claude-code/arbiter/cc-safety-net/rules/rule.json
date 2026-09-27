@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/kenryu42/cc-safety-net/main/assets/cc-safety-net.schema.json",
+  "version": 1,
+  "rules": ["arbiter", "arbiter-flags", "aws", "terraform", "gcloud"],
+  "transparent_wrappers": [
+    "bunx",
+    "caffeinate",
+    "chronic",
+    "devbox",
+    "direnv",
+    "flock",
+    "ionice",
+    "ltrace",
+    "mise",
+    "nix",
+    "npx",
+    "pipx",
+    "pnpm",
+    "poetry",
+    "script",
+    "stdbuf",
+    "strace",
+    "systemd-run",
+    "unbuffer",
+    "uv",
+    "yarn"
+  ]
+}

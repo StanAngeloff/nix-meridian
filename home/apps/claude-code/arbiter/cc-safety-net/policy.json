@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "safety": {
+    "level": "standard"
+  },
+  "destructive_command_protection": {
+    "enabled": true,
+    "allow_paths": ["/tmp", "/data/tmp"],
+    "overrides": {
+      "awk.system-dynamic": "off",
+      "shell.dynamic-executable": "off",
+      "shell.dynamic-structure": "off",
+      "xargs.shell-dynamic": "off"
+    }
+  },
+  "secret_protection": {
+    "enabled": true,
+    "overrides": {
+      "secret.basename.env": "off",
+      "secret.pattern.env-variant": "off",
+      "secret.basename.npmrc": "off"
+    },
+    "deny_paths": [
+      "~/.local/share/keyrings",
+      "~/.gnupg",
+      "~/.password-store",
+      "~/.config/rclone/rclone.conf",
+      "/proc/self/environ",
+      "/proc/thread-self/environ",
+      "/proc/1/environ"
+    ]
+  }
+}

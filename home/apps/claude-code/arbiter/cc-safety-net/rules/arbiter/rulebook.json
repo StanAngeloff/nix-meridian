@@ -1,0 +1,145 @@
+{
+  "rulebook_version": 2,
+  "name": "arbiter",
+  "version": "1.0.0",
+  "description": "Commands the native ask and deny globs cannot see behind wrappers and quoting; claude-arbiter turns each stop into an ask.",
+  "allowed_commands": ["gcloud", "gh", "git", "kubectl", "secret-tool"],
+  "rules": [
+    {
+      "name": "git-push",
+      "command": "git",
+      "match": { "command_path": ["push"] },
+      "reason": "Pushing publishes commits to a remote."
+    },
+    {
+      "name": "git-stash-untracked",
+      "command": "git",
+      "match": {
+        "command_path": ["stash"],
+        "any_args": ["-u", "--include-untracked", "-a", "--all"],
+        "exclude_args": ["show", "list", "apply", "pop", "branch"]
+      },
+      "reason": "Stashing untracked files in a shared checkout hides other sessions' work."
+    },
+    {
+      "name": "gh-auth-token",
+      "command": "gh",
+      "match": { "command_path": ["auth", "token"] },
+      "reason": "Prints a GitHub token into the transcript."
+    },
+    {
+      "name": "gcloud-print-access-token",
+      "command": "gcloud",
+      "match": { "command_path": ["auth", "print-access-token"] },
+      "reason": "Prints a Google Cloud token into the transcript."
+    },
+    {
+      "name": "gcloud-print-identity-token",
+      "command": "gcloud",
+      "match": { "command_path": ["auth", "print-identity-token"] },
+      "reason": "Prints a Google Cloud token into the transcript."
+    },
+    {
+      "name": "gcloud-application-default-print-access-token",
+      "command": "gcloud",
+      "match": { "command_path": ["auth", "application-default", "print-access-token"] },
+      "reason": "Prints a Google Cloud token into the transcript."
+    },
+    {
+      "name": "secret-tool-lookup",
+      "command": "secret-tool",
+      "match": { "command_path": ["lookup"] },
+      "reason": "Reads a secret out of the keyring."
+    },
+    {
+      "name": "secret-tool-search",
+      "command": "secret-tool",
+      "match": { "command_path": ["search"] },
+      "reason": "Searching the keyring prints the secrets it finds."
+    },
+    {
+      "name": "kubectl-apply",
+      "command": "kubectl",
+      "match": { "command_path": ["apply"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-create",
+      "command": "kubectl",
+      "match": { "command_path": ["create"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-delete",
+      "command": "kubectl",
+      "match": { "command_path": ["delete"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-patch",
+      "command": "kubectl",
+      "match": { "command_path": ["patch"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-replace",
+      "command": "kubectl",
+      "match": { "command_path": ["replace"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-scale",
+      "command": "kubectl",
+      "match": { "command_path": ["scale"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-edit",
+      "command": "kubectl",
+      "match": { "command_path": ["edit"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-drain",
+      "command": "kubectl",
+      "match": { "command_path": ["drain"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-cordon",
+      "command": "kubectl",
+      "match": { "command_path": ["cordon"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-uncordon",
+      "command": "kubectl",
+      "match": { "command_path": ["uncordon"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-taint",
+      "command": "kubectl",
+      "match": { "command_path": ["taint"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-set",
+      "command": "kubectl",
+      "match": { "command_path": ["set"] },
+      "reason": "Changes a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-rollout-restart",
+      "command": "kubectl",
+      "match": { "command_path": ["rollout", "restart"] },
+      "reason": "Restarts workloads in a Kubernetes cluster."
+    },
+    {
+      "name": "kubectl-rollout-undo",
+      "command": "kubectl",
+      "match": { "command_path": ["rollout", "undo"] },
+      "reason": "Rolls back workloads in a Kubernetes cluster."
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "rulebook_version": 1,
+  "name": "arbiter-flags",
+  "version": "1.0.0",
+  "description": "Environment dumps that only a flag reveals, which version 2's command-word matching cannot express.",
+  "allowed_commands": ["declare", "ps", "typeset"],
+  "rules": [
+    {
+      "name": "declare-exported",
+      "command": "declare",
+      "block_args": ["-x", "-p"],
+      "reason": "Lists exported variables, secrets included."
+    },
+    {
+      "name": "typeset-exported",
+      "command": "typeset",
+      "block_args": ["-x", "-p"],
+      "reason": "Lists exported variables, secrets included."
+    },
+    {
+      "name": "ps-environment",
+      "command": "ps",
+      "block_args": ["e", "axe", "auxe", "eww", "aeww", "axeww", "auxeww"],
+      "reason": "BSD-style ps e prints every process's environment, secrets included; ps -e (every process) stays allowed."
+    }
+  ]
+}

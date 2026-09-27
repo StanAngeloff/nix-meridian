@@ -19,7 +19,7 @@ let
     tailscale = osConfig.services.tailscale.package;
     firstLoginCommand = "tailscale up ${lib.concatStringsSep " " osConfig.services.tailscale.extraSetFlags}";
   };
-  # Bubblewrap isolation wrapper that cc/ccc launch through; also profile-installed so it is runnable directly by name.
+  # Bubblewrap isolation wrapper that cc launches through; also profile-installed so it is runnable directly by name.
   claude-bubble = pkgs.callPackage ./bubble/package.nix {
     inherit claude-code;
     # Keyring variable names each integration needs; the bubble's secrets module resolves them host-side and injects them.
@@ -34,9 +34,11 @@ let
       }
     ];
   };
-  # High-precedence --settings layer that turns the inner Bash sandbox off inside the bubble.
-  bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit pkgs; };
-  # cc/ccc pass it as --model; bare `claude` reads it from settings.json, where every switch also resets what /model saved.
+  # The bubble's PreToolUse arbiter; see arbiter/claude-arbiter.sh.
+  claude-arbiter = pkgs.callPackage ./arbiter/package.nix { };
+  # High-precedence --settings layer for bubbled sessions: the inner Bash sandbox off, no bypass-mode dialog, the arbiter.
+  bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit lib pkgs claude-arbiter; };
+  # cc and _cc pass it as --model; bare `claude` reads it from settings.json, where every switch also resets what /model saved.
   baseModel = "claude-opus-5-5[1m]";
 in
 {
