@@ -4,8 +4,9 @@
 # workflow; either failure stops it. It then shows how the release changes the three SKILL.md files, which Claude Code
 # reads as instructions, and whether it expects another sem. Nothing changes until you answer yes.
 # On yes, it writes the new version, binary hash and skill checksums into package.nix, bumps pkgs/ataraxy-sem when the
-# sem version changed, builds the package and its skills and checks the version it reports, leaving the result for
-# review in git diff. Giving the current version re-verifies the pinned release without changing anything.
+# sem version changed, builds the package with its skills, checks the version it reports and runs tests/plannotator
+# against it, leaving the result for review in git diff. Giving the current version re-verifies the pinned release
+# without changing anything.
 set -euo pipefail
 
 owner_name=backnotprop
@@ -164,14 +165,22 @@ if [[ "$new_sem_version" != "$current_sem_version" ]]; then
 fi
 
 echo "Building..."
-built_path="$(nix build --no-link --print-out-paths "$flake_url#$packages_attribute.plannotator")"
-# The package installs its skills only with installSkills = true, so fetch them on their own to check their checksums.
-for skill_name in "${skill_names[@]}"; do
-	nix build --no-link "$flake_url#$packages_attribute.plannotator.skills.$skill_name"
-done
+# With installSkills the build also fetches the three skills, which checks their checksums, and the tests need them.
+built_path="$(nix build --no-link --print-out-paths --impure --expr \
+	"(builtins.getFlake \"$flake_url\").$packages_attribute.plannotator.override { installSkills = true; }")"
 reported_version="$(HOME="$work_path" "$built_path/bin/plannotator" --version)"
 if [[ "$reported_version" != "plannotator $new_version" ]]; then
 	echo "error: the built plannotator reports '$reported_version'" >&2
+	exit 1
+fi
+
+echo "Running the behavior tests..."
+# The wrapper's protections rest on upstream's variable names and install paths, which a release can change silently.
+# Node is on PATH so the runtime installs get as far as writing into vendor/.
+if ! PLANNOTATOR_PACKAGE="$built_path" nix shell --inputs-from "$flake_url" \
+	nixpkgs#python3Packages.pytest nixpkgs#nodejs nixpkgs#git nixpkgs#iproute2 \
+	--command pytest -p no:cacheprovider "$repository_path/tests/plannotator"; then
+	echo "error: plannotator $new_version fails tests/plannotator; the bump stays in the working tree for review" >&2
 	exit 1
 fi
 
