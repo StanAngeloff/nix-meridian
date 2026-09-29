@@ -6,6 +6,7 @@
   tmux,
   pipewire,
   util-linux,
+  xdg-utils,
   ...
 }:
 let
@@ -21,6 +22,7 @@ let
       tmux
       pipewire
       util-linux # setsid detaches the chime so it never blocks the relay loop
+      xdg-utils # xdg-open for `open-url` requests
       stateCmd
     ];
     text = builtins.readFile ./relay.sh;

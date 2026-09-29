@@ -14,6 +14,7 @@
   systemd,
   util-linux,
   wl-clipboard,
+  xdg-utils,
   claude-code,
   # Keyring var names the secrets module injects into the bubble.
   keyringVariables ? [ "GH_TOKEN" ],
@@ -80,6 +81,7 @@ let
       systemd
       util-linux
       wl-clipboard
+      xdg-utils
       keyringVariables
       ;
   };
@@ -202,6 +204,13 @@ let
           ;
       }
       modules;
+
+  # Loopback opener for programs that take a browser command; see modules/notifications/open-url.sh.
+  openUrl = writeShellApplication {
+    name = "claude-bubble-open-url";
+    runtimeInputs = [ xdg-utils ];
+    text = builtins.readFile ./modules/notifications/open-url.sh;
+  };
 in
 writeShellApplication {
   name = "claude-bubble";
@@ -214,6 +223,7 @@ writeShellApplication {
     ++ lib.concatMap (module: module.metadata.runtimeInputs or [ ]) modules
   );
   text = substitute valueSubstitutions (substitute slotSubstitutions (builtins.readFile ./bubble.sh));
-  # aliases.nix hands these to initialize.zsh, whose session checks mirror the launcher's handoff rule.
-  passthru = { inherit subcommandNames; };
+  # aliases.nix hands subcommandNames to initialize.zsh, whose session checks mirror the launcher's handoff rule;
+  # openUrl is the loopback opener for programs that take a browser command.
+  passthru = { inherit subcommandNames openUrl; };
 }

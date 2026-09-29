@@ -64,6 +64,10 @@ in
     claude-code
     claude-bubble
     claude-usage-tray
+    (pkgs.plannotator.override {
+      installSkills = true;
+      browserCommand = lib.getExe claude-bubble.openUrl;
+    })
   ];
 
   systemd.user.services.claude-usage-tray = {
