@@ -66,7 +66,7 @@ in
     claude-usage-tray
     (pkgs.plannotator.override {
       installSkills = true;
-      browserCommand = lib.getExe claude-bubble.openUrl;
+      browserCommand = lib.getExe claude-bubble.wwwBrowser;
     })
   ];
 

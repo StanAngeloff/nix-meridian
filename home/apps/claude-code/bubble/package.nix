@@ -205,11 +205,11 @@ let
       }
       modules;
 
-  # Loopback opener for programs that take a browser command; see modules/notifications/open-url.sh.
-  openUrl = writeShellApplication {
-    name = "claude-bubble-open-url";
+  # Loopback opener for programs that take a browser command; see modules/notifications/www-browser.sh.
+  wwwBrowser = writeShellApplication {
+    name = "claude-bubble-www-browser";
     runtimeInputs = [ xdg-utils ];
-    text = builtins.readFile ./modules/notifications/open-url.sh;
+    text = builtins.readFile ./modules/notifications/www-browser.sh;
   };
 in
 writeShellApplication {
@@ -224,6 +224,6 @@ writeShellApplication {
   );
   text = substitute valueSubstitutions (substitute slotSubstitutions (builtins.readFile ./bubble.sh));
   # aliases.nix hands subcommandNames to initialize.zsh, whose session checks mirror the launcher's handoff rule;
-  # openUrl is the loopback opener for programs that take a browser command.
-  passthru = { inherit subcommandNames openUrl; };
+  # wwwBrowser is the loopback opener for programs that take a browser command.
+  passthru = { inherit subcommandNames wwwBrowser; };
 }
