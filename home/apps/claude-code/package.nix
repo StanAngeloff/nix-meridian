@@ -3,6 +3,7 @@
   symlinkJoin,
   makeWrapper,
   aspellWithDicts,
+  bashInteractive,
   libsecret,
   poppler-utils,
   claude-code-unwrapped,
@@ -18,6 +19,8 @@ symlinkJoin {
   postBuild = ''
     # Put poppler's pdftoppm on PATH so the Read tool can rasterise PDFs without a nix shell (which the sealed bubble blocks); --suffix defers to any poppler already on PATH.
     # aspell is the spell checker for the prompt input (spellcheck setting in settings.json).
+    # SHELL is bash because Claude Code runs the Bash tool and ! commands in $SHELL: zsh's =word expansion and nomatch globbing
+    # break commands written for bash, and cc-safety-net passes `=rm -rf …`, which zsh runs as rm.
     wrapProgram $out/bin/claude \
       --suffix PATH : ${
         lib.makeBinPath [
@@ -25,6 +28,7 @@ symlinkJoin {
           (aspellWithDicts (ds: [ ds.en ]))
         ]
       } \
+      --set SHELL ${lib.getExe bashInteractive} \
       --run '
         # $TMPDIR resolves to different paths between sandboxed and unsandboxed commands in the same session.
         # On NixOS, TMP/TMPDIR may also be unset entirely, causing "$TMPDIR/file.txt" to collapse to "/file.txt".
