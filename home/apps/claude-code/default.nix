@@ -70,6 +70,14 @@ in
     })
   ];
 
+  # Short slash commands for the Plannotator skills; see skills/default.nix.
+  # `review` takes over the bundled /code-review's alias, so that one is typed in full.
+  claude-code.skills.aliases = {
+    annotate = "plannotator-annotate";
+    last = "plannotator-last";
+    review = "plannotator-review";
+  };
+
   systemd.user.services.claude-usage-tray = {
     Unit = {
       Description = "Claude subscription usage in the GNOME panel";
