@@ -25,6 +25,8 @@ let
   # PLANNOTATOR_REMOTE: remote mode binds 0.0.0.0 with no authentication on the approve and feedback endpoints,
   #   and SSH_TTY or SSH_CONNECTION turn it on silently.
   # PLANNOTATOR_SHARE: share links carry the plan or diff to share.plannotator.ai; short links upload it.
+  # PLANNOTATOR_AUTO_UPDATE: the opt-in self-updater (0.27.23 on) downloads and runs plannotator.ai/install.sh, which
+  #   writes ~/.local/bin and agent integrations; set here, it beats config.json and locks the toggle in Settings.
   # PLANNOTATOR_JINA: annotating a URL would fetch it through r.jina.ai.
   # PLANNOTATOR_SEM_PATH: once set, the only sem Plannotator tries, never one from its data directory or PATH.
   # PLANNOTATOR_DATA_DIR: under ~/.claude, which the Claude Code bubble binds from the host, so bubbled sessions keep drafts.
@@ -35,6 +37,7 @@ let
     # nixfmt: off
     "--set" "PLANNOTATOR_REMOTE" "0"
     "--set" "PLANNOTATOR_SHARE" "disabled"
+    "--set" "PLANNOTATOR_AUTO_UPDATE" "0"
     "--set-default" "PLANNOTATOR_JINA" "0"
     "--set" "PLANNOTATOR_SEM_PATH" (lib.getExe ataraxy-sem)
     "--run" ''export PLANNOTATOR_DATA_DIR="''${PLANNOTATOR_DATA_DIR:-$HOME/.claude/plannotator}"''
