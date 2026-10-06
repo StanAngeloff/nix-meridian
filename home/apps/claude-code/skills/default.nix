@@ -13,6 +13,7 @@ in
   imports = [
     ./git-lines.nix
     ./learn.nix
+    ./ponytail.nix
     ./slopsift.nix
     ./unslop.nix
   ];

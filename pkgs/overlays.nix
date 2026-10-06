@@ -14,6 +14,7 @@ final: prev: {
   ataraxy-sem = final.callPackage ./ataraxy-sem/package.nix { };
   plannotator = final.callPackage ./plannotator/package.nix { };
   academic-forge = final.callPackage ./academic-forge/package.nix { };
+  ponytail = final.callPackage ./ponytail/package.nix { };
   cursor-plugins = final.callPackage ./cursor-plugins/package.nix { };
   mcp-server-trello = final.callPackage ./mcp-server-trello/package.nix { };
   mutter = final.callPackage ./mutter/overlay.nix { mutter = prev.mutter; };
