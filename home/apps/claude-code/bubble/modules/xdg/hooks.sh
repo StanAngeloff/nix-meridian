@@ -1,4 +1,4 @@
-# Masked tmpfs over XDG_RUNTIME_DIR: hides podman.sock, the keyring, tmux and nvim sockets. Later modules (gpg, ssh) re-expose only their agent sockets on top.
+# Masked tmpfs over XDG_RUNTIME_DIR: hides podman.sock, the keyring, tmux and nvim sockets. Later modules (claude, gpg, ssh) re-expose only their own sockets on top.
 xdg_mount() {
 	bwrap_args+=(--tmpfs "$xdg_runtime_path")
 }

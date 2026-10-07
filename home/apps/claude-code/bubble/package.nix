@@ -39,7 +39,7 @@ let
   #  - system before gpu (gpu binds the render nodes into system's fresh /dev);
   #  - home before every module that binds under $HOME (claude, profiles, git, gpg, ssh, github, tools, nvim, pnpm, desktop);
   #  - claude before profiles (profiles masks ~/.claude/profiles inside the ~/.claude bind);
-  #  - xdg before gpg, ssh, clipboard and podman (their sockets re-expose into its tmpfs mask);
+  #  - xdg before claude, gpg, ssh, clipboard and podman (their sockets re-expose into its tmpfs mask);
   #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into).
   moduleNames = [
     "system"

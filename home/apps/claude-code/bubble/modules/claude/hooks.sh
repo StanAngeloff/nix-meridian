@@ -6,6 +6,10 @@ claude_prepare() {
 	# and claude_after_run can merge stray directories (worktree slugs) back into the project.
 	projects_overlay="$scratch_path/projects-overlay"
 	mkdir -p "$projects_overlay"
+	# Cross-session messaging (SendMessage, ListAgents) finds a peer through the socket path its ~/.claude/sessions entry records,
+	# $XDG_RUNTIME_DIR/cc-socks/<pid>.sock. Created host-side so every session shares one directory (see claude_mount).
+	mkdir -p "$xdg_runtime_path/cc-socks"
+	chmod 700 "$xdg_runtime_path/cc-socks"
 }
 
 claude_mount() {
@@ -17,6 +21,10 @@ claude_mount() {
 	# Hide all projects, re-expose only the current project's transcript directory (resume + memory).
 	bwrap_args+=(--bind "$projects_overlay" "$home_path/.claude/projects")
 	bwrap_args+=(--bind "$home_path/.claude/projects/$project_slug" "$home_path/.claude/projects/$project_slug")
+	# Without this, the xdg mask gives each bubble an empty socket directory of its own and sessions cannot see one another.
+	# It opens no new channel between sessions: every one of them already shares the writable ~/.claude.
+	# Whether a peer's message is delivered is Claude Code's crossSessionInbound setting.
+	bwrap_args+=(--bind "$xdg_runtime_path/cc-socks" "$xdg_runtime_path/cc-socks")
 }
 
 claude_environment() {
