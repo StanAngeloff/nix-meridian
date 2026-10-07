@@ -109,7 +109,7 @@ let
     promptSuggestionEnabled = false;
     spellcheck = {
       enabled = true;
-      language = "en_GB";
+      language = config.nix-meridian.language.locale;
     };
     voice = {
       enabled = false; # Don't hijack the <Space> key for voice input.

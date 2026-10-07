@@ -50,8 +50,8 @@
       softtabstop = 2;
       spell = true;
       spelllang = [
-        "en"
-        "bg"
+        config.nix-meridian.language.code
+        config.nix-meridian.secondaryLanguage.code
       ];
       switchbuf = "usetab,newtab";
       tabstop = 2;

@@ -12,6 +12,8 @@
 // PLANNOTATOR_WINDOW_PROFILE: the data directory (cookies, which hold Plannotator's settings, and the zoom level).
 // PLANNOTATOR_WINDOW_BROWSER: the program a clicked link's URL goes to; unset or failing, the URL is copied instead.
 // PLANNOTATOR_WINDOW_LOG: a file that gets one line per decision, read by tests/plannotator.
+// PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE and PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY: the page's spell-checking
+// language (en-GB) and its Chromium dictionary file (en-GB-10-1.bdic); unset, spell checking is off.
 "use strict";
 
 const { app, BaseWindow, Menu, WebContentsView, clipboard, ipcMain, nativeTheme, session } = require("electron");
@@ -39,6 +41,9 @@ if (!reviewUrl || !profilePath) {
 }
 const reviewOrigin = reviewUrl.origin;
 const windowLogFile = process.env.PLANNOTATOR_WINDOW_LOG;
+const spellcheckLanguage = process.env.PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE;
+const spellcheckDictionaryFile = process.env.PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY;
+const spellcheckEnabled = Boolean(spellcheckLanguage && spellcheckDictionaryFile);
 
 // The requests on which Plannotator decides a review: it answers them, then prints the outcome and exits 1.5 seconds later.
 // Once one of them is answered, Electron outlives its window, so that Plannotator's exit ends the review as after any decision,
@@ -73,6 +78,14 @@ function isReviewOrigin(address) {
 }
 
 app.setPath("userData", profilePath);
+// Where Electron looks for a dictionary before it downloads one from Google's servers, which the namespace would stop.
+if (spellcheckEnabled) {
+  const dictionariesPath = path.join(profilePath, "Dictionaries");
+  const dictionaryLinkFile = path.join(dictionariesPath, path.basename(spellcheckDictionaryFile));
+  fs.mkdirSync(dictionariesPath, { recursive: true });
+  fs.rmSync(dictionaryLinkFile, { force: true });
+  fs.symlinkSync(spellcheckDictionaryFile, dictionaryLinkFile);
+}
 // Every other name resolves to nothing, IP literals included (Chromium maps them too),
 // so prefetching and preconnects go nowhere either.
 app.commandLine.appendSwitch("host-resolver-rules", `MAP * ~NOTFOUND, EXCLUDE ${reviewUrl.hostname}`);
@@ -173,6 +186,9 @@ app.whenReady().then(() => {
     }
     callback({});
   });
+  // No language until the page has loaded (below): a dictionary loaded before the page's renderer started never reaches it
+  // (Electron 43), and the locale's own language would be downloaded, as it is with spell checking off.
+  reviewSession.setSpellCheckerLanguages([]);
   reviewSession.on("will-download", (event, item) => {
     logDecision("cancel", "download", item.getURL());
     event.preventDefault();
@@ -194,7 +210,7 @@ app.whenReady().then(() => {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      spellcheck: false,
+      spellcheck: spellcheckEnabled,
       preload: path.join(__dirname, "preload.js"),
     },
   });
@@ -222,6 +238,40 @@ app.whenReady().then(() => {
   reviewView.webContents.on("page-title-updated", (event, title) => {
     reviewWindow.setTitle(title);
     showTitle();
+  });
+
+  if (spellcheckEnabled) {
+    // A changed language is what sends the dictionary to the page's renderer, so it is cleared first on a reload.
+    reviewView.webContents.on("did-finish-load", () => {
+      reviewSession.setSpellCheckerLanguages([]);
+      reviewSession.setSpellCheckerLanguages([spellcheckLanguage]);
+    });
+  }
+  // Electron has no context menu of its own: this one has the spellchecker's suggestions and the editing commands.
+  reviewView.webContents.on("context-menu", (event, parameters) => {
+    const spellingItems = [
+      ...parameters.dictionarySuggestions.map((suggestion) => ({
+        label: suggestion,
+        click: () => reviewView.webContents.replaceMisspelling(suggestion),
+      })),
+      ...(parameters.misspelledWord
+        ? [
+            {
+              label: "Add to Dictionary",
+              click: () => reviewSession.addWordToSpellCheckerDictionary(parameters.misspelledWord),
+            },
+            { type: "separator" },
+          ]
+        : []),
+    ];
+    Menu.buildFromTemplate([
+      ...spellingItems,
+      { role: "cut", enabled: parameters.editFlags.canCut },
+      { role: "copy", enabled: parameters.editFlags.canCopy },
+      { role: "paste", enabled: parameters.editFlags.canPaste },
+      { type: "separator" },
+      { role: "selectAll", enabled: parameters.editFlags.canSelectAll },
+    ]).popup({ window: reviewWindow });
   });
 
   // The page closing itself (window.close()) ends its view only; the window goes with it.

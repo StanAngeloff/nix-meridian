@@ -12,6 +12,11 @@ let
   configurationPath = ".config/Typora";
   themesPath = "${configurationPath}/themes";
   dictionariesPath = "${configurationPath}/typora-dictionaries";
+  # The large word list where nixpkgs has one (en_GB has no plain list); see modules/options/language.nix.
+  dictionary =
+    pkgs.hunspellDicts."${config.nix-meridian.language.locale}-large"
+      or pkgs.hunspellDicts.${config.nix-meridian.language.locale}
+        or (throw "typora: nixpkgs has no hunspell dictionary for ${config.nix-meridian.language.locale}");
 in
 {
   home.packages = [ pkgs.typora ];
@@ -37,10 +42,10 @@ in
       flags = [ ];
     };
 
-    "${dictionariesPath}/en_GB.aff".source =
-      "${pkgs.hunspellDicts.en_GB-large}/share/hunspell/en_GB.aff";
-    "${dictionariesPath}/en_GB.dic".source =
-      "${pkgs.hunspellDicts.en_GB-large}/share/hunspell/en_GB.dic";
+    "${dictionariesPath}/${dictionary.dictFileName}.aff".source =
+      "${dictionary}/share/hunspell/${dictionary.dictFileName}.aff";
+    "${dictionariesPath}/${dictionary.dictFileName}.dic".source =
+      "${dictionary}/share/hunspell/${dictionary.dictFileName}.dic";
     "${themesPath}/notion-dark-enhanced.css".source =
       "${typora-notion-theme}/themes/enhanced/notion-dark-enhanced.css";
 

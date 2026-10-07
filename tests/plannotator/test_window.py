@@ -6,6 +6,8 @@
 
 Clicks come from trusted_click.js, which NODE_OPTIONS loads into Electron's main process:
 it clicks through Chromium's input pipeline, so the page sees a trusted click, as from a user's mouse.
+spell_check.js types and right-clicks the same way.
+The package must be built with spellcheckLanguage = "en-GB" (the command in test_package.py's docstring).
 """
 
 import http.server
@@ -164,6 +166,43 @@ def test_inside_the_namespace_the_window_reaches_only_its_server(
         "--type=renderer" in command_line
         for _, _, command_line in session.snapshot().values()
     )
+
+    status, _ = session.request_json("/api/exit", "POST", {})
+    assert status == 200
+    session.process.communicate(timeout=60)
+    session.wait_until_nothing_remains()
+
+
+def test_the_review_page_is_spell_checked_without_a_download(
+    tmp_path, environment, data_path, start_session
+):
+    # The dictionary comes from the package, linked into the profile; the namespace would stop Electron's download of one.
+    (tmp_path / "probe.md").write_text("# Probe\n")
+    session = start_session(
+        ["annotate", "probe.md"],
+        {
+            **environment,
+            "NODE_OPTIONS": f"--require={TESTS_PATH / 'spell_check.js'}",
+        },
+        tmp_path,
+        window=True,
+    )
+
+    [context_menu_line] = session.wait_for_window_log(
+        lambda line: line.startswith("test-context-menu "),
+        "a right-click on the misspelled word to get suggestions",
+    )
+    _, misspelled_word, suggestions = context_menu_line.split(" ", 2)
+    assert misspelled_word == "Speling"
+    assert "Spelling" in suggestions.split(","), suggestions
+    log = session.window_log()
+    assert "test-spellcheck-dictionary-initialized en-GB" in log, log
+    assert not any(
+        line.startswith("test-spellcheck-dictionary-download-begin") for line in log
+    ), log
+    dictionary_files = list((data_path / "review-window" / "Dictionaries").iterdir())
+    assert [file.name for file in dictionary_files] == ["en-GB-10-1.bdic"]
+    assert dictionary_files[0].resolve().is_relative_to("/nix/store")
 
     status, _ = session.request_json("/api/exit", "POST", {})
     assert status == 200

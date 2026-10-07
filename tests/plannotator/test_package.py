@@ -7,14 +7,14 @@ What each file covers:
 - test_teardown.py: every way a review ends.
 harness.py explains how a test reaches a server it cannot connect to.
 
-PLANNOTATOR_PACKAGE names a package built with installSkills = true.
+PLANNOTATOR_PACKAGE names a package built with installSkills = true and spellcheckLanguage = "en-GB".
 Every test gets its own HOME and data directory under pytest's base temporary directory.
 conftest.py moves that directory to ~/.cache/plannotator-tests, because the namespace masks /tmp.
 Review windows open on a headless Weston, so nothing appears on the desktop, and nothing touches ~/.claude/plannotator.
 pkgs/plannotator/update.sh runs these after every bump. To run them by hand, from the repository root:
 
     export PLANNOTATOR_PACKAGE="$(nix build --no-link --print-out-paths --impure --expr \
-      "(builtins.getFlake \"path:$PWD\").nixosConfigurations.stan-latitude.pkgs.plannotator.override { installSkills = true; }")"
+      "(builtins.getFlake \"path:$PWD\").nixosConfigurations.stan-latitude.pkgs.plannotator.override { installSkills = true; spellcheckLanguage = \"en-GB\"; }")"
     nix shell --inputs-from "path:$PWD" nixpkgs#python3Packages.pytest nixpkgs#nodejs nixpkgs#git nixpkgs#iproute2 \
       nixpkgs#weston --command pytest -p no:cacheprovider tests/plannotator
 

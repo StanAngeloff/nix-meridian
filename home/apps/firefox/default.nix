@@ -1,11 +1,21 @@
+{ config, lib, ... }:
+let
+  # Mozilla names a language pack by the language alone (bg, de), except these, which carry a region
+  # (the packs released for Firefox 154.0.1).
+  # nixfmt: off
+  regionalLanguagePacks = [ "en-CA" "en-GB" "en-US" "es-AR" "es-CL" "es-ES" "es-MX" "fy-NL" "ga-IE" "gu-IN" "hi-IN" "hy-AM" "nb-NO" "ne-NP" "nn-NO" "pa-IN" "pt-BR" "pt-PT" "sv-SE" "zh-CN" "zh-TW" ];
+  # nixfmt: on
+  languagePack =
+    language: if lib.elem language.tag regionalLanguagePacks then language.tag else language.code;
+in
 {
   programs.firefox = {
     enable = true;
     configPath = ".config/mozilla/firefox";
 
-    languagePacks = [
-      "en-GB"
-      "bg"
+    languagePacks = map languagePack [
+      config.nix-meridian.language
+      config.nix-meridian.secondaryLanguage
     ];
 
     policies = {

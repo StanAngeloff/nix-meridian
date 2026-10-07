@@ -10,6 +10,7 @@
 let
   claude-code = pkgs.callPackage ./package.nix {
     claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
+    spellcheckLanguage = config.nix-meridian.language.code;
   };
   claude-code-statusline = pkgs.callPackage ./statusline/package.nix { };
   # Panel indicator for the subscription limits. Polls the usage endpoint itself; see package.nix.
@@ -76,6 +77,7 @@ in
     claude-usage-tray
     (pkgs.plannotator.override {
       installSkills = true;
+      spellcheckLanguage = config.nix-meridian.language.tag;
       browserCommand = lib.getExe claude-bubble.wwwBrowser;
     })
   ];

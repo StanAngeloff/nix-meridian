@@ -181,9 +181,10 @@ if [[ "$new_sem_version" != "$current_sem_version" ]]; then
 fi
 
 echo "Building..."
-# With installSkills the build also fetches the three skills, which checks their checksums, and the tests need them.
+# With installSkills the build also fetches the three skills, which checks their checksums, and the tests need them,
+# as they need spellcheckLanguage's dictionary.
 built_path="$(nix build --no-link --print-out-paths --impure --expr \
-	"(builtins.getFlake \"$flake_url\").$packages_attribute.plannotator.override { installSkills = true; }")"
+	"(builtins.getFlake \"$flake_url\").$packages_attribute.plannotator.override { installSkills = true; spellcheckLanguage = \"en-GB\"; }")"
 reported_version="$(HOME="$work_path" "$built_path/bin/plannotator" --version)"
 if [[ "$reported_version" != "plannotator $new_version" ]]; then
 	echo "error: the built plannotator reports '$reported_version'" >&2

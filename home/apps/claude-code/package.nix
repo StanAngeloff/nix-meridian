@@ -3,6 +3,8 @@
   symlinkJoin,
   makeWrapper,
   aspellWithDicts,
+  # aspell's dictionary for the prompt input, by language alone ("en").
+  spellcheckLanguage,
   bashInteractive,
   libsecret,
   poppler-utils,
@@ -25,7 +27,10 @@ symlinkJoin {
       --suffix PATH : ${
         lib.makeBinPath [
           poppler-utils
-          (aspellWithDicts (ds: [ ds.en ]))
+          (aspellWithDicts (ds: [
+            ds.${spellcheckLanguage}
+              or (throw "claude-code: nixpkgs has no aspell dictionary for ${spellcheckLanguage}")
+          ]))
         ]
       } \
       --set SHELL ${lib.getExe bashInteractive} \

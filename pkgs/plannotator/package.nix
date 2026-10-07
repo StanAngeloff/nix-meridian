@@ -7,6 +7,7 @@
   copyDesktopItems,
   makeDesktopItem,
   writeShellApplication,
+  linkFarm,
   bubblewrap,
   coreutils,
   # The overlay passes nixpkgs-unstable's Electron, the one the profile already carries for Proton Pass,
@@ -14,12 +15,16 @@
   electron,
   util-linux,
   ataraxy-sem,
+  hunspellDictsChromium,
   # Also install the three Claude Code launcher skills and name them in passthru.claudeCodeSkills,
   # which home/apps/claude-code/skills/default.nix links into ~/.claude/skills/.
   installSkills ? false,
   # Program the review window runs with the URL of a link the user clicks (PLANNOTATOR_WINDOW_BROWSER);
   # null, or the program failing, copies the URL to the clipboard instead.
   browserCommand ? null,
+  # The review page's spell-checking language as a BCP 47 tag ("en-GB"), from nixpkgs' Chromium dictionaries;
+  # null leaves spell checking off.
+  spellcheckLanguage ? null,
 }:
 let
   # Claude Code ingests these skills as prompts, verbatim, so each is pinned by content rather than by trust.
@@ -34,6 +39,17 @@ let
   # The review window's icon: upstream's mascot, which the review page also serves as its favicon.
   # Pinned like the skills; update.sh rewrites it on a bump.
   iconSha256 = "4e99a26b076e421f654df83472c6186b62830d5db8fcd8e97d01947dffac28fd";
+
+  # Under the file name Electron looks for in the profile (en-GB-10-1.bdic), which the window links it to.
+  spellcheckDictionary =
+    let
+      dictionary =
+        hunspellDictsChromium.${lib.toLower spellcheckLanguage}
+        or (throw "plannotator: nixpkgs has no Chromium dictionary for ${spellcheckLanguage} (hunspellDictsChromium.${lib.toLower spellcheckLanguage})");
+    in
+    "${
+      linkFarm "plannotator-spellcheck-dictionary" { ${dictionary.dictFileName} = dictionary; }
+    }/${dictionary.dictFileName}";
 
   # The wrapper's last step: Plannotator, and every program it starts, runs in a network namespace that has only loopback.
   # See isolate.sh.
@@ -88,7 +104,8 @@ let
   # vendor/: runtimes install there with code Nix never pinned (Call flow from the review UI, the agent terminal from the CLI);
   #   read-only makes both fail.
   #   The wrapper runs under bash -e, so a failed mkdir or chmod stops it before Plannotator starts with a writable vendor/.
-  # PLANNOTATOR_WINDOW_BROWSER: read by the review window, not by Plannotator (review-window/main.js).
+  # PLANNOTATOR_WINDOW_BROWSER and PLANNOTATOR_WINDOW_SPELLCHECK_*: read by the review window, not by Plannotator
+  #   (review-window/main.js).
   wrapperArgs = [
     # nixfmt: off
     "--set" "PLANNOTATOR_REMOTE" "0"
@@ -107,6 +124,14 @@ let
     "--set"
     "PLANNOTATOR_WINDOW_BROWSER"
     browserCommand
+  ]
+  ++ lib.optionals (spellcheckLanguage != null) [
+    "--set"
+    "PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE"
+    spellcheckLanguage
+    "--set"
+    "PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY"
+    spellcheckDictionary
   ];
 in
 stdenv.mkDerivation (finalAttrs: {
