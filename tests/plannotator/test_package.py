@@ -24,14 +24,30 @@ Node is on PATH so the runtime installs get past their Node preflight to the poi
 """
 
 import json
+import re
 import struct
 import subprocess
 import time
 
 import pytest
 
-PLANNOTATOR_VERSION = "0.27.22"
-SEM_VERSION = "0.8.0"
+from harness import TESTS_PATH
+
+REPOSITORY_PATH = TESTS_PATH.parents[1]
+
+
+def pinned_version(package_file):
+    """The version a package.nix pins, read from the line update.sh rewrites."""
+    [version] = re.findall(
+        r'^  version = "(.*)";$',
+        (REPOSITORY_PATH / package_file).read_text(),
+        re.MULTILINE,
+    )
+    return version
+
+
+PLANNOTATOR_VERSION = pinned_version("pkgs/plannotator/package.nix")
+SEM_VERSION = pinned_version("pkgs/ataraxy-sem/package.nix")
 SKILL_NAMES = ["plannotator-annotate", "plannotator-last", "plannotator-review"]
 ORIGINAL_SOURCE = (
     "export function greet(name: string): string {\n  return `Hello, ${name}`;\n}\n"

@@ -31,9 +31,9 @@ let
   # A changed file fails its fetch, so changing what Claude is told stays a deliberate act.
   # Update them only after reading the upstream diff, which update.sh shows before it asks.
   skillSha256 = {
-    plannotator-review = "4bd390eca2ad8c13d1077005b5e3cb2d4f380b8a48c1eb51cbc6192430e3477d";
-    plannotator-annotate = "be4666ee5d68cb3259cf3843f871d4a0455e3e6aa63c077c913e7e9b6f71b7f0";
-    plannotator-last = "bbcd69c3d42470f2eae41942516e4a604524f6af7d35b6e12a0ef29d90687160";
+    plannotator-review = "7d99acb415d6e1f188e7a52f350b3149765479decd7cb2df2682723ff60b43c4";
+    plannotator-annotate = "d69c5b012cbeefcedd05970f5f55b5fba5b83d54d9c2a24fd8a3e1286f323b69";
+    plannotator-last = "1a979daa6b39e86706b9e644ab7bd847f53373ecdfd6ec1d06d3d228727dd54d";
   };
   skillNames = lib.attrNames skillSha256;
   # The review window's icon: upstream's mascot, which the review page also serves as its favicon.
@@ -136,13 +136,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "plannotator";
-  version = "0.27.22";
+  version = "0.28.7";
 
   # Upstream's release build (`bun build --compile`): a Bun runtime with the server and the review UI embedded.
   # update.sh verifies its SLSA provenance against upstream's release workflow before writing a bump.
   src = fetchurl {
     url = "https://github.com/backnotprop/plannotator/releases/download/v${finalAttrs.version}/plannotator-linux-x64";
-    hash = "sha256-MNHRY5sdyy5XaVsrGKYeKeOYrQr0td8XmBoMoCS/w7M=";
+    hash = "sha256-0sMfvyDT5Q5SgM801dRiTpRB4GoDVriK7XPCmb1Dw3w=";
   };
 
   nativeBuildInputs = [
