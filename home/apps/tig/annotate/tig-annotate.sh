@@ -116,6 +116,10 @@ cmd_copy() {
 	tig-annotate-store copy "$1"
 }
 
+cmd_cut() {
+	tig-annotate-store cut "$1"
+}
+
 cmd_list() {
 	local git_dir="$1"
 
@@ -199,6 +203,10 @@ copy)
 	shift
 	cmd_copy "$@"
 	;;
+cut)
+	shift
+	cmd_cut "$@"
+	;;
 list)
 	shift
 	cmd_list "$@"
@@ -212,7 +220,7 @@ _edit_note)
 	cmd_edit_note "$@"
 	;;
 *)
-	echo "Usage: tig-annotate {add|copy|list} <git-dir> [args...]"
+	echo "Usage: tig-annotate {add|copy|cut|list} <git-dir> [args...]"
 	exit 1
 	;;
 esac

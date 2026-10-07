@@ -39,7 +39,7 @@ Why not `%(file)`, `%(lineno)` and `%(lineno_old)`: in tig 2.6.1's pager view th
     {encoded_key}.md     the note, edited in popup-nvim
     {encoded_key}.json   sidecar: {"side": "new" | "old", "text": the diff line as %(text) showed it}
 
-The encoding replaces `/` with U+00B7 MIDDLE DOT (UTF-8: `C2 B7`). The sidecar is written once, when the note is first prepared, and never rewritten. Notes from before sidecars (no `.json`) export without the quoted line. Legacy `{path}:file.md` notes are listed last in `cl` as a `legacy file note`, so they can be read, edited and trashed, but `cc` and `export` skip them with a warning.
+The encoding replaces `/` with U+00B7 MIDDLE DOT (UTF-8: `C2 B7`). The sidecar is written once, when the note is first prepared, and never rewritten. Notes from before sidecars (no `.json`) export without the quoted line. Legacy `{path}:file.md` notes are listed last in `cl` as a `legacy file note`, so they can be read, edited and trashed, but `cy`, `cc` and `export` skip them with a warning, and `cc` does not trash them.
 
 `prepare` refuses new-side lines of untracked files. Deleted lines always come from a commit or the index, so they can be annotated even when the file is gone (a deletion in `git show`, a staged deletion). A key whose note name is longer than the file system allows is refused with `Path too long to annotate`, and no temporary file is left behind.
 
@@ -118,15 +118,16 @@ home/apps/tig/annotate/probe.sh "$tig_path/bin/tig"
 1. Open `git diff` (tig is the pager) and press Enter on a `+` line: the popup opens titled `path:N (new)`; on an unchanged line it says `(unchanged)`. Type a note, press Esc: ※ appears immediately.
 2. Press Enter on a `-` line whose old and new numbers differ: the title says `(old)` and ※ lands on that line, not on a neighbour.
 3. Press Enter on a diffstat or `diff --git` line: the status bar says `Not an annotatable line`.
-4. Annotate a line in `.circleci/` (or any dot-directory): it shows in `cl` and in `cc`.
-5. `cc`, then paste: `## path` sections, `### Line N (new|old|unchanged)` headings in numeric order, each with a `diff` quote of the line.
-6. Edit a line you annotated in the working tree, then `cc`: that note carries `[Outdated — the code changed after this comment]`.
-7. Reopen a note and delete all text, press Esc: ※ disappears and both the `.md` and `.json` are gone from `.git/tig-annotate/`.
-8. `cl`: Enter copies the selection (notification shows the summary); `C-t` trashes a note and its sidecar; `C-e` edits. A legacy `{path}:file.md` note is listed last as a `legacy file note`.
-9. Status view (`s`): files with any note show ※; split view (diff + status) shows ※ in both panes.
-10. Run `cl` from a tmux session started outside the repository: it lists this repository's notes.
-11. Annotate a line of a deleted file in `git show` and in `git diff --cached` (a staged deletion).
-12. A file named `#(touch pwned).txt`: the popup title shows the name literally and no `pwned` file appears.
+4. Annotate a line in `.circleci/` (or any dot-directory): it shows in `cl` and in `cy`.
+5. `cy`, then paste: `## path` sections, `### Line N (new|old|unchanged)` headings in numeric order, each with a `diff` quote of the line.
+6. Edit a line you annotated in the working tree, then `cy`: that note carries `[Outdated — the code changed after this comment]`.
+7. `cc`, then paste: the same export as `cy`; every ※ is gone, the notes and their sidecars are in `gio trash --list`, and a legacy file note is still in `cl`.
+8. Reopen a note and delete all text, press Esc: ※ disappears and both the `.md` and `.json` are gone from `.git/tig-annotate/`.
+9. `cl`: Enter copies the selection (notification shows the summary); `C-t` trashes a note and its sidecar; `C-e` edits. A legacy `{path}:file.md` note is listed last as a `legacy file note`.
+10. Status view (`s`): files with any note show ※; split view (diff + status) shows ※ in both panes.
+11. Run `cl` from a tmux session started outside the repository: it lists this repository's notes.
+12. Annotate a line of a deleted file in `git show` and in `git diff --cached` (a staged deletion).
+13. A file named `#(touch pwned).txt`: the popup title shows the name literally and no `pwned` file appears.
 
 ## Gotchas learned the hard way
 
@@ -134,7 +135,7 @@ home/apps/tig/annotate/probe.sh "$tig_path/bin/tig"
 - **ncurses `TRUE` vs `true`**: tig's build does not define `TRUE`; use C99 `true` (from `stdbool.h`, pulled in by tig headers).
 - **Status view field padding**: `draw_filename()` pads to column width. After the draw callback, the cursor is at the field end, not the text end. Walk backward with `mvwinch` to find the last non-space character.
 - **tig drops empty arguments** when it formats a binding's argv, so a positional argument after an empty variable shifts. Bindings pass `key=%(variable)` instead. List variables (`%(diffargs)`, `%(revargs)`, …) cannot sit inside a larger argument at all ("Failed to format arguments").
-- **Chords need a free prefix**: `cn`, `cc` and `cl` only fire because `vim.tigrc` has `bind generic c none`, and `bindings.tigrc` is appended after it.
+- **Chords need a free prefix**: `cn`, `cc`, `cy` and `cl` only fire because `vim.tigrc` has `bind generic c none`, and `bindings.tigrc` is appended after it.
 - **Path encoding**: `\xc2\xb7` is U+00B7 MIDDLE DOT in UTF-8. Must match `ENCODED_SEPARATOR` in `store.py`.
 - **A real U+00B7 MIDDLE DOT in a file name** is stored under the same encoded name as the path with `/` in its place, so its notes export (and list in `cl`) with `/` where the dot was. Fixing it would need a new escaping scheme in both the C patch and `store.py`, plus a migration of existing notes.
 - **tmux popup options are formats**: `display-popup` expands `-T` and `-d`, so `#(...)` in a file or directory name runs a command. Double every `#` with `${var//\#/##}`: zsh reads an unescaped `#` right after `//` as a start anchor, and the escaped form works the same in bash and zsh.

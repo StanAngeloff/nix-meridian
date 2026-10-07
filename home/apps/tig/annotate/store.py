@@ -32,7 +32,7 @@ DIFF_MARKERS = "+- "
 OUTDATED_LABEL = "[Outdated — the code changed after this comment]"
 KEY_SUFFIX_RE = re.compile(r"(-?)([1-9][0-9]*)")
 BACKTICK_RUN_RE = re.compile(r"`+")
-USAGE = "Usage: tig-annotate-store {prepare|settle|export|copy|entries|trash} ..."
+USAGE = "Usage: tig-annotate-store {prepare|settle|export|copy|cut|entries|trash} ..."
 
 
 @dataclass(frozen=True)
@@ -304,8 +304,8 @@ def format_legacy_entry(note_path, body):
     return f"{note_path}\t{path} (legacy file note) — {first_line(body)}"
 
 
-def copy_summary(copied_count, unplaceable_names):
-    summary = f"Copied {copied_count} annotation(s) to clipboard"
+def copy_summary(copied_count, unplaceable_names, cut=False):
+    summary = f"{'Cut' if cut else 'Copied'} {copied_count} annotation(s) to clipboard"
     if unplaceable_names:
         skipped = ", ".join(unplaceable_names)
         summary += (
@@ -387,7 +387,8 @@ def command_export(git_dir, note_paths):
     return 0
 
 
-def command_copy(git_dir, note_paths):
+def command_copy(git_dir, note_paths, cut=False):
+    """Copy the export to the clipboard; `cut` then trashes the notes it copied, and keeps the ones it skipped."""
     notes, unplaceable_names = load_notes(store_directory(git_dir), note_paths or None)
     if not notes:
         print("No annotations to copy")
@@ -403,7 +404,18 @@ def command_copy(git_dir, note_paths):
     if completed.returncode != 0:
         print("wl-copy failed; nothing was copied")
         return 1
-    print(copy_summary(len(notes), unplaceable_names))
+    if cut:
+        # tig shows the first line a binding prints, stderr included, so gio's own messages are kept out of it.
+        trashed = subprocess.run(
+            ["gio", "trash", *trash_targets(note.note_path for note in notes)],
+            capture_output=True,
+        )
+        if trashed.returncode != 0:
+            print(
+                f"Copied {len(notes)} annotation(s) to clipboard, but gio trash failed"
+            )
+            return 1
+    print(copy_summary(len(notes), unplaceable_names, cut))
     return 0
 
 
@@ -419,13 +431,19 @@ def command_entries(git_dir):
     return 0
 
 
-def command_trash(note_paths):
+def trash_targets(note_paths):
+    """Each note followed by its sidecar, when it has one."""
     targets = []
     for note_path_argument in note_paths:
         note_path = Path(note_path_argument)
         targets.append(str(note_path))
         if sidecar_path(note_path).exists():
             targets.append(str(sidecar_path(note_path)))
+    return targets
+
+
+def command_trash(note_paths):
+    targets = trash_targets(note_paths)
     if targets:
         return subprocess.run(["gio", "trash", *targets]).returncode
     return 0
@@ -440,8 +458,8 @@ def main(arguments):
         return command_settle(rest[0])
     if command == "export" and rest:
         return command_export(rest[0], rest[1:])
-    if command == "copy" and rest:
-        return command_copy(rest[0], rest[1:])
+    if command in ("copy", "cut") and rest:
+        return command_copy(rest[0], rest[1:], cut=command == "cut")
     if command == "entries" and len(rest) == 1:
         return command_entries(rest[0])
     if command == "trash":

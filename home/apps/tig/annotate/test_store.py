@@ -4,7 +4,9 @@ import io
 import json
 import os
 import subprocess
+import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -286,6 +288,9 @@ class Formatting(unittest.TestCase):
             store.copy_summary(1, ["x.txt:file.md"]),
             "Copied 1 annotation(s) to clipboard; skipped 1 note(s) without a line: x.txt:file.md",
         )
+        self.assertEqual(
+            store.copy_summary(2, [], cut=True), "Cut 2 annotation(s) to clipboard"
+        )
 
 
 class Outdated(unittest.TestCase):
@@ -557,6 +562,96 @@ class Commands(unittest.TestCase):
 
     def test_export_with_no_notes_fails_quietly(self):
         self.assertEqual(self.run_main("export", str(self.git_dir)), (1, ""))
+
+    def install_fake_tools(self, wl_copy_exit_code=0, gio_exit_code=0):
+        """wl-copy and gio stand-ins on PATH; returns the clipboard file and the file gio logs its arguments to.
+
+        The fake wl-copy writes the clipboard to a file; the fake gio removes the files it is asked to trash.
+        """
+        tools_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(tools_directory.cleanup)
+        tools_path = Path(tools_directory.name)
+        clipboard_path = tools_path / "clipboard"
+        gio_log_path = tools_path / "gio.json"
+        scripts = {
+            "wl-copy": f"""
+                from pathlib import Path
+                Path({str(clipboard_path)!r}).write_bytes(sys.stdin.buffer.read())
+                sys.exit({wl_copy_exit_code})
+            """,
+            "gio": f"""
+                from pathlib import Path
+                Path({str(gio_log_path)!r}).write_text(json.dumps(sys.argv[1:]))
+                if {gio_exit_code}:
+                    print("gio: Error trashing file", file=sys.stderr)
+                    sys.exit({gio_exit_code})
+                for target in sys.argv[2:]:
+                    os.remove(target)
+            """,
+        }
+        for name, body in scripts.items():
+            script_path = tools_path / name
+            script_path.write_text(
+                f"#!{sys.executable}\nimport json, os, sys\n" + textwrap.dedent(body),
+                encoding="utf-8",
+            )
+            script_path.chmod(0o755)
+        path_patcher = mock.patch.dict(
+            os.environ, {"PATH": f"{tools_path}{os.pathsep}{os.environ['PATH']}"}
+        )
+        path_patcher.start()
+        self.addCleanup(path_patcher.stop)
+        return clipboard_path, gio_log_path
+
+    def test_cut_trashes_what_it_copied_and_keeps_what_it_skipped(self):
+        note_path, legacy_path = self.annotate_beside_a_legacy_note()
+        clipboard_path, gio_log_path = self.install_fake_tools()
+        self.assertEqual(
+            self.run_main("cut", str(self.git_dir)),
+            (
+                0,
+                "Cut 1 annotation(s) to clipboard; skipped 1 note(s) without a line: "
+                f"src{MIDDLE_DOT}app.txt:file.md\n",
+            ),
+        )
+        self.assertEqual(
+            clipboard_path.read_text(encoding="utf-8"),
+            "## app.txt\n\n### Line 2 (new)\n```diff\n+beta\n```\nWhy beta?\n",
+        )
+        self.assertEqual(
+            json.loads(gio_log_path.read_text(encoding="utf-8")),
+            ["trash", str(note_path), str(store.sidecar_path(note_path))],
+        )
+        self.assertTrue(legacy_path.exists())
+
+    def test_copy_keeps_the_notes(self):
+        note_path, _ = self.annotate_beside_a_legacy_note()
+        _, gio_log_path = self.install_fake_tools()
+        exit_code, output = self.run_main("copy", str(self.git_dir))
+        self.assertEqual(
+            (exit_code, output.split(";")[0]),
+            (0, "Copied 1 annotation(s) to clipboard"),
+        )
+        self.assertTrue(note_path.exists())
+        self.assertFalse(gio_log_path.exists())
+
+    def test_cut_trashes_nothing_when_the_copy_fails(self):
+        note_path, _ = self.annotate_beside_a_legacy_note()
+        _, gio_log_path = self.install_fake_tools(wl_copy_exit_code=1)
+        self.assertEqual(
+            self.run_main("cut", str(self.git_dir)),
+            (1, "wl-copy failed; nothing was copied\n"),
+        )
+        self.assertTrue(note_path.exists())
+        self.assertFalse(gio_log_path.exists())
+
+    def test_cut_reports_a_failed_trash(self):
+        self.annotate_beside_a_legacy_note()
+        self.install_fake_tools(gio_exit_code=2)
+        self.assertEqual(
+            self.run_main("cut", str(self.git_dir)),
+            (1, "Copied 1 annotation(s) to clipboard, but gio trash failed\n"),
+        )
 
     def test_unknown_command_prints_usage(self):
         stderr = io.StringIO()

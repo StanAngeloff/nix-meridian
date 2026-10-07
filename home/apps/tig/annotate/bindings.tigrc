@@ -1,7 +1,8 @@
 color annotation-mark color214 default
 
 # The c prefix is free because vim.tigrc binds "generic c none" and this file is appended after it.
-bind generic cc +@tigAnnotate@ copy %(repo:git-dir)
+bind generic cc +@tigAnnotate@ cut %(repo:git-dir)
+bind generic cy +@tigAnnotate@ copy %(repo:git-dir)
 bind generic cl +@tigAnnotate@ list %(repo:git-dir)
 
 # %(annotation) is only set in these three views; key=value arguments survive tig dropping empty ones.
