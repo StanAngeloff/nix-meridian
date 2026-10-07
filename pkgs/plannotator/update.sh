@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# This script updates the plannotator package to another release. Run it as pkgs/plannotator/update.sh <version>.
+# This script updates the plannotator package to another release. Run it as pkgs/plannotator/update.sh <version>,
+# or with latest for GitHub's latest release, which is never a draft or a pre-release.
 # It first checks the release binary against its published checksum and its SLSA provenance against upstream's release workflow;
 # either failure stops it.
 # It then shows how the release changes the three SKILL.md files, which Claude Code reads as instructions,
@@ -7,7 +8,8 @@
 # On yes, it writes the new version, binary hash, skill checksums and icon checksum into package.nix,
 # bumps pkgs/ataraxy-sem when the sem version changed, builds the package with its skills,
 # checks the version it reports and runs tests/plannotator against it, leaving the result for review in git diff.
-# Giving the current version re-verifies the pinned release without changing anything.
+# Giving the current version re-verifies the pinned release without changing anything;
+# asking for latest when it is already current stops before downloading anything.
 set -euo pipefail
 
 owner_name=backnotprop
@@ -23,8 +25,8 @@ packages_attribute="nixosConfigurations.$HOSTNAME.pkgs"
 fake_hash="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
 new_version="${1:-}"
-if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-	echo "usage: $0 <version>, for example $0 0.28.0" >&2
+if [[ "$new_version" != latest && ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "usage: $0 <version>|latest, for example $0 0.28.0" >&2
 	exit 2
 fi
 
@@ -54,6 +56,19 @@ require_single_line "$sem_package_file" '^  cargoHash = "sha256-.*";$'
 
 current_version="$(sed -n 's/^  version = "\(.*\)";$/\1/p' "$package_file")"
 current_sem_version="$(sed -n 's/^  version = "\(.*\)";$/\1/p' "$sem_package_file")"
+
+if [[ "$new_version" == latest ]]; then
+	latest_tag="$(gh api "repos/$owner_name/$repository_name/releases/latest" --jq .tag_name 2>/dev/null || true)"
+	new_version="${latest_tag#v}"
+	if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		echo "error: GitHub has no usable latest plannotator release (got '$latest_tag')" >&2
+		exit 1
+	fi
+	if [[ "$new_version" == "$current_version" ]]; then
+		echo "plannotator $current_version is already the latest; nothing changed."
+		exit 0
+	fi
+fi
 
 work_path="$(mktemp -d)"
 trap 'rm -rf "$work_path"' EXIT

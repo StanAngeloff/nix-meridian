@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# This script updates the cc-safety-net package to another release. Run it as pkgs/cc-safety-net/update.sh <version>.
+# This script updates the cc-safety-net package to another release. Run it as pkgs/cc-safety-net/update.sh <version>,
+# or with latest for the version npm tags as latest.
 # It first shows the release notes, since claude-arbiter trusts this engine to decide which tool calls need a person.
 # Nothing changes until you answer yes.
 # On yes, it regenerates package-lock.json inside the unpacked npm package, without upstream's development dependencies.
 # It then writes the new version, source hash and dependency hash into package.nix.
 # Last, it builds the package and checks that the hook still denies `git reset --hard`, leaving the result for review in git diff.
-# Giving the current version refreshes only the lockfile.
+# Giving the current version refreshes only the lockfile; asking for latest when it is already current changes nothing.
 set -euo pipefail
 
 owner_name=kenryu42
@@ -16,8 +17,8 @@ package_file="$package_path/package.nix"
 lock_file="$package_path/package-lock.json"
 
 new_version="${1:-}"
-if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-	echo "usage: $0 <version>, for example $0 2.5.0" >&2
+if [[ "$new_version" != latest && ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "usage: $0 <version>|latest, for example $0 2.5.0" >&2
 	exit 2
 fi
 
@@ -40,6 +41,18 @@ done
 work_path="$(mktemp -d)"
 trap 'rm -rf "$work_path"' EXIT
 export npm_config_cache="$work_path/npm-cache" npm_config_update_notifier=false
+
+if [[ "$new_version" == latest ]]; then
+	new_version="$(npm view cc-safety-net@latest version 2>/dev/null || true)"
+	if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		echo "error: npm has no usable latest cc-safety-net version (got '$new_version')" >&2
+		exit 1
+	fi
+	if [[ "$new_version" == "$current_version" ]]; then
+		echo "cc-safety-net $current_version is already the latest; nothing changed."
+		exit 0
+	fi
+fi
 
 if [[ "$(npm view "cc-safety-net@$new_version" version 2>/dev/null)" != "$new_version" ]]; then
 	echo "error: npm has no cc-safety-net $new_version" >&2

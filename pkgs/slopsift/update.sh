@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# This script updates the slopsift package to another release. Run it as pkgs/slopsift/update.sh <version>.
+# This script updates the slopsift package to another release. Run it as pkgs/slopsift/update.sh <version>,
+# or with latest for the version npm tags as latest.
 # It first shows how the release changes SKILL.md, the file Claude Code reads as instructions.
 # Nothing changes until you answer yes.
 # On yes, it regenerates package-lock.json inside the unpacked npm package.
 # It then writes the new version, source hash, dependency hash and skill checksum into package.nix.
 # Last, it builds the package, leaving the result for review in git diff.
-# Giving the current version refreshes only the npm dependencies.
+# Giving the current version refreshes only the npm dependencies; asking for latest when it is already current changes nothing.
 set -euo pipefail
 
 owner_name=NikhilVerma
@@ -16,8 +17,8 @@ package_file="$package_path/package.nix"
 lock_file="$package_path/package-lock.json"
 
 new_version="${1:-}"
-if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-	echo "usage: $0 <version>, for example $0 0.12.0" >&2
+if [[ "$new_version" != latest && ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "usage: $0 <version>|latest, for example $0 0.12.0" >&2
 	exit 2
 fi
 
@@ -40,6 +41,18 @@ done
 work_path="$(mktemp -d)"
 trap 'rm -rf "$work_path"' EXIT
 export npm_config_cache="$work_path/npm-cache"
+
+if [[ "$new_version" == latest ]]; then
+	new_version="$(npm view slopsift@latest version 2>/dev/null || true)"
+	if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		echo "error: npm has no usable latest slopsift version (got '$new_version')" >&2
+		exit 1
+	fi
+	if [[ "$new_version" == "$current_version" ]]; then
+		echo "slopsift $current_version is already the latest; nothing changed."
+		exit 0
+	fi
+fi
 
 skill_url() {
 	echo "https://raw.githubusercontent.com/$owner_name/$repository_name/slopsift@$1/skills/slopsift/SKILL.md"
