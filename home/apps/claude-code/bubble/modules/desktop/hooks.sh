@@ -26,6 +26,19 @@ desktop_prepare() {
 	done
 }
 
+# What windows started in the bubble, such as Plannotator's review window, draw text and title bars with, read-only:
+# Home Manager's fontconfig aliases, the fonts under ~/.local/share/fonts,
+# and the GNOME interface settings (fonts, antialiasing, GTK theme) and window buttons, which GTK reads through GSettings.
+# Those come as a dconf database of their own, which GSettings reads as a file,
+# so the real database, which holds every application's settings, stays out.
+desktop_mount() {
+	bwrap_args+=(
+		--ro-bind-try "$home_path/.config/fontconfig" "$home_path/.config/fontconfig"
+		--ro-bind-try "$home_path/.local/share/fonts" "$home_path/.local/share/fonts"
+		--ro-bind @dconfDatabase@ "$home_path/.config/dconf/user"
+	)
+}
+
 # The bubble is headless unless a narrower module grants one desktop IPC. The xdg mask already hides the Wayland, X11 and D-Bus session sockets, so inherited pointers dangle — unset them so graphical/session clients fail cleanly instead of hanging on an absent socket.
 desktop_environment() {
 	bwrap_args+=(

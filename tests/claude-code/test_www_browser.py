@@ -1,9 +1,12 @@
-"""Behavior tests for the loopback URL opener.
+"""Behavior tests for the web link opener.
 
-relay.sh's www-browser case runs host-side and is the boundary, because anything inside the bubble can write the event
-file directly; www-browser.sh (claude-bubble-www-browser) runs inside the bubble and appends the request.
-Both run from source with stub xdg-open and logger commands first on PATH. Run after changing either file, from the
-repository root:
+relay.sh's www-browser case runs host-side and is the boundary,
+because anything inside the bubble can write the event file directly;
+www-browser.sh (claude-bubble-www-browser) runs inside the bubble and appends the request.
+Outside the bubble the opener refuses,
+so a caller such as Plannotator's review window copies the link instead of starting a browser where it runs.
+Both run from source with stub xdg-open and logger commands first on PATH.
+Run after changing either file, from the repository root:
 
     nix shell --inputs-from "path:$PWD" nixpkgs#python3Packages.pytest \
       --command pytest -p no:cacheprovider tests/claude-code/test_www_browser.py
@@ -31,21 +34,20 @@ OPENER_FILE = NOTIFICATIONS_PATH / "www-browser.sh"
 
 ACCEPTED_URLS = [
     "http://localhost:19432",
-    "http://localhost:19432/",
     "http://127.0.0.1:41234/review?diff=staged#file-3",
+    "https://example.com/",
+    "http://example.com/a?b=c&d=e",
+    "https://github.com/backnotprop/plannotator/pull/1#discussion_r1",
 ]
 REFUSED_URLS = [
-    "https://localhost:19432/",
-    "http://example.com/",
-    "http://127.0.0.1.evil.com/",
-    "http://localhost.evil.com:80/",
-    "http://localhost:80@evil.com/",
-    "http://evil.com/?http://localhost:80/",
-    "http://localhost/",
-    "http://localhost:80/a b",
-    "http://localhost:123456/",
     "javascript:alert(1)",
     "file:///etc/passwd",
+    "data:text/html,<script>alert(1)</script>",
+    "ftp://example.com/",
+    "https://",
+    " https://example.com/",
+    "https://example.com/a b",
+    "https://example.com/\ttab",
     "",
 ]
 
@@ -99,9 +101,7 @@ def run_opener(arguments, environment):
     )
 
 
-def test_relay_opens_only_loopback_urls(
-    tmp_path, environment, opened_file, logged_file
-):
+def test_relay_opens_only_web_urls(tmp_path, environment, opened_file, logged_file):
     event_file = tmp_path / "events"
     # Refused requests go first: by the time every accepted one has opened, every refused one has been handled.
     event_file.write_text(
@@ -140,14 +140,15 @@ def test_opener_appends_one_request_inside_the_bubble(
 
 
 @pytest.mark.parametrize("url", ACCEPTED_URLS)
-def test_opener_runs_xdg_open_outside_the_bubble(environment, opened_file, url):
+def test_opener_refuses_outside_the_bubble(environment, opened_file, url):
     result = run_opener([url], environment)
-    assert result.returncode == 0, result.stderr
-    assert read_lines(opened_file) == [f"1\t{url}"]
+    assert result.returncode == 1
+    assert "not inside the bubble" in result.stderr
+    assert read_lines(opened_file) == []
 
 
 @pytest.mark.parametrize(
-    "url", REFUSED_URLS + ["http://localhost:80/\nwww-browser:https://example.com/"]
+    "url", REFUSED_URLS + ["https://example.com/\nwww-browser:https://evil.example/"]
 )
 def test_opener_refuses_everything_else(tmp_path, environment, opened_file, url):
     event_file = tmp_path / "events"
@@ -162,7 +163,7 @@ def test_opener_refuses_everything_else(tmp_path, environment, opened_file, url)
 
 
 @pytest.mark.parametrize(
-    "arguments", [[], ["http://localhost:80/", "http://localhost:81/"]]
+    "arguments", [[], ["https://example.com/", "https://example.org/"]]
 )
 def test_opener_takes_exactly_one_argument(environment, opened_file, arguments):
     assert run_opener(arguments, environment).returncode == 2

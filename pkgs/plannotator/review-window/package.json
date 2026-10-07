@@ -1,0 +1,7 @@
+{
+  "name": "plannotator-review-window",
+  "productName": "Plannotator",
+  "private": true,
+  "main": "main.js",
+  "desktopName": "plannotator.desktop"
+}

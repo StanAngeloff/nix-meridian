@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # This script updates the plannotator package to another release. Run it as pkgs/plannotator/update.sh <version>.
-# It first checks the release binary against its published checksum and its SLSA provenance against upstream's release
-# workflow; either failure stops it. It then shows how the release changes the three SKILL.md files, which Claude Code
-# reads as instructions, and whether it expects another sem. Nothing changes until you answer yes.
-# On yes, it writes the new version, binary hash and skill checksums into package.nix, bumps pkgs/ataraxy-sem when the
-# sem version changed, builds the package with its skills, checks the version it reports and runs tests/plannotator
-# against it, leaving the result for review in git diff. Giving the current version re-verifies the pinned release
-# without changing anything.
+# It first checks the release binary against its published checksum and its SLSA provenance against upstream's release workflow;
+# either failure stops it.
+# It then shows how the release changes the three SKILL.md files, which Claude Code reads as instructions,
+# whether the review window's icon changed, and whether it expects another sem. Nothing changes until you answer yes.
+# On yes, it writes the new version, binary hash, skill checksums and icon checksum into package.nix,
+# bumps pkgs/ataraxy-sem when the sem version changed, builds the package with its skills,
+# checks the version it reports and runs tests/plannotator against it, leaving the result for review in git diff.
+# Giving the current version re-verifies the pinned release without changing anything.
 set -euo pipefail
 
 owner_name=backnotprop
@@ -46,6 +47,7 @@ require_single_line "$package_file" '^    hash = "sha256-.*";$'
 for skill_name in "${skill_names[@]}"; do
 	require_single_line "$package_file" "^    $skill_name = \"[0-9a-f]*\";\$"
 done
+require_single_line "$package_file" '^  iconSha256 = "[0-9a-f]*";$'
 require_single_line "$sem_package_file" '^  version = ".*";$'
 require_single_line "$sem_package_file" '^    hash = "sha256-.*";$'
 require_single_line "$sem_package_file" '^  cargoHash = "sha256-.*";$'
@@ -105,6 +107,19 @@ for skill_name in "${skill_names[@]}"; do
 	fi
 done
 
+# An image, so there is no diff to show; the checksum written below pins exactly the file downloaded here.
+icon_path="apps/marketing/public/favicon.png"
+if ! curl -sfL "$(raw_url "$new_version" "$icon_path")" -o "$work_path/icon.png"; then
+	echo "error: v$new_version has no $icon_path, the review window's icon; update package.nix by hand" >&2
+	exit 1
+fi
+icon_sha256="$(sha256sum "$work_path/icon.png" | cut -d' ' -f1)"
+if [[ "$icon_sha256" == "$(sed -n 's/^  iconSha256 = "\([0-9a-f]*\)";$/\1/p' "$package_file")" ]]; then
+	echo "review window icon: unchanged"
+else
+	echo "review window icon: changed, see $(raw_url "$new_version" "$icon_path")"
+fi
+
 if ! curl -sfL "$(raw_url "$new_version" packages/shared/semantic-diff.ts)" -o "$work_path/semantic-diff.ts"; then
 	echo "error: cannot download packages/shared/semantic-diff.ts at v$new_version" >&2
 	exit 1
@@ -137,6 +152,7 @@ binary_hash="$(nix hash convert --hash-algo sha256 --to sri "$binary_sha256")"
 package_substitutions=(
 	-e "s|^  version = \".*\";\$|  version = \"$new_version\";|"
 	-e "s|^    hash = \"sha256-.*\";\$|    hash = \"$binary_hash\";|"
+	-e "s|^  iconSha256 = \"[0-9a-f]*\";\$|  iconSha256 = \"$icon_sha256\";|"
 )
 for skill_name in "${skill_names[@]}"; do
 	# package.nix fetches each SKILL.md from the address above, so this checksum pins exactly the file shown.
@@ -176,9 +192,9 @@ fi
 
 echo "Running the behavior tests..."
 # The wrapper's protections rest on upstream's variable names and install paths, which a release can change silently.
-# Node is on PATH so the runtime installs get as far as writing into vendor/.
+# Node is on PATH so the runtime installs get as far as writing into vendor/; Weston hosts the review windows, headless.
 if ! PLANNOTATOR_PACKAGE="$built_path" nix shell --inputs-from "$flake_url" \
-	nixpkgs#python3Packages.pytest nixpkgs#nodejs nixpkgs#git nixpkgs#iproute2 \
+	nixpkgs#python3Packages.pytest nixpkgs#nodejs nixpkgs#git nixpkgs#iproute2 nixpkgs#weston \
 	--command pytest -p no:cacheprovider "$repository_path/tests/plannotator"; then
 	echo "error: plannotator $new_version fails tests/plannotator; the bump stays in the working tree for review" >&2
 	exit 1

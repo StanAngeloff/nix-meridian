@@ -6,8 +6,8 @@ set -euo pipefail
 event_file="$1"
 tmux_pane="$2"
 chime_file="$3"
-# Same pattern as www-browser.sh: plain http on a loopback port, nothing else.
-loopback_url_pattern='^http://(127\.0\.0\.1|localhost):[0-9]{1,5}(/[^[:space:]]*)?$'
+# Same pattern as www-browser.sh: one http or https URL, without whitespace.
+web_url_pattern='^https?://[^[:space:]]+$'
 
 # Tail appended lines; each is one action name, a tig-path-set:<path> directive or a www-browser:<url> request.
 tail -n +1 -F "$event_file" 2>/dev/null | while IFS= read -r action; do
@@ -16,10 +16,10 @@ tail -n +1 -F "$event_file" 2>/dev/null | while IFS= read -r action; do
 	www-browser:*)
 		# The boundary for claude-bubble-www-browser: anything in the bubble can append this line, so the URL is checked here.
 		url="${action#www-browser:}"
-		if [[ "$url" =~ $loopback_url_pattern ]]; then
+		if [[ "$url" =~ $web_url_pattern ]]; then
 			setsid --fork xdg-open "$url" </dev/null >/dev/null 2>&1 || true
 		else
-			logger -t claude-bubble-relay "refused to open a URL that is not plain http on loopback: ${url:0:200}" || true
+			logger -t claude-bubble-relay "refused to open a URL that is not plain http or https: ${url:0:200}" || true
 		fi
 		continue
 		;;

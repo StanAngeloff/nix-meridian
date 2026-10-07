@@ -1,4 +1,5 @@
 {
+  config,
   inputs,
   lib,
   osConfig,
@@ -26,6 +27,15 @@ let
     keyringVariables = lib.unique (
       lib.concatMap (integration: integration.claude.secrets or [ ]) (lib.attrValues integrations)
     );
+    # GNOME's interface settings for windows started in the bubble, serialized as Home Manager's dconf module does.
+    # Their window buttons add maximize to GNOME's close-only default (Plannotator's review window draws them).
+    dconfKeyfile =
+      lib.generators.toINI
+        { mkKeyValue = key: value: "${key}=${toString (lib.hm.gvariant.mkValue value)}"; }
+        {
+          "org/gnome/desktop/interface" = config.dconf.settings."org/gnome/desktop/interface" or { };
+          "org/gnome/desktop/wm/preferences".button-layout = "appmenu:maximize,close";
+        };
     subcommands = [
       {
         name = "remote";

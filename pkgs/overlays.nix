@@ -12,7 +12,7 @@ final: prev: {
   slopsift = final.callPackage ./slopsift/package.nix { };
   cc-safety-net = final.callPackage ./cc-safety-net/package.nix { };
   ataraxy-sem = final.callPackage ./ataraxy-sem/package.nix { };
-  plannotator = final.callPackage ./plannotator/package.nix { };
+  plannotator = final.callPackage ./plannotator/package.nix { electron = inputs.nixpkgs-unstable.legacyPackages.${system}.electron; };
   academic-forge = final.callPackage ./academic-forge/package.nix { };
   ponytail = final.callPackage ./ponytail/package.nix { };
   cursor-plugins = final.callPackage ./cursor-plugins/package.nix { };

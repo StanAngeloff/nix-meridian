@@ -1,8 +1,11 @@
 {
   lib,
   writeShellApplication,
+  runCommand,
+  writeTextDir,
   bubblewrap,
   coreutils,
+  dconf,
   findutils,
   gnupg,
   jq,
@@ -18,6 +21,8 @@
   claude-code,
   # Keyring var names the secrets module injects into the bubble.
   keyringVariables ? [ "GH_TOKEN" ],
+  # The desktop settings GUI programs in the bubble read, as a dconf keyfile; see modules/desktop/hooks.sh.
+  dconfKeyfile ? "",
   # Subcommands that are not bubble modules, as { name, handler, description }; modules declare theirs in module.nix.
   subcommands ? [ ],
 }:
@@ -31,7 +36,8 @@
 let
   # Assembly order = bwrap argument order (later mounts layer over earlier ones). Hard edges:
   #  - system before nix and ssh (nix masks sockets inside its /nix bind; ssh binds its filtered ssh_config over a store path there);
-  #  - home before every module that binds under $HOME (claude, profiles, git, gpg, ssh, github, tools, nvim, pnpm);
+  #  - system before gpu (gpu binds the render nodes into system's fresh /dev);
+  #  - home before every module that binds under $HOME (claude, profiles, git, gpg, ssh, github, tools, nvim, pnpm, desktop);
   #  - claude before profiles (profiles masks ~/.claude/profiles inside the ~/.claude bind);
   #  - xdg before gpg, ssh, clipboard and podman (their sockets re-expose into its tmpfs mask);
   #  - gpg before ssh (gpg's --dir creates the runtime gnupg directory the ssh socket binds into).
@@ -53,6 +59,7 @@ let
     "nvim"
     "pnpm"
     "desktop"
+    "gpu"
     "podman"
     "notifications"
   ];
@@ -70,7 +77,10 @@ let
     inherit
       lib
       writeShellApplication
+      runCommand
+      writeTextDir
       coreutils
+      dconf
       gnupg
       jq
       libsecret
@@ -83,6 +93,7 @@ let
       wl-clipboard
       xdg-utils
       keyringVariables
+      dconfKeyfile
       ;
   };
   modules = map (
@@ -205,10 +216,9 @@ let
       }
       modules;
 
-  # Loopback opener for programs that take a browser command; see modules/notifications/www-browser.sh.
+  # Hands http(s) links to the host browser through the relay; see modules/notifications/www-browser.sh.
   wwwBrowser = writeShellApplication {
     name = "claude-bubble-www-browser";
-    runtimeInputs = [ xdg-utils ];
     text = builtins.readFile ./modules/notifications/www-browser.sh;
   };
 in
@@ -224,6 +234,6 @@ writeShellApplication {
   );
   text = substitute valueSubstitutions (substitute slotSubstitutions (builtins.readFile ./bubble.sh));
   # aliases.nix hands subcommandNames to initialize.zsh, whose session checks mirror the launcher's handoff rule;
-  # wwwBrowser is the loopback opener for programs that take a browser command.
+  # wwwBrowser hands http(s) links to the host browser, for programs that take a browser command.
   passthru = { inherit subcommandNames wwwBrowser; };
 }

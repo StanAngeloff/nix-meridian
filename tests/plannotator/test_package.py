@@ -1,33 +1,38 @@
-r"""Behavior tests for pkgs/plannotator: the wrapper's pinned settings and read-only runtime directory, against the real binary.
+r"""Behavior tests for pkgs/plannotator, against the real build.
 
-PLANNOTATOR_PACKAGE names a package built with installSkills = true. Every test gets its own HOME and data directory
-under tmp_path, and a recording browser command, so nothing touches ~/.claude/plannotator or opens a real browser.
+What each file covers:
+- this file: the wrapper's pinned settings and read-only runtime directory;
+- test_namespace.py: the loopback-only namespace;
+- test_window.py: the review window;
+- test_teardown.py: every way a review ends.
+harness.py explains how a test reaches a server it cannot connect to.
+
+PLANNOTATOR_PACKAGE names a package built with installSkills = true.
+Every test gets its own HOME and data directory under pytest's base temporary directory.
+conftest.py moves that directory to ~/.cache/plannotator-tests, because the namespace masks /tmp.
+Review windows open on a headless Weston, so nothing appears on the desktop, and nothing touches ~/.claude/plannotator.
 pkgs/plannotator/update.sh runs these after every bump. To run them by hand, from the repository root:
 
     export PLANNOTATOR_PACKAGE="$(nix build --no-link --print-out-paths --impure --expr \
       "(builtins.getFlake \"path:$PWD\").nixosConfigurations.stan-latitude.pkgs.plannotator.override { installSkills = true; }")"
     nix shell --inputs-from "path:$PWD" nixpkgs#python3Packages.pytest nixpkgs#nodejs nixpkgs#git nixpkgs#iproute2 \
-      --command pytest -p no:cacheprovider tests/plannotator
+      nixpkgs#weston --command pytest -p no:cacheprovider tests/plannotator
 
+XDG_RUNTIME_DIR must be under /run. The namespace tests also run each check outside the namespace, as a control,
+so they need what the namespace takes away: DNS, https://example.com/ and the nix daemon.
 Node is on PATH so the runtime installs get past their Node preflight to the point where they would write into vendor/.
 """
 
 import json
-import os
-import pathlib
-import re
-import signal
+import struct
 import subprocess
 import time
-import urllib.error
-import urllib.request
 
 import pytest
 
 PLANNOTATOR_VERSION = "0.27.22"
 SEM_VERSION = "0.8.0"
 SKILL_NAMES = ["plannotator-annotate", "plannotator-last", "plannotator-review"]
-ADVERTISED_URL_PATTERN = re.compile(r"http://localhost:(\d+)/?")
 ORIGINAL_SOURCE = (
     "export function greet(name: string): string {\n  return `Hello, ${name}`;\n}\n"
 )
@@ -35,78 +40,6 @@ CHANGED_SOURCE = (
     "export function greet(name: string): string {\n  return `Hello there, ${name}!`;\n}\n\n"
     "export function part(name: string): string {\n  return `Goodbye, ${name}`;\n}\n"
 )
-
-
-@pytest.fixture(scope="session")
-def package_path():
-    value = os.environ.get("PLANNOTATOR_PACKAGE")
-    if not value:
-        pytest.fail("PLANNOTATOR_PACKAGE must name a built plannotator package")
-    return pathlib.Path(value)
-
-
-@pytest.fixture
-def browser_file(tmp_path):
-    return tmp_path / "browser-calls"
-
-
-@pytest.fixture
-def data_path(tmp_path):
-    path = tmp_path / "data"
-    path.mkdir()
-    return path
-
-
-@pytest.fixture
-def environment(tmp_path, browser_file, data_path):
-    """Built from scratch so nothing from the test runner's PLANNOTATOR_* or SSH_* variables leaks in."""
-    home_path = tmp_path / "home"
-    home_path.mkdir()
-    browser_path = tmp_path / "browser"
-    browser_path.write_text(
-        f"#!/bin/sh\nprintf '%s\\t%s\\n' \"$#\" \"$1\" >> '{browser_file}'\n"
-    )
-    browser_path.chmod(0o755)
-    return {
-        "PATH": os.environ["PATH"],
-        "HOME": str(home_path),
-        "LANG": "C.UTF-8",
-        "PLANNOTATOR_DATA_DIR": str(data_path),
-        "PLANNOTATOR_BROWSER": str(browser_path),
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_AUTHOR_NAME": "Probe",
-        "GIT_AUTHOR_EMAIL": "probe@example.invalid",
-        "GIT_COMMITTER_NAME": "Probe",
-        "GIT_COMMITTER_EMAIL": "probe@example.invalid",
-    }
-
-
-@pytest.fixture
-def start_session(package_path):
-    """Starts a long-running plannotator command; kills its process group when the test ends."""
-    processes = []
-
-    def start(arguments, environment, cwd):
-        process = subprocess.Popen(
-            [str(package_path / "bin" / "plannotator"), *arguments],
-            env=environment,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            start_new_session=True,
-        )
-        processes.append(process)
-        return process
-
-    yield start
-    # The whole group, even after a clean exit: a child such as sem may outlive plannotator itself.
-    for process in processes:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        process.wait()
 
 
 def run_plannotator(package_path, arguments, environment, cwd=None, timeout=300):
@@ -119,48 +52,6 @@ def run_plannotator(package_path, arguments, environment, cwd=None, timeout=300)
         timeout=timeout,
         check=False,
     )
-
-
-def wait_for_browser_calls(browser_file, timeout=60):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if browser_file.exists() and browser_file.read_text().splitlines():
-            return browser_file.read_text().splitlines()
-        time.sleep(0.2)
-    pytest.fail(f"plannotator did not run the browser command within {timeout} seconds")
-
-
-def session_base_url(browser_file):
-    """The advertised URL says localhost; requests go to 127.0.0.1 so the Host header is predictable."""
-    argument_count, url = wait_for_browser_calls(browser_file)[0].split("\t", 1)
-    assert argument_count == "1", f"browser command got {argument_count} arguments"
-    match = ADVERTISED_URL_PATTERN.fullmatch(url)
-    assert match, f"unexpected session URL {url!r}"
-    return f"http://127.0.0.1:{match.group(1)}"
-
-
-def request_json(url, method="GET", body=None, headers=None):
-    data = None if body is None else json.dumps(body).encode()
-    request = urllib.request.Request(
-        url,
-        data=data,
-        method=method,
-        headers={"Content-Type": "application/json", **(headers or {})},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return response.status, json.loads(response.read() or b"null")
-    except urllib.error.HTTPError as error:
-        return error.code, json.loads(error.read() or b"null")
-
-
-def listening_addresses(process_id):
-    output = subprocess.run(
-        ["ss", "-ltnpH"], capture_output=True, text=True, check=True
-    ).stdout
-    return [
-        line.split()[3] for line in output.splitlines() if f"pid={process_id}," in line
-    ]
 
 
 def make_repository(repository_path, environment):
@@ -194,7 +85,7 @@ def test_ships_the_pinned_skills(package_path):
 
 
 def test_stays_on_loopback_with_sharing_off_whatever_the_caller_asks(
-    tmp_path, environment, browser_file, start_session
+    tmp_path, environment, start_session
 ):
     # A cc remote pane carries SSH_CONNECTION, which alone would switch upstream to a 0.0.0.0 bind.
     hostile_environment = {
@@ -205,45 +96,47 @@ def test_stays_on_loopback_with_sharing_off_whatever_the_caller_asks(
         "PLANNOTATOR_SHARE": "enabled",
     }
     (tmp_path / "probe.md").write_text("# Probe\n\nA line to annotate.\n")
-    process = start_session(["annotate", "probe.md"], hostile_environment, tmp_path)
-    base_url = session_base_url(browser_file)
+    session = start_session(
+        ["annotate", "probe.md"],
+        hostile_environment,
+        tmp_path,
+        probe={"checks": ["listeners"]},
+    )
 
-    addresses = listening_addresses(process.pid)
-    assert addresses, "no listening socket found for the plannotator process"
-    assert all(address.startswith("127.0.0.1:") for address in addresses), addresses
+    # ss runs inside the server's network namespace, where its sockets are.
+    listeners = session.probe_result()["listeners"]
+    assert listeners, "no listening socket found for the plannotator process"
+    assert all(address.startswith("127.0.0.1:") for address in listeners), listeners
 
-    status, plan = request_json(f"{base_url}/api/plan")
+    status, plan = session.request_json("/api/plan")
     assert status == 200
     assert plan["sharingEnabled"] is False
 
-    status, _ = request_json(
-        f"{base_url}/api/feedback",
+    status, _ = session.request_json(
+        "/api/feedback",
         "POST",
         {"feedback": "Probe feedback from the test.", "annotations": []},
     )
     assert status == 200
-    stdout, stderr = process.communicate(timeout=60)
-    assert process.returncode == 0, stderr
+    stdout, stderr = session.process.communicate(timeout=60)
+    assert session.process.returncode == 0, stderr
     assert "Probe feedback from the test." in stdout
 
 
-def test_semantic_diff_runs_the_pinned_sem(
-    tmp_path, environment, browser_file, start_session
-):
+def test_semantic_diff_runs_the_pinned_sem(tmp_path, environment, start_session):
     repository_path = tmp_path / "repository"
     make_repository(repository_path, environment)
-    process = start_session(["review"], environment, repository_path)
-    base_url = session_base_url(browser_file)
+    session = start_session(["review"], environment, repository_path)
 
-    status, semantic_diff = request_json(f"{base_url}/api/semantic-diff")
+    status, semantic_diff = session.request_json("/api/semantic-diff")
     assert status == 200
     assert semantic_diff["status"] == "ok", semantic_diff
     assert semantic_diff["semVersion"] == SEM_VERSION
     assert semantic_diff["semSource"] == "env"
 
-    status, _ = request_json(f"{base_url}/api/exit", "POST", {})
+    status, _ = session.request_json("/api/exit", "POST", {})
     assert status == 200
-    process.communicate(timeout=60)
+    session.process.communicate(timeout=60)
 
 
 @pytest.mark.parametrize("runtime_name", ["agent-terminal", "call-flow"])
@@ -265,32 +158,58 @@ def test_runtime_directory_is_read_only(
 
 
 def test_call_flow_cannot_install_from_the_review_ui(
-    tmp_path, environment, browser_file, data_path, start_session
+    tmp_path, environment, data_path, start_session
 ):
     (data_path / "config.json").write_text(
         json.dumps({"reviewAnalysis": {"callFlow": True}})
     )
     repository_path = tmp_path / "repository"
     make_repository(repository_path, environment)
-    process = start_session(["review"], environment, repository_path)
-    base_url = session_base_url(browser_file)
+    session = start_session(["review"], environment, repository_path)
 
     # Accepted and running means the origin check and the Node preflight passed, so the install really starts.
-    status, install_status = request_json(
-        f"{base_url}/api/call-flow/install",
+    status, install_status = session.request_json(
+        "/api/call-flow/install",
         "POST",
         {"languageIds": ["javascript-typescript"]},
-        {"Origin": base_url},
+        {"Origin": session.base_url},
     )
     assert status == 200, install_status
     assert install_status.get("state") == "running", install_status
     deadline = time.monotonic() + 180
     while install_status.get("state") == "running" and time.monotonic() < deadline:
         time.sleep(1)
-        _, install_status = request_json(f"{base_url}/api/call-flow/install-status")
+        _, install_status = session.request_json("/api/call-flow/install-status")
     assert install_status.get("state") == "error", install_status
     assert "EACCES" in install_status.get("error", ""), install_status
     assert list((data_path / "vendor").iterdir()) == []
 
-    request_json(f"{base_url}/api/exit", "POST", {})
-    process.communicate(timeout=60)
+    session.request_json("/api/exit", "POST", {})
+    session.process.communicate(timeout=60)
+
+
+def test_ships_the_review_windows_desktop_entry_and_icon(package_path):
+    desktop_lines = (
+        (package_path / "share" / "applications" / "plannotator.desktop")
+        .read_text()
+        .splitlines()
+    )
+    for line in [
+        "Name=Plannotator",
+        "Icon=plannotator",
+        "StartupWMClass=plannotator",
+        "NoDisplay=true",
+    ]:
+        assert line in desktop_lines, desktop_lines
+    icon_bytes = (
+        package_path
+        / "share"
+        / "icons"
+        / "hicolor"
+        / "256x256"
+        / "apps"
+        / "plannotator.png"
+    ).read_bytes()
+    # A PNG whose header chunk says 256 by 256, as the icon directory promises.
+    assert icon_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
