@@ -1,56 +1,69 @@
 {
   lib,
   stdenvNoCC,
-  stdenv,
   fetchurl,
   dpkg,
-  autoPatchelfHook,
-  wrapQtAppsHook,
-  qtbase,
-  qtxmlpatterns,
-  qtsvg,
-  nss,
-  nspr,
+  unzip,
+  zip,
+  makeWrapper,
+  wrapGAppsHook3,
+  zulu25,
+  gtk3,
+  gsettings-desktop-schemas,
+  libappindicator-gtk3,
   pcsclite,
-  openldap,
   infonotary-idprime,
 }:
-# InfoNotary's official Linux signing software — two Qt5 desktop apps shipped in one .deb:
-#   • insigner       — e-Doc Signer: sign/verify PAdES, CAdES and XAdES documents
-#   • scardmanager   — Smart Card Manager: manage the card, change PIN/AIN, unblock
+# InfoNotary e-Doc Signer — InfoNotary's official Linux signing software. It signs, verifies and timestamps PAdES,
+# CAdES and XAdES documents with the qualified smart card, and its --smc mode is the Smart Card Manager
+# (PIN change and unblock, certificates, keys). One JavaFX 25 application shipped as a single jar.
 #
-# Both open the per-user NSS database (~/.pki/nssdb, wired by home/essentials/infonotary.nix) and load a card PKCS#11
-# module via NSS. Their built-in module list names libIDPrimePKCS11.so (from infonotary-idprime) but not OpenSC,
-# so the middleware is wired onto LD_LIBRARY_PATH below.
+# The .deb wraps that jar in a jpackage bundle with a private Java runtime under /opt. Only the jar is kept, and it runs
+# on nixpkgs' Azul Zulu JDK with JavaFX: a prebuilt, already patched runtime that includes WebKit (javafx.web), which
+# the app needs because every alert dialog renders its icon through a WebView. The JavaFX classes and native libraries
+# bundled inside the jar are shadowed by the runtime's own JavaFX modules, so they are never loaded.
 #
-# Repackaged from InfoNotary's official apt repository as a fixed-output derivation (pinned hash from the repo's own
-# Packages index → satisfies the project's official-sources rule). The Firefox / Chromium native-messaging hosts
-# (SignZone in-browser signing) are deferred to a later phase.
+# Two resources inside the jar are patched — data only, no bytecode (the jar is unsigned):
+#   • docsign_config_l.ini — the PKCS#11 driver list. The app seeds ~/.InfoNotary/docsign_config_l.ini from it on first
+#     start and on "reset settings", and the vendor default names /usr/lib/libIDPrimePKCS11.so. It now names
+#     infonotary-idprime's copy. The same patched file is installed under share/ so home/essentials/infonotary.nix can
+#     link it into place; the app migrates that file only when the jar's config_version is newer, and the two match.
+#   • application.properties — sentry.dsn is blanked, which disables the Sentry SDK. Otherwise the app sends crash
+#     reports and 100% of its performance traces to sentry.io, and this file is the DSN's only source.
+#
+# Every start checks https://repository.infonotary.com/docSignLin/version.properties. On Linux a newer version only
+# raises an "update available" dialog (nothing is downloaded or executed), so the vendor's UpdateLauncher entry point
+# is kept: that dialog is the cue to bump this pin, because InfoNotary removes superseded .debs from the repository.
+let
+  jdk = zulu25.override { enableJavaFX = true; };
+
+  jar = "share/java/infonotary-client-software.jar";
+in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "infonotary-client-software";
-  version = "2.0.3.1216";
+  version = "3.0.29";
 
   src = fetchurl {
-    url = "https://repository.infonotary.com/install/linux/DEBS24/pool/non-free/i/infonotary-client-software/infonotary-client-software_${finalAttrs.version}_amd64.deb";
-    hash = "sha256-qbE6X2/Lczkw4ix8vi7j7sJ0ga2e2KUimSfvrESUPY8=";
+    url = "https://repository.infonotary.com/install/linux/DEBS24/pool/non-free/i/infonotary-client-software/infonotary-client-software_${finalAttrs.version}_all.deb";
+    hash = "sha256-Um5ZhMiUPzqcS57OgfCzTloYqs0yh4QLRwMCwx8PWww=";
   };
 
   nativeBuildInputs = [
     dpkg
-    autoPatchelfHook
-    wrapQtAppsHook
+    unzip
+    zip
+    makeWrapper
+    wrapGAppsHook3
   ];
 
+  # GTK's GSettings schemas for JavaFX's GTK file chooser, collected into the wrapper by wrapGAppsHook3.
   buildInputs = [
-    qtbase # Qt5 Core/Gui/Widgets/Network/PrintSupport
-    qtxmlpatterns # XAdES XML signing (scardmanager links libQt5XmlPatterns)
-    qtsvg # Qt5 SVG image plugin for the app's vector icons
-    nss # libnsscertstore → libnss3/libsmime3 (the ~/.pki/nssdb cert store)
-    nspr # libnspr4
-    pcsclite # libpcsclite
-    openldap # libldap.so.2 — libnetworkclient's LDAP/CRL revocation fetching
-    stdenv.cc.cc.lib # libstdc++ / libgcc_s for the C++ binaries
+    gtk3
+    gsettings-desktop-schemas
   ];
+
+  # The wrapper is built by hand in postFixup, around java rather than around a binary in $out.
+  dontWrapGApps = true;
 
   unpackPhase = ''
     runHook preUnpack
@@ -59,69 +72,92 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   '';
   sourceRoot = ".";
 
+  buildPhase = ''
+    runHook preBuild
+
+    vendorJar="opt/InfoNotary e-Doc Signer/lib/app/DocSigner-linux_obfuscated.jar"
+    mkdir resources
+    unzip -q "$vendorJar" docsign_config_l.ini application.properties -d resources
+
+    substituteInPlace resources/docsign_config_l.ini \
+      --replace-fail /usr/lib/libIDPrimePKCS11.so ${infonotary-idprime}/lib/libIDPrimePKCS11.so
+
+    # The DSN value changes between releases, so match the key; the grep fails the build if the key ever moves.
+    sed -i -E 's|^sentry\.dsn[[:space:]]*=.*$|sentry.dsn =|' resources/application.properties
+    grep -qx 'sentry.dsn =' resources/application.properties
+
+    cp "$vendorJar" infonotary-client-software.jar
+    chmod u+w infonotary-client-software.jar
+    (
+      cd resources
+      touch -d @$SOURCE_DATE_EPOCH docsign_config_l.ini application.properties
+      zip -q -X ../infonotary-client-software.jar docsign_config_l.ini application.properties
+    )
+
+    runHook postBuild
+  '';
+
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/bin $out/lib $out/share $out/etc/xdg
+    install -Dm644 infonotary-client-software.jar $out/${jar}
+    install -Dm644 resources/docsign_config_l.ini $out/share/infonotary-client-software/docsign_config_l.ini
 
-    # The two app binaries plus their ~20 bundled private libraries (the app's own crypto / CMS / timestamp-client
-    # stack, including usr/lib/infonotary/*). autoPatchelfHook resolves the inter-library sonames within $out/lib
-    # and the external deps from buildInputs.
-    install -Dm755 usr/bin/insigner usr/bin/scardmanager -t $out/bin/
-    cp -a usr/lib/. $out/lib/
+    # Application icon (named, instead of the vendor's absolute /opt path) and the .p7m/.p7s/.tsr MIME types with
+    # their icons.
+    install -Dm644 "opt/InfoNotary e-Doc Signer/lib/InfoNotary_e-Doc_Signer.svg" \
+      $out/share/icons/hicolor/scalable/apps/infonotary-e-doc-signer.svg
+    cp -r usr/share/icons/hicolor/. $out/share/icons/hicolor/
+    install -Dm644 -t $out/share/mime/packages usr/share/mime/packages/*.xml
 
-    # Resources: desktop entries, icons/pixmaps, MIME types (.p7m/.p7s/.tsr)
-    # and the file-manager right-click sign/verify/timestamp actions.
-    cp -a usr/share/. $out/share/
+    # Desktop entries and Nautilus "Scripts" actions, repointed from the jpackage launcher to the wrappers below.
+    # Nautilus reads scripts only from ~/.local/share/nautilus/scripts; home/essentials/infonotary.nix links them.
+    install -Dm644 -t $out/share/applications usr/share/applications/*.desktop
+    substituteInPlace $out/share/applications/infonotary-e-doc-signer-InfoNotary_e-Doc_Signer.desktop \
+      --replace-fail '"/opt/InfoNotary e-Doc Signer/bin/InfoNotary e-Doc Signer"' $out/bin/infonotary-docsigner \
+      --replace-fail '/opt/InfoNotary e-Doc Signer/lib/InfoNotary_e-Doc_Signer.svg' infonotary-e-doc-signer
+    substituteInPlace $out/share/applications/infonotary-smart-card-manager.desktop \
+      --replace-fail '"/opt/InfoNotary e-Doc Signer/bin/InfoNotary e-Doc Signer" --smc' $out/bin/infonotary-smc \
+      --replace-fail '/opt/InfoNotary e-Doc Signer/lib/InfoNotary_e-Doc_Signer.svg' infonotary-e-doc-signer
 
-    # Signing-scheme definitions (attached/detached/CAdES-T/long-term, TSA URL).
-    # The apps read these from XDG_CONFIG_DIRS, wired in qtWrapperArgs below — no /etc dependency.
-    cp -a etc/xdg/InfoNotary $out/etc/xdg/
-
-    # SignZone browser integration is deferred: drop the native-messaging host launchers.
-    rm -f $out/share/applications/insigner-host.desktop \
-          $out/share/applications/scm-host.desktop
-
-    # Rewrite the launchers/actions to the store paths:
-    # /usr/bin/<app> → $out/bin/<app>,
-    # the bare "Exec=insigner" → its absolute path,
-    # and the absolute /usr/share/pixmaps icon references.
-    for f in $out/share/applications/*.desktop \
-             $out/share/file-manager/actions/*.desktop \
-             $out/share/kde4/services/ServiceMenus/*.desktop; do
-      [ -e "$f" ] || continue
-      substituteInPlace "$f" \
-        --replace-quiet /usr/bin/insigner $out/bin/insigner \
-        --replace-quiet /usr/bin/scardmanager $out/bin/scardmanager \
-        --replace-quiet "Exec=insigner" "Exec=$out/bin/insigner" \
-        --replace-quiet /usr/share/pixmaps $out/share/pixmaps
+    install -Dm755 -t $out/share/nautilus/scripts usr/share/nautilus/scripts/*
+    for script in $out/share/nautilus/scripts/*; do
+      substituteInPlace "$script" \
+        --replace-fail '"/opt/InfoNotary e-Doc Signer/bin/InfoNotary e-Doc Signer"' $out/bin/infonotary-docsigner
     done
 
     runHook postInstall
   '';
 
-  # Wrap both apps so they find: the IDPrime PKCS#11 module (bare dlopen("libIDPrimePKCS11.so")),
-  # NSS's libsoftokn3.so (the app also probes hardcoded /usr paths — this is the bare-name fallback),
-  # and the signing-scheme config under $out/etc/xdg.
-  qtWrapperArgs = [
-    "--prefix LD_LIBRARY_PATH : ${
-      lib.makeLibraryPath [
-        infonotary-idprime
-        nss
-      ]
-    }"
-    "--prefix XDG_CONFIG_DIRS : ${placeholder "out"}/etc/xdg"
-    # GNOME doesn't expose a Qt-detectable session type, so default the platform to Wayland
-    # (overridable at runtime, e.g. QT_QPA_PLATFORM=offscreen for debugging).
-    "--set-default QT_QPA_PLATFORM wayland"
-  ];
+  # In postFixup because wrapGAppsHook3 collects gappsWrapperArgs during preFixup.
+  #   • LD_LIBRARY_PATH — libraries the jar loads by name through JNA: libpcsclite (the PC/SC card stack), and GTK 3
+  #     plus the legacy libappindicator3 for the tray icon, which is the only way back to a window closed to the tray.
+  #   • sun.security.smartcardio.library — javax.smartcardio (the reader list) otherwise probes FHS paths only.
+  #   • --enable-native-access — JNA (in the jar) and JavaFX load native code, which Java 24+ restricts.
+  postFixup = ''
+    makeWrapper ${jdk}/bin/java $out/bin/infonotary-docsigner \
+      "''${gappsWrapperArgs[@]}" \
+      --prefix LD_LIBRARY_PATH : ${
+        lib.makeLibraryPath [
+          gtk3
+          libappindicator-gtk3
+          pcsclite
+        ]
+      } \
+      --add-flags "-Dsun.security.smartcardio.library=${lib.getLib pcsclite}/lib/libpcsclite.so.1" \
+      --add-flags "--enable-native-access=ALL-UNNAMED,javafx.graphics,javafx.web" \
+      --add-flags "-jar $out/${jar}"
+
+    # The jar picks the Smart Card Manager only when --smc is the first argument.
+    makeWrapper $out/bin/infonotary-docsigner $out/bin/infonotary-smc --add-flags --smc
+  '';
 
   meta = {
-    description = "InfoNotary e-Doc Signer + Smart Card Manager (PAdES/CAdES/XAdES signing; card PIN/AIN management)";
+    description = "InfoNotary e-Doc Signer and Smart Card Manager (PAdES/CAdES/XAdES signing, verification, timestamps)";
     homepage = "https://www.infonotary.com/?p=technical-support";
     license = lib.licenses.unfree;
-    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
-    mainProgram = "insigner";
+    sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
+    mainProgram = "infonotary-docsigner";
     platforms = [ "x86_64-linux" ];
   };
 })

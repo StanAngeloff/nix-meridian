@@ -24,14 +24,13 @@ let
   p11KitProxy = "${pkgs.p11-kit}/lib/p11-kit-proxy.so";
 in
 {
-  # InfoNotary e-Doc Signer + Smart Card Manager. FHS-wrapped so the apps' hard-coded /usr/lib/infonotary plugin
-  # directory resolves at sign time — see pkgs/infonotary-client-software-fhs.
+  # InfoNotary e-Doc Signer and Smart Card Manager — see pkgs/infonotary-client-software.
   #
   # StampIT Local Services — the Bulgarian Revenue Agency (НАП) local signing bridge that portal.nra.bg drives
-  # over a localhost HTTP server. Same FHS technique so its hard-coded PKCS#11 module scan finds OpenSC — see
+  # over a localhost HTTP server. FHS-wrapped so its hard-coded PKCS#11 module scan finds OpenSC — see
   # pkgs/stampit-local-services.
   home.packages = [
-    pkgs.infonotary-client-software-fhs
+    pkgs.infonotary-client-software
     # StampIT's Swing dialogs in the user's configured UI font (IBM Plex Sans), enlarged for this HiDPI display.
     # The PIN prompt keeps a bytecode-hardcoded size, so it stays small — a known Java 8 limit; bump uiFontPt if
     # the rest is still too small.
@@ -41,6 +40,19 @@ in
       uiFontPt = 28;
     })
   ];
+
+  # The e-Doc Signer's PKCS#11 driver list, naming the IDPrime middleware — see pkgs/infonotary-client-software.
+  # force: the app's "reset settings" replaces this link with a regular copy of the same file.
+  home.file.".InfoNotary/docsign_config_l.ini" = {
+    source = "${pkgs.infonotary-client-software}/share/infonotary-client-software/docsign_config_l.ini";
+    force = true;
+  };
+
+  # Nautilus right-click → Scripts → InfoNotary Sign / Verify / Timestamp.
+  xdg.dataFile."nautilus/scripts" = {
+    source = "${pkgs.infonotary-client-software}/share/nautilus/scripts";
+    recursive = true;
+  };
 
   # ── Firefox: smart-card module + InfoNotary CA trust (fully declarative) ──────────────────────
   # These keys merge into home/apps/firefox/default.nix's policies through the home-manager module

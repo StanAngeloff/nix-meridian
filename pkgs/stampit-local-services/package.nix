@@ -45,7 +45,6 @@
 #      environment or config override. None of those paths exist on NixOS. buildFHSEnv runs the JVM inside a
 #      bubblewrap namespace whose /usr is synthesised from targetPkgs, so opensc's lib/pkcs11/opensc-pkcs11.so
 #      appears at /usr/lib/pkcs11/opensc-pkcs11.so and the scan succeeds — no host /usr, no binary patching.
-#      This is the same technique as pkgs/infonotary-client-software-fhs.
 #
 # The jars are pinned fixed-output derivations fetched from the portal (the official source). The JNLP marks
 # itself <update check="always"/>; bypassing Web Start means we ignore that, so a portal-side version bump

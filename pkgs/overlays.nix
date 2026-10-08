@@ -4,8 +4,7 @@ final: prev: {
   curlconverter = final.callPackage ./curlconverter/package.nix { };
   infonotary-ca = final.callPackage ./infonotary-ca/package.nix { };
   infonotary-idprime = final.callPackage ./infonotary-idprime/package.nix { };
-  infonotary-client-software = final.libsForQt5.callPackage ./infonotary-client-software/package.nix { };
-  infonotary-client-software-fhs = final.callPackage ./infonotary-client-software-fhs/package.nix { };
+  infonotary-client-software = final.callPackage ./infonotary-client-software/package.nix { };
   heidisql = final.qt6Packages.callPackage ./heidisql/package.nix { };
   ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = prev.ghostty; };
   git-lines = final.callPackage ./git-lines/package.nix { };
