@@ -12,8 +12,10 @@
 # - The standard level stops only what it recognises. Strict would also deny every command it cannot fully verify, and that
 #   includes the heredoc-fed Python scripts sessions write all day.
 # - /tmp and /data/tmp are scratch space, where recursive deletes need no confirmation.
-# - The dynamic-source rules are off: a script run through a variable (`bash $SCRIPT …`) cannot be inspected, and asking every
-#   time buys little. CI approvals are the exception, caught by a native ask rule in ../../../mcp.nix.
+# - The dynamic-source rules are off: a command run through a variable cannot be inspected, and asking every time buys little.
+#   CI approvals are the exception, caught by a native ask rule in ../../../mcp.nix. A shell running a script named by a
+#   variable (`bash "$SCRIPT"`) still stops: the engine's own analysis raises that (analysis.dynamic-shell-source), and no
+#   policy switches it off.
 # - Project .env and .npmrc files hold local development settings, never these credentials, so their secret rules are off.
 # - The deny paths add credential stores the built-in rules miss; those already cover SSH keys, ~/.aws, gh, kube, docker and
 #   gcloud configuration, .netrc and the coding agents' own credentials.

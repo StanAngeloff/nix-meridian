@@ -4,10 +4,13 @@
 # - The engine asks only in modes where it expects a person to answer, and denies in bypass mode instead.
 #   Claude Code shows a hook's ask in bypass mode too, so the engine is told the session runs in the default mode.
 # - A call the engine stops becomes an ask, so a person decides; wiping the root or the home directory stays a deny.
-# - A command passes when the engine's only objection is a variable naming the script to run; so does every tool it ignores.
+# - A variable naming the script to run is an ask as well: the engine stops at its first objection,
+#   so letting that one pass would let everything after it in the command run unchecked.
+# - Every tool the engine ignores passes untouched.
 # - Claude Code runs the call anyway after a hook fails, so every failure here becomes an ask instead.
 #
-# The engine runs in an emptied environment with its configuration pinned in the store, so no session setting can redirect it.
+# The engine runs in an emptied environment with its configuration pinned in the store, so no session setting can redirect it,
+# and a repository's own .cc-safety-net/policy.json can only tighten that configuration, never switch a protection off.
 # It logs each call it stops, commands verbatim, under ~/.claude/.cc-safety-net/logs, inside the bubble's writable ~/.claude.
 #
 # Learn more at https://code.claude.com/docs/en/hooks and https://github.com/kenryu42/cc-safety-net
@@ -34,10 +37,11 @@ event=$(cat)
 tool_name=$(jq -r '.tool_name // ""' <<<"$event")
 
 # The engine judges shell commands and the tools that name files; for any other tool it prints nothing, so it is not started.
-# The names mirror its own routing (src/core/tool-input.ts), normalized the same way: lower case, without "-", "_" or spaces.
+# The names mirror its own routing (src/core/tool-input.ts, plus Monitor from its Claude Code adapter), normalized the same way:
+# lower case, without "-", "_" or spaces.
 normalized_tool_name=$(tr -d ' _-' <<<"$tool_name" | tr '[:upper:]' '[:lower:]')
 case $normalized_tool_name in
-bash | powershell | applypatch | patch | grep | grepsearch | rg | find | findbyname | glob | create | edit | listdir | \
+bash | monitor | powershell | applypatch | patch | grep | grepsearch | rg | find | findbyname | glob | create | edit | listdir | \
 	listpermissions | ls | multiedit | multireplacefilecontent | notebookedit | read | readfile | readurlcontent | \
 	replacefilecontent | searchweb | strreplaceeditor | view | viewfile | write | writefile | writetofile) ;;
 *) exit 0 ;;
@@ -46,7 +50,7 @@ esac
 engine_exit_code=0
 engine_output=$(jq -c '.permission_mode = "default"' <<<"$event" |
 	env -i HOME="$HOME" LANG=C.UTF-8 TMPDIR="${TMPDIR:-/tmp}" \
-		CC_SAFETY_NET_HOME="@policyPath@" CC_SAFETY_NET_NO_UPDATE_CHECK=1 \
+		CC_SAFETY_NET_HOME="@policyPath@" CC_SAFETY_NET_NO_UPDATE_CHECK=1 CC_SAFETY_NET_PROJECT_TIGHTEN_ONLY=1 \
 		CC_SAFETY_NET_AUDIT_HOME="$HOME/.claude" CC_SAFETY_NET_AUDIT_SCOPE=blocked \
 		timeout 20 "@engineExe@" hook --coding-cli) || engine_exit_code=$?
 if ((engine_exit_code != 0)); then
@@ -63,9 +67,6 @@ rule_id=$(sed -n '/^Rule: /{s///p;q;}' <<<"$engine_reason")
 reason_summary=$(sed -n '/^Reason: /{s///p;q;}' <<<"$engine_reason")
 prompt_reason="cc-safety-net${rule_id:+ ($rule_id)}: ${reason_summary:-$engine_reason}"
 
-if [[ -z $rule_id && $reason_summary == "shell execution source cannot be verified safely"* ]]; then
-	exit 0
-fi
 case $engine_decision in
 ask)
 	answer ask "$prompt_reason"

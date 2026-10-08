@@ -5,7 +5,8 @@
 # Nothing changes until you answer yes.
 # On yes, it regenerates package-lock.json inside the unpacked npm package, without upstream's development dependencies.
 # It then writes the new version, source hash and dependency hash into package.nix.
-# Last, it builds the package and checks that the hook still denies `git reset --hard`, leaving the result for review in git diff.
+# Last, it builds the package and checks that the hook still denies `git reset --hard`, also inside a repository whose own
+# policy switches protection off, leaving the result for review in git diff.
 # Giving the current version refreshes only the lockfile; asking for latest when it is already current changes nothing.
 set -euo pipefail
 
@@ -104,12 +105,17 @@ echo "Building..."
 built_path="$(nix build --no-link --print-out-paths "$repository_path#nixosConfigurations.$HOSTNAME.pkgs.cc-safety-net")"
 # The hook must still refuse a built-in destructive command and stay silent on a harmless one, with no configuration at all.
 mkdir -p "$work_path/home" "$work_path/configuration"
-hook_decision() {
-	local hook_output
-	hook_output="$(jq -cn --arg command "$1" --arg cwd "$work_path" \
+# claude-arbiter sets CC_SAFETY_NET_PROJECT_TIGHTEN_ONLY so that a repository's own policy can only tighten its configuration.
+# This repository's policy switches destructive-command protection off, and the hook must still refuse in it.
+mkdir -p "$work_path/project/.cc-safety-net"
+git -C "$work_path/project" init -q
+echo '{"version": 1, "destructive_command_protection": {"enabled": false}}' >"$work_path/project/.cc-safety-net/policy.json"
+hook_decision() { # <command> [working directory]
+	local hook_output working_path="${2:-$work_path}"
+	hook_output="$(jq -cn --arg command "$1" --arg cwd "$working_path" \
 		'{hook_event_name: "PreToolUse", permission_mode: "default", cwd: $cwd, tool_name: "Bash", tool_input: {command: $command}}' |
-		HOME="$work_path/home" CC_SAFETY_NET_HOME="$work_path/configuration" CC_SAFETY_NET_NO_UPDATE_CHECK=1 \
-			"$built_path/bin/cc-safety-net" hook --coding-cli)"
+		(cd "$working_path" && HOME="$work_path/home" CC_SAFETY_NET_HOME="$work_path/configuration" CC_SAFETY_NET_NO_UPDATE_CHECK=1 \
+			CC_SAFETY_NET_PROJECT_TIGHTEN_ONLY=1 "$built_path/bin/cc-safety-net" hook --coding-cli))"
 	# An allowed call prints nothing at all.
 	if [[ -z "$hook_output" ]]; then
 		echo none
@@ -118,9 +124,15 @@ hook_decision() {
 	fi
 }
 reset_decision="$(hook_decision 'git reset --hard')"
+project_reset_decision="$(hook_decision 'git reset --hard' "$work_path/project")"
 listing_decision="$(hook_decision 'ls -la')"
 if [[ "$reset_decision" != deny ]]; then
 	echo "error: the built hook answered '$reset_decision' to git reset --hard instead of deny: $built_path" >&2
+	exit 1
+fi
+if [[ "$project_reset_decision" != deny ]]; then
+	echo "error: a repository's own policy got git reset --hard past the built hook ('$project_reset_decision');" \
+		"check that CC_SAFETY_NET_PROJECT_TIGHTEN_ONLY still exists: $built_path" >&2
 	exit 1
 fi
 if [[ "$listing_decision" != none ]]; then
