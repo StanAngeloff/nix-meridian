@@ -1,0 +1,269 @@
+{
+  "rulebook_version": 1,
+  "name": "arbiter-writes",
+  "version": "1.0.0",
+  "description": "Writes to systems other people see. Version 1 because version 2 skips no git, gh or kubectl option before the command word, so `git -C dir push` and `kubectl -n ns delete` would slip past it.",
+  "allowed_commands": [
+    "cargo",
+    "curl",
+    "docker",
+    "gh",
+    "git",
+    "kubectl",
+    "npm",
+    "pnpm",
+    "podman",
+    "yarn"
+  ],
+  "rules": [
+    {
+      "name": "git-push",
+      "command": "git",
+      "subcommand": "push",
+      "block_args": ["push"],
+      "reason": "Pushing publishes commits to a remote."
+    },
+    {
+      "name": "gh-api-write",
+      "command": "gh",
+      "subcommand": "api",
+      "block_args": [
+        "-X",
+        "--method",
+        "--method=POST",
+        "--method=PUT",
+        "--method=PATCH",
+        "--method=DELETE",
+        "-f",
+        "-F",
+        "--field",
+        "--raw-field",
+        "--input"
+      ],
+      "reason": "A method override or a field turns gh api into a write, and a GraphQL document can carry a mutation."
+    },
+    {
+      "name": "gh-pr-write",
+      "command": "gh",
+      "subcommand": "pr",
+      "block_args": [
+        "create",
+        "merge",
+        "close",
+        "reopen",
+        "comment",
+        "review",
+        "edit",
+        "ready",
+        "lock",
+        "unlock",
+        "update-branch",
+        "revert"
+      ],
+      "reason": "Changes a pull request on GitHub."
+    },
+    {
+      "name": "gh-issue-write",
+      "command": "gh",
+      "subcommand": "issue",
+      "block_args": [
+        "create",
+        "close",
+        "reopen",
+        "comment",
+        "edit",
+        "delete",
+        "transfer",
+        "lock",
+        "unlock",
+        "pin",
+        "unpin",
+        "develop"
+      ],
+      "reason": "Changes an issue on GitHub."
+    },
+    {
+      "name": "gh-release-write",
+      "command": "gh",
+      "subcommand": "release",
+      "block_args": ["create", "edit", "delete", "upload", "delete-asset"],
+      "reason": "Changes a release on GitHub."
+    },
+    {
+      "name": "gh-repo-write",
+      "command": "gh",
+      "subcommand": "repo",
+      "block_args": ["create", "delete", "edit", "rename", "archive", "unarchive", "fork", "sync"],
+      "reason": "Changes a repository on GitHub."
+    },
+    {
+      "name": "gh-workflow-write",
+      "command": "gh",
+      "subcommand": "workflow",
+      "block_args": ["run", "enable", "disable"],
+      "reason": "Starts or switches a GitHub Actions workflow."
+    },
+    {
+      "name": "gh-run-write",
+      "command": "gh",
+      "subcommand": "run",
+      "block_args": ["rerun", "cancel", "delete"],
+      "reason": "Changes a GitHub Actions run."
+    },
+    {
+      "name": "gh-secret-write",
+      "command": "gh",
+      "subcommand": "secret",
+      "block_args": ["set", "delete", "remove"],
+      "reason": "Changes a secret on GitHub."
+    },
+    {
+      "name": "gh-variable-write",
+      "command": "gh",
+      "subcommand": "variable",
+      "block_args": ["set", "delete"],
+      "reason": "Changes a variable on GitHub."
+    },
+    {
+      "name": "gh-label-write",
+      "command": "gh",
+      "subcommand": "label",
+      "block_args": ["create", "edit", "delete", "clone"],
+      "reason": "Changes labels on GitHub."
+    },
+    {
+      "name": "gh-gist-write",
+      "command": "gh",
+      "subcommand": "gist",
+      "block_args": ["create", "edit", "delete", "rename"],
+      "reason": "Changes a gist on GitHub."
+    },
+    {
+      "name": "gh-project-write",
+      "command": "gh",
+      "subcommand": "project",
+      "block_args": [
+        "create",
+        "edit",
+        "delete",
+        "close",
+        "copy",
+        "link",
+        "unlink",
+        "mark-template",
+        "field-create",
+        "field-delete",
+        "item-add",
+        "item-archive",
+        "item-create",
+        "item-delete",
+        "item-edit"
+      ],
+      "reason": "Changes a GitHub project."
+    },
+    {
+      "name": "gh-cache-write",
+      "command": "gh",
+      "subcommand": "cache",
+      "block_args": ["delete"],
+      "reason": "Deletes GitHub Actions caches."
+    },
+    {
+      "name": "curl-write",
+      "command": "curl",
+      "block_args": [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "-XPOST",
+        "-XPUT",
+        "-XPATCH",
+        "-XDELETE",
+        "-d",
+        "--data",
+        "--data-raw",
+        "--data-binary",
+        "--data-urlencode",
+        "--data-ascii",
+        "--json",
+        "-F",
+        "--form",
+        "--form-string",
+        "-T",
+        "--upload-file"
+      ],
+      "reason": "Sends a writing request or data to a server."
+    },
+    {
+      "name": "kubectl-write",
+      "command": "kubectl",
+      "block_args": [
+        "apply",
+        "create",
+        "delete",
+        "patch",
+        "replace",
+        "scale",
+        "edit",
+        "drain",
+        "cordon",
+        "uncordon",
+        "taint",
+        "set",
+        "restart",
+        "undo",
+        "annotate",
+        "label",
+        "run",
+        "expose",
+        "autoscale",
+        "exec",
+        "cp",
+        "debug"
+      ],
+      "reason": "Changes a Kubernetes cluster or runs a command inside it."
+    },
+    {
+      "name": "docker-push",
+      "command": "docker",
+      "subcommand": "push",
+      "block_args": ["push"],
+      "reason": "Publishes an image to a registry."
+    },
+    {
+      "name": "podman-push",
+      "command": "podman",
+      "subcommand": "push",
+      "block_args": ["push"],
+      "reason": "Publishes an image to a registry."
+    },
+    {
+      "name": "npm-publish",
+      "command": "npm",
+      "subcommand": "publish",
+      "block_args": ["publish"],
+      "reason": "Publishes a package to a registry."
+    },
+    {
+      "name": "pnpm-publish",
+      "command": "pnpm",
+      "subcommand": "publish",
+      "block_args": ["publish"],
+      "reason": "Publishes a package to a registry."
+    },
+    {
+      "name": "yarn-publish",
+      "command": "yarn",
+      "block_args": ["publish"],
+      "reason": "Publishes a package to a registry."
+    },
+    {
+      "name": "cargo-publish",
+      "command": "cargo",
+      "subcommand": "publish",
+      "block_args": ["publish"],
+      "reason": "Publishes a crate to a registry."
+    }
+  ]
+}

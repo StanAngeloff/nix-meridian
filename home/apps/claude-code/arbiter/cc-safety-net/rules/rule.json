@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/kenryu42/cc-safety-net/main/assets/cc-safety-net.schema.json",
   "version": 1,
-  "rules": ["arbiter", "arbiter-flags", "aws", "terraform", "gcloud"],
+  "rules": ["arbiter", "arbiter-flags", "arbiter-writes", "aws", "terraform", "gcloud"],
   "transparent_wrappers": [
     "bunx",
     "caffeinate",

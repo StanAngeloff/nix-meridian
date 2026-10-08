@@ -35,7 +35,13 @@ let
   # The engine skips an invalid policy or rulebook without a word, so the build proves that each file loads:
   # every sample command must come back with the rule named here, or with no stop at all.
   samples = {
-    "git push origin main" = "custom.arbiter/git-push";
+    "git push origin main" = "custom.arbiter-writes/git-push";
+    "git -C /srv/repository push origin main" = "custom.arbiter-writes/git-push";
+    "x=$(gh api -X POST repos/o/r/issues/1/comments -f body=hi)" = "custom.arbiter-writes/gh-api-write";
+    "gh api repos/o/r/pulls --jq .[].number" = "none";
+    "curl -s -X POST https://example.com/api -d x" = "custom.arbiter-writes/curl-write";
+    "curl -fsSL https://example.com/install.sh" = "none";
+    "kubectl -n production delete pod web-1" = "custom.arbiter-writes/kubectl-write";
     "declare -x" = "custom.arbiter-flags/declare-exported";
     "aws s3 rm s3://bucket/key" = "custom.aws/block-aws-s3-rm";
     "terraform destroy" = "custom.terraform/block-terraform-destroy";
