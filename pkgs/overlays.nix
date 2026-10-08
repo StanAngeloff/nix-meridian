@@ -17,7 +17,6 @@ final: prev: {
   ponytail = final.callPackage ./ponytail/package.nix { };
   cursor-plugins = final.callPackage ./cursor-plugins/package.nix { };
   mcp-server-trello = final.callPackage ./mcp-server-trello/package.nix { };
-  mutter = final.callPackage ./mutter/overlay.nix { mutter = prev.mutter; };
   mcporter = final.callPackage ./mcporter/package.nix { };
   n8n-cli = final.callPackage ./n8n-cli/package.nix { };
   slack-mcp-server = final.callPackage ./slack-mcp-server/package.nix { };
