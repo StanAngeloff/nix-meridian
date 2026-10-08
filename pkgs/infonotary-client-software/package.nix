@@ -23,13 +23,17 @@
 # the app needs because every alert dialog renders its icon through a WebView. The JavaFX classes and native libraries
 # bundled inside the jar are shadowed by the runtime's own JavaFX modules, so they are never loaded.
 #
-# Two resources inside the jar are patched — data only, no bytecode (the jar is unsigned):
+# Resources inside the jar are patched — data only, no bytecode (the jar is unsigned):
 #   • docsign_config_l.ini — the PKCS#11 driver list. The app seeds ~/.InfoNotary/docsign_config_l.ini from it on first
 #     start and on "reset settings", and the vendor default names /usr/lib/libIDPrimePKCS11.so. It now names
 #     infonotary-idprime's copy. The same patched file is installed under share/ so home/essentials/infonotary.nix can
 #     link it into place; the app migrates that file only when the jar's config_version is newer, and the two match.
 #   • application.properties — sentry.dsn is blanked, which disables the Sentry SDK. Otherwise the app sends crash
 #     reports and 100% of its performance traces to sentry.io, and this file is the DSN's only source.
+#   • light.css and dark.css — the font family becomes the generic sans-serif, which JavaFX resolves through fontconfig,
+#     so the UI follows the system font. The stylesheets name "Arial" and "Liberation Sans", and on Linux the app
+#     rewrites "Arial" to "Liberation Sans" at startup and loads its own copy of that font from the jar.
+#     The "update available" dialog and the HTML in the About dialog name Liberation Sans in code and keep it.
 #
 # Every start checks https://repository.infonotary.com/docSignLin/version.properties. On Linux a newer version only
 # raises an "update available" dialog (nothing is downloaded or executed), so the vendor's UpdateLauncher entry point
@@ -76,8 +80,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook preBuild
 
     vendorJar="opt/InfoNotary e-Doc Signer/lib/app/DocSigner-linux_obfuscated.jar"
+    patchedResources="docsign_config_l.ini application.properties light.css dark.css"
     mkdir resources
-    unzip -q "$vendorJar" docsign_config_l.ini application.properties -d resources
+    unzip -q "$vendorJar" $patchedResources -d resources
 
     substituteInPlace resources/docsign_config_l.ini \
       --replace-fail /usr/lib/libIDPrimePKCS11.so ${infonotary-idprime}/lib/libIDPrimePKCS11.so
@@ -86,12 +91,16 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     sed -i -E 's|^sentry\.dsn[[:space:]]*=.*$|sentry.dsn =|' resources/application.properties
     grep -qx 'sentry.dsn =' resources/application.properties
 
+    substituteInPlace resources/light.css resources/dark.css \
+      --replace-fail '"Arial"' sans-serif \
+      --replace-fail '"Liberation Sans"' sans-serif
+
     cp "$vendorJar" infonotary-client-software.jar
     chmod u+w infonotary-client-software.jar
     (
       cd resources
-      touch -d @$SOURCE_DATE_EPOCH docsign_config_l.ini application.properties
-      zip -q -X ../infonotary-client-software.jar docsign_config_l.ini application.properties
+      touch -d @$SOURCE_DATE_EPOCH $patchedResources
+      zip -q -X ../infonotary-client-software.jar $patchedResources
     )
 
     runHook postBuild
