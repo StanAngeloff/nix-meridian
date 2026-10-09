@@ -9,6 +9,7 @@
   writeShellApplication,
   linkFarm,
   bubblewrap,
+  bun,
   coreutils,
   # The overlay passes nixpkgs-unstable's Electron, the one the profile already carries for Proton Pass,
   # so the review window adds no second copy.
@@ -63,7 +64,7 @@ let
   };
 
   # Plannotator's browser command: the review in an Electron app of its own (./review-window), inside the namespace.
-  # See review-window.sh.
+  # See review-window.sh. The pages it shows are this package's, so they come through the wrapper (PLANNOTATOR_WINDOW_PAGES).
   reviewWindow = writeShellApplication {
     name = "plannotator-review-window";
     text =
@@ -90,6 +91,24 @@ let
         (builtins.readFile ./review-window.sh);
   };
 
+  # Between isolate and Plannotator, inside the namespace: starts the review window beside the server. See prelaunch.sh.
+  prelaunch = writeShellApplication {
+    name = "plannotator-prelaunch";
+    text =
+      lib.replaceStrings
+        [
+          "@reviewWindow@"
+          "@flock@"
+          "@mktemp@"
+        ]
+        [
+          (lib.getExe reviewWindow)
+          (lib.getExe' util-linux "flock")
+          (lib.getExe' coreutils "mktemp")
+        ]
+        (builtins.readFile ./prelaunch.sh);
+  };
+
   # PLANNOTATOR_REMOTE: remote mode binds 0.0.0.0 with no authentication on the approve and feedback endpoints,
   #   and SSH_TTY or SSH_CONNECTION turn it on silently.
   # PLANNOTATOR_SHARE: share links carry the plan or diff to share.plannotator.ai; short links upload it.
@@ -104,8 +123,9 @@ let
   # vendor/: runtimes install there with code Nix never pinned (Call flow from the review UI, the agent terminal from the CLI);
   #   read-only makes both fail.
   #   The wrapper runs under bash -e, so a failed mkdir or chmod stops it before Plannotator starts with a writable vendor/.
-  # PLANNOTATOR_WINDOW_BROWSER and PLANNOTATOR_WINDOW_SPELLCHECK_*: read by the review window, not by Plannotator
-  #   (review-window/main.js).
+  # PLANNOTATOR_WINDOW_BROWSER, PLANNOTATOR_WINDOW_SPELLCHECK_* and PLANNOTATOR_WINDOW_PAGES (set in installPhase):
+  #   read by the review window, not by Plannotator (review-window/main.js).
+  #   PLANNOTATOR_WINDOW_PRELAUNCH stays the caller's (prelaunch.sh).
   wrapperArgs = [
     # nixfmt: off
     "--set" "PLANNOTATOR_REMOTE" "0"
@@ -147,13 +167,34 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     autoPatchelfHook
+    bun
     copyDesktopItems
     makeWrapper
   ];
 
   dontUnpack = true;
   dontConfigure = true;
-  dontBuild = true;
+
+  # The release embeds its server as 60 MB of JavaScript source, both pages in it as string literals,
+  # which Bun parses on every start: about 480 ms before Plannotator does anything.
+  # The same JavaScript, taken out (extract-bundle.js) and compiled again with bytecode by nixpkgs' Bun, starts in half that;
+  # the binary grows from 154 to 350 MB.
+  # The pages also go, split, to the review window, which shows them itself (review-window/main.js).
+  buildPhase = ''
+    runHook preBuild
+
+    # The JavaScript is bundled for upstream's Bun, whose version the runtime part of the binary names first.
+    mapfile -t upstream_bun_versions < <(grep --text --only-matching 'Bun v[0-9]*\.[0-9]*\.[0-9]*' $src)
+    if [[ "''${upstream_bun_versions[0]:-}" != "Bun v${lib.versions.majorMinor bun.version}."* ]]; then
+      echo "plannotator ${finalAttrs.version} runs on ''${upstream_bun_versions[0]:-an unknown Bun}, nixpkgs has Bun ${bun.version}" >&2
+      exit 1
+    fi
+    $OBJCOPY --output-target=binary --only-section=.bun $src bun-section
+    bun ${./extract-bundle.js} bun-section extracted
+    HOME="$TMPDIR" bun build --compile --bytecode --format=esm --target=bun extracted/plannotator.js --outfile plannotator
+
+    runHook postBuild
+  '';
 
   # Bun finds the embedded application inside its own executable; stripping discards it and leaves the bare runtime.
   dontStrip = true;
@@ -177,10 +218,12 @@ stdenv.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    install -Dm755 $src $out/libexec/plannotator/plannotator
-    # The wrapper sets the environment above, then runs the real binary through isolate.
+    install -Dm755 plannotator $out/libexec/plannotator/plannotator
+    install -Dm444 -t $out/share/plannotator/pages extracted/pages/*
+    # The wrapper sets the environment above, then runs the binary through isolate, then prelaunch.
     makeWrapper ${lib.getExe isolate} $out/bin/plannotator \
-      --add-flags $out/libexec/plannotator/plannotator ${lib.escapeShellArgs wrapperArgs}
+      --add-flags "${lib.getExe prelaunch} $out/libexec/plannotator/plannotator" \
+      --set PLANNOTATOR_WINDOW_PAGES $out/share/plannotator/pages ${lib.escapeShellArgs wrapperArgs}
     # Beside the binary, where tests/plannotator runs the launcher the way Plannotator does.
     ln -s ${lib.getExe reviewWindow} $out/libexec/plannotator/review-window
     install -Dm444 ${finalAttrs.passthru.icon} $out/share/icons/hicolor/256x256/apps/plannotator.png

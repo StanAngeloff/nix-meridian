@@ -204,6 +204,18 @@ class Session:
         finally:
             connection.close()
 
+    def request_bytes(self, path):
+        """GET path uncompressed (http.client asks for no encoding): the status and the body's bytes."""
+        connection = UnixHTTPConnection(
+            self.state_path / "server.sock", f"127.0.0.1:{self.port}"
+        )
+        try:
+            connection.request("GET", path)
+            response = connection.getresponse()
+            return response.status, response.read()
+        finally:
+            connection.close()
+
     def probe_result(self, timeout=120):
         probe_file = self.state_path / "probe.json"
         self.wait_for_file(probe_file, timeout, "the probe inside the namespace")
@@ -273,7 +285,9 @@ def launch(
 ):
     """Starts a plannotator command in a session of its own, with namespace_browser.py as its browser command.
 
-    window: the browser command execs the package's review-window launcher, as Plannotator itself would.
+    window: the browser command execs the package's review-window launcher, as Plannotator itself would,
+      and the window starts ahead of the server, as with the package's own browser command,
+      unless the environment sets PLANNOTATOR_WINDOW_PRELAUNCH otherwise.
     probe: namespace_probe.run's configuration, run inside the namespace before forwarding starts.
     command_prefix: what runs plannotator, to stand in for Claude's Bash shell and Claude (test_teardown.py).
     """
@@ -290,6 +304,7 @@ def launch(
         session_environment["PLANNOTATOR_TEST_LAUNCHER"] = str(
             package_path / "libexec" / "plannotator" / "review-window"
         )
+        session_environment.setdefault("PLANNOTATOR_WINDOW_PRELAUNCH", "1")
     if probe is not None:
         session_environment["PLANNOTATOR_TEST_PROBE"] = json.dumps(probe)
     process = subprocess.Popen(

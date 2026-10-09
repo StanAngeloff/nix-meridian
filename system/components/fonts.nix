@@ -2,10 +2,19 @@
   config,
   lib,
   pkgs,
+  pkgs-unstable,
   ...
 }:
 let
   segoe-ui-variable = pkgs.callPackage ./fonts/segoe-ui-variable/package.nix { };
+
+  # The system fonts' cache in the format nixpkgs-unstable's fontconfig reads, beside the one NixOS builds with the system's.
+  # Programs from nixpkgs-unstable (its Electron: Plannotator's review window, Proton Pass) link a fontconfig whose cache format
+  # is newer, so NixOS's cache is invisible to them and they rescan every font directory.
+  unstableFontsCache = pkgs.makeFontsCache {
+    inherit (pkgs-unstable) fontconfig;
+    fontDirectories = config.fonts.packages;
+  };
 in
 {
   fonts = {
@@ -37,13 +46,19 @@ in
       subpixel.rgba = "rgb";
 
       # This would ideally be done in Home Manager, however it lacks the option to add extra configuration.
+      # A whole document: local.conf is read as a file of its own, and a second root element breaks all of it.
       localConf = ''
-        <alias>
-          <family>Segoe UI</family>
-          <prefer>
-            <family>Segoe UI Variable</family>
-          </prefer>
-        </alias>
+        <?xml version="1.0"?>
+        <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+        <fontconfig>
+          <alias>
+            <family>Segoe UI</family>
+            <prefer>
+              <family>Segoe UI Variable</family>
+            </prefer>
+          </alias>
+          <cachedir>${unstableFontsCache}</cachedir>
+        </fontconfig>
       '';
     };
   };

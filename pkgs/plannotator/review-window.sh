@@ -1,15 +1,40 @@
 # shellcheck shell=bash
-# PLANNOTATOR_BROWSER for the isolated package: shows the review in the review-window Electron app (review-window/).
-# Plannotator runs it with the review URL as its direct child, inside the network namespace isolate.sh made,
-# so the window reaches only loopback. Electron gets a PID namespace of its own, so all of its processes end together.
+# PLANNOTATOR_BROWSER for the isolated package: shows the review in the review-window Electron app (review-window/),
+# inside the network namespace isolate.sh made, so the window reaches only loopback.
+# Two ways in, both with Plannotator as the parent:
+# - plannotator-review-window --page <plan|review>: prelaunch.sh starts the window before the server, which then gets
+#   the server's URL through the directory PLANNOTATOR_WINDOW_HANDOFF names.
+# - plannotator-review-window <http://localhost:PORT/...>: Plannotator's browser command. A window from the first way
+#   that is still open takes the URL, and this exits at once; otherwise this starts a window for the URL.
+# Electron gets a PID namespace of its own, so all of its processes end together.
 # Its output is captured by Plannotator and never shown, so it speaks to the user through Plannotator's stderr.
-# Usage: plannotator-review-window <http://localhost:PORT/...>
+# Usage: plannotator-review-window <http://localhost:PORT/...> | --page <plan|review>
 
-if [[ $# -ne 1 ]]; then
-	echo "usage: plannotator-review-window <http://localhost:PORT/...>" >&2
+usage() {
+	echo "usage: plannotator-review-window <http://localhost:PORT/...> | --page <plan|review>" >&2
 	exit 2
+}
+review_url=""
+page_name=""
+if [[ $# -eq 2 && "$1" == --page && ("$2" == plan || "$2" == review) ]]; then
+	page_name="$2"
+elif [[ $# -eq 1 && "$1" != -* ]]; then
+	review_url="$1"
+else
+	usage
 fi
-review_url="$1"
+
+# The browser command, with a window waiting for it: prelaunch.sh holds the lock until that window ends.
+# The URL appears whole, under its final name, or not at all.
+if [[ -n "$review_url" && -n "${PLANNOTATOR_WINDOW_HANDOFF:-}" ]]; then
+	exec {handoff_lock_descriptor}>>"$PLANNOTATOR_WINDOW_HANDOFF/window.lock"
+	if ! @flock@ --nonblock "$handoff_lock_descriptor"; then
+		printf '%s\n' "$review_url" >"$PLANNOTATOR_WINDOW_HANDOFF/url.partial"
+		mv "$PLANNOTATOR_WINDOW_HANDOFF/url.partial" "$PLANNOTATOR_WINDOW_HANDOFF/url"
+		exit 0
+	fi
+	exec {handoff_lock_descriptor}>&-
+fi
 
 # First pass: run again under a parent-death signal, so the kernel kills the launcher, and with it the window,
 # when Plannotator exits. The parent's id travels along to catch a Plannotator that exited before the signal was armed.
@@ -67,9 +92,17 @@ done
 
 unset DISPLAY
 export PLANNOTATOR_WINDOW_PROFILE="$profile_path"
+# The window shows the package's copy of the page it is started for, and the server's own page when started for a URL.
+electron_arguments=()
+if [[ -n "$page_name" ]]; then
+	export PLANNOTATOR_WINDOW_PAGE="$page_name"
+else
+	unset PLANNOTATOR_WINDOW_PAGE PLANNOTATOR_WINDOW_HANDOFF
+	electron_arguments+=("$review_url")
+fi
 electron_exit_code=0
 @bwrap@ --unshare-pid --die-with-parent --bind / / --dev /dev "${render_node_arguments[@]}" --proc /proc \
-	-- @electron@ --ozone-platform=wayland @appDirectory@ "$review_url" || electron_exit_code=$?
+	-- @electron@ --ozone-platform=wayland @appDirectory@ "${electron_arguments[@]}" || electron_exit_code=$?
 
 if [[ "$electron_exit_code" -eq 0 ]]; then
 	end_session "the window was closed without sending feedback; the draft is kept, and running the review again restores it"

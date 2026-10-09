@@ -134,6 +134,19 @@ def test_closing_the_window_without_a_decision_ends_the_review(
     session.wait_until_nothing_remains()
 
 
+def test_a_command_that_fails_takes_its_early_window_down(
+    tmp_path, environment, start_session
+):
+    # The window starts ahead of the server (prelaunch.sh), and Plannotator exits before it has one.
+    session = start_session(
+        ["annotate", "missing.md"], environment, tmp_path, window=True
+    )
+    _, stderr = session.process.communicate(timeout=60)
+    assert session.process.returncode == 1, stderr
+    assert "File not found" in stderr
+    session.wait_until_nothing_remains()
+
+
 def test_the_pages_close_button_closes_the_window(tmp_path, environment, start_session):
     session = open_review(start_session, environment, tmp_path)
     # The page's Close posts /api/exit: the review ends without feedback, and the draft goes.

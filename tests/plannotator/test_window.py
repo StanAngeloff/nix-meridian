@@ -1,8 +1,10 @@
 """The review window (pkgs/plannotator/review-window/), tested two ways:
-- inside the namespace, with Plannotator's real review page;
+- inside the namespace, with Plannotator's real review page, started ahead of the server (prelaunch.sh) with the package's
+  copy of the page, and started by the browser command with the server's own;
 - with its own filters alone, outside any namespace, against a page that tries the ways out those filters cover:
   requests, a popup, a scripted click and WebRTC's STUN packets. They are a second layer, not a boundary:
   WebRTC over TCP (TURN) and WebTransport get past them to the review host's other ports.
+Either way the page lives at the window's own origin, which the window serves itself.
 
 Clicks come from trusted_click.js, which NODE_OPTIONS loads into Electron's main process:
 it clicks through Chromium's input pipeline, so the page sees a trusted click, as from a user's mouse.
@@ -19,6 +21,9 @@ import threading
 import uuid
 
 from harness import TESTS_PATH, Session, electron_main_process_ids, finish, wait_for
+
+# The page's origin in the window (review-window/main.js), the same for every review; nothing listens on it.
+PAGE_ORIGIN = "http://localhost:19432"
 
 SECOND_LAYER_PAGE = """<!doctype html><title>second layer</title>
 <a id="trusted" href="https://example.com/trusted" style="position:absolute;left:10px;top:10px;font-size:40px">trusted</a>
@@ -130,18 +135,21 @@ def test_inside_the_namespace_the_window_reaches_only_its_server(
             **environment,
             **trusted_click_environment('a[href="https://example.com/clicked"]'),
             "PLANNOTATOR_WINDOW_BROWSER": str(browser_file),
-            "WAYLAND_DEBUG": "1",
         },
         tmp_path,
         window=True,
     )
 
     session.wait_until_the_page_ran()
+    log = session.window_log()
+    assert f"allow mainFrame {PAGE_ORIGIN}/" in log, log
+    # The page came from the package; its data came from the server, through the window.
+    assert "page /" in log and "page /__review-window.plan.js" in log, log
+    assert f"handoff http://localhost:{session.port}/" in log, log
     session.wait_for_window_log(
-        lambda line: line.startswith(
-            f"allow mainFrame http://localhost:{session.port}"
-        ),
-        "the review page's own request",
+        lambda line: line.startswith("allow ")
+        and line.endswith(f" http://localhost:{session.port}/api/plan"),
+        "the page's data to come from the server",
     )
     session.wait_for_window_log(
         cancelled("https://example.com/remote.png"), "the remote image to be cancelled"
@@ -156,16 +164,68 @@ def test_inside_the_namespace_the_window_reaches_only_its_server(
     )
     assert opened_file.read_text().splitlines() == ["https://example.com/clicked"]
     assert beacon.connection_count == 0
-    # GNOME finds the desktop entry, and with it the name and icon, through this app_id.
-    assert (
-        '.set_app_id("plannotator")'
-        in (session.state_path / "launcher.log").read_text()
-    )
     # The control for every "nothing remains" check: the snapshot sees into Chromium's own sandbox.
     assert any(
         "--type=renderer" in command_line
         for _, _, command_line in session.snapshot().values()
     )
+
+    status, _ = session.request_json("/api/exit", "POST", {})
+    assert status == 200
+    session.process.communicate(timeout=60)
+    session.wait_until_nothing_remains()
+
+
+def test_the_early_window_runs_its_page_before_the_server_hands_over(
+    tmp_path, environment, start_session
+):
+    # The browser command waits until the page's script has been served, which needs nothing from the server.
+    (tmp_path / "probe.md").write_text("# Probe\n")
+    session = start_session(
+        ["annotate", "probe.md"],
+        {
+            **environment,
+            "PLANNOTATOR_TEST_HANDOFF_AFTER": "page /__review-window.plan.js",
+        },
+        tmp_path,
+        window=True,
+    )
+
+    session.wait_until_the_page_ran()
+    [handoff_line] = session.wait_for_window_log(
+        lambda line: line.startswith("handoff "), "the server's URL to reach the window"
+    )
+    assert handoff_line == f"handoff http://localhost:{session.port}/"
+    log = session.window_log()
+    assert log.index("page /__review-window.plan.js") < log.index(handoff_line), log
+
+    status, _ = session.request_json("/api/exit", "POST", {})
+    assert status == 200
+    session.process.communicate(timeout=60)
+    session.wait_until_nothing_remains()
+
+
+def test_without_an_early_window_the_browser_command_opens_one_on_the_servers_page(
+    tmp_path, environment, start_session
+):
+    (tmp_path / "probe.md").write_text("# Probe\n")
+    session = start_session(
+        ["annotate", "probe.md"],
+        {**environment, "PLANNOTATOR_WINDOW_PRELAUNCH": "0"},
+        tmp_path,
+        window=True,
+    )
+
+    session.wait_until_the_page_ran()
+    log = session.window_log()
+    assert f"allow mainFrame {PAGE_ORIGIN}/" in log, log
+    # The page itself came from the server, through the window.
+    assert any(
+        line.startswith("allow ")
+        and line.endswith(f" http://localhost:{session.port}/")
+        for line in log
+    ), log
+    assert not any(line.startswith(("page ", "handoff ")) for line in log), log
 
     status, _ = session.request_json("/api/exit", "POST", {})
     assert status == 200
@@ -236,6 +296,7 @@ def test_outside_any_namespace_the_windows_filters_still_apply(
                 ),
                 "PLANNOTATOR_WINDOW_LOG": str(state_path / "window.log"),
                 "PLANNOTATOR_TEST_MARKER": marker,
+                "WAYLAND_DEBUG": "1",
             },
             stdout=launcher_log,
             stderr=subprocess.STDOUT,
@@ -268,6 +329,8 @@ def test_outside_any_namespace_the_windows_filters_still_apply(
         assert stun_listener.packet_count == 0
         # The page's scripted click on #scripted never reaches the browser command; the trusted one on #trusted does.
         assert opened_file.read_text().splitlines() == ["https://example.com/trusted"]
+        # GNOME finds the desktop entry, and with it the name and icon, through this app_id.
+        assert '.set_app_id("plannotator")' in (state_path / "launcher.log").read_text()
 
         assert any(
             "--type=renderer" in command_line

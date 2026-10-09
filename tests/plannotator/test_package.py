@@ -204,6 +204,48 @@ def test_call_flow_cannot_install_from_the_review_ui(
     session.process.communicate(timeout=60)
 
 
+def page_copy(package_path, page_name):
+    """The package's split copy of a page (extract-bundle.js), put back together the way the server serves it."""
+    pages_path = package_path / "share" / "plannotator" / "pages"
+    script = (pages_path / f"{page_name}.js").read_text()
+    stylesheet = (pages_path / f"{page_name}.css").read_text()
+    return (
+        (pages_path / f"{page_name}.html")
+        .read_text()
+        .replace(
+            f'<script type="module" crossorigin src="/__review-window.{page_name}.js"></script>',
+            f'<script type="module" crossorigin>{script}</script>',
+        )
+        .replace(
+            f'<link rel="stylesheet" crossorigin href="/__review-window.{page_name}.css">',
+            f'<style rel="stylesheet" crossorigin>{stylesheet}</style>',
+        )
+        .encode()
+    )
+
+
+@pytest.mark.parametrize("page_name", ["plan", "review"])
+def test_the_review_windows_page_copies_are_the_servers_pages(
+    tmp_path, environment, package_path, start_session, page_name
+):
+    # The window shows the copy instead of the server's page; a bump that splits the wrong literal fails here.
+    if page_name == "review":
+        repository_path = tmp_path / "repository"
+        make_repository(repository_path, environment)
+        session = start_session(["review"], environment, repository_path)
+    else:
+        (tmp_path / "probe.md").write_text("# Probe\n")
+        session = start_session(["annotate", "probe.md"], environment, tmp_path)
+
+    status, page = session.request_bytes("/")
+    assert status == 200
+    assert page == page_copy(package_path, page_name)
+
+    status, _ = session.request_json("/api/exit", "POST", {})
+    assert status == 200
+    session.process.communicate(timeout=60)
+
+
 def test_ships_the_review_windows_desktop_entry_and_icon(package_path):
     desktop_lines = (
         (package_path / "share" / "applications" / "plannotator.desktop")

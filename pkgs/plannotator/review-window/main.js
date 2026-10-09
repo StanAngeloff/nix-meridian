@@ -3,20 +3,37 @@
 // The filters here are a second layer: they stop requests, popups, navigation away and WebRTC's STUN packets,
 // but outside the namespace WebRTC over TCP (TURN) and WebTransport still reach any port on the review host,
 // unseen by the request filter.
+// The page lives at an origin of the window's own, the same for every review, which the window serves itself:
+// the page from the package's copy (../extract-bundle.js) when it knows which one, every other request by passing it to
+// the server. So the page can load before the server is up (../prelaunch.sh), and is never 17 to 24 MB of HTML to parse.
 // package.json's desktopName gives the window the Wayland app_id "plannotator",
 // which GNOME matches to plannotator.desktop for its name and icon.
 // The window has no GTK frame: a title strip of its own carries the page's title and moves the window,
 // and Electron draws the window buttons over its right end, as GNOME's button layout lists them.
 // With GTK's frame, a line between the title bar and the page flickered when the window drew on the GPU.
-// Usage: electron <this directory> <http://localhost:PORT/...>, with:
+// Usage: electron <this directory> [<http://localhost:PORT/...>], with:
 // PLANNOTATOR_WINDOW_PROFILE: the data directory (cookies, which hold Plannotator's settings, and the zoom level).
+// PLANNOTATOR_WINDOW_HANDOFF: without a URL argument, the directory where the URL arrives later, in a file named url.
+// PLANNOTATOR_WINDOW_PAGE and PLANNOTATOR_WINDOW_PAGES: the page to show (plan or review) and the directory of the
+// package's split pages; unset, the page is the server's own.
 // PLANNOTATOR_WINDOW_BROWSER: the program a clicked link's URL goes to; unset or failing, the URL is copied instead.
 // PLANNOTATOR_WINDOW_LOG: a file that gets one line per decision, read by tests/plannotator.
 // PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE and PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY: the page's spell-checking
 // language (en-GB) and its Chromium dictionary file (en-GB-10-1.bdic); unset, spell checking is off.
 "use strict";
 
-const { app, BaseWindow, Menu, WebContentsView, clipboard, ipcMain, nativeTheme, session } = require("electron");
+const {
+  app,
+  BaseWindow,
+  Menu,
+  WebContentsView,
+  clipboard,
+  ipcMain,
+  nativeTheme,
+  net,
+  protocol,
+  session,
+} = require("electron");
 const { execFile } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -33,17 +50,46 @@ function parseReviewUrl(argument) {
   return null;
 }
 
-const reviewUrl = parseReviewUrl(process.argv.at(-1));
+function isAppDirectory(argument) {
+  try {
+    return fs.realpathSync(argument) === __dirname;
+  } catch {
+    return false;
+  }
+}
+
 const profilePath = process.env.PLANNOTATOR_WINDOW_PROFILE;
-if (!reviewUrl || !profilePath) {
-  console.error("usage: PLANNOTATOR_WINDOW_PROFILE=<directory> electron <app directory> <http://localhost:PORT/...>");
+const handoffPath = process.env.PLANNOTATOR_WINDOW_HANDOFF;
+// The app directory is the last argument when no URL follows it.
+const reviewUrlArgument = isAppDirectory(process.argv.at(-1)) ? null : process.argv.at(-1);
+const argumentReviewUrl = reviewUrlArgument === null ? null : parseReviewUrl(reviewUrlArgument);
+if (!profilePath || (reviewUrlArgument === null ? !handoffPath : !argumentReviewUrl)) {
+  console.error(
+    "usage: PLANNOTATOR_WINDOW_PROFILE=<directory> electron <app directory> <http://localhost:PORT/...>\n" +
+      "   or: PLANNOTATOR_WINDOW_PROFILE=<directory> PLANNOTATOR_WINDOW_HANDOFF=<directory> electron <app directory>",
+  );
   process.exit(2);
 }
-const reviewOrigin = reviewUrl.origin;
+// localhost: Plannotator advertises its server there, and the page's cookies, which hold its settings, are host-wide,
+// so the window shares them with every review before it. The port is the window's alone; nothing listens on it.
+const reviewOrigin = "http://localhost:19432";
+const pageName = process.env.PLANNOTATOR_WINDOW_PAGE;
+const pagesPath = process.env.PLANNOTATOR_WINDOW_PAGES;
+const pageFiles =
+  pageName && pagesPath
+    ? {
+        "/": { file: `${pageName}.html`, type: "text/html; charset=utf-8" },
+        [`/__review-window.${pageName}.js`]: { file: `${pageName}.js`, type: "text/javascript; charset=utf-8" },
+        [`/__review-window.${pageName}.css`]: { file: `${pageName}.css`, type: "text/css; charset=utf-8" },
+      }
+    : {};
 const windowLogFile = process.env.PLANNOTATOR_WINDOW_LOG;
 const spellcheckLanguage = process.env.PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE;
 const spellcheckDictionaryFile = process.env.PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY;
 const spellcheckEnabled = Boolean(spellcheckLanguage && spellcheckDictionaryFile);
+
+// The server's origin: from the argument, or once the URL arrives in the handoff directory.
+let serverOrigin = argumentReviewUrl?.origin ?? null;
 
 // The requests on which Plannotator decides a review: it answers them, then prints the outcome and exits 1.5 seconds later.
 // Once one of them is answered, Electron outlives its window, so that Plannotator's exit ends the review as after any decision,
@@ -77,6 +123,50 @@ function isReviewOrigin(address) {
   }
 }
 
+function isServerOrigin(address) {
+  try {
+    return serverOrigin !== null && new URL(address).origin === serverOrigin;
+  } catch {
+    return false;
+  }
+}
+
+// Resolves to the server's origin. The browser command leaves the URL in the handoff directory under its final name,
+// so the file appears complete; the watch starts before the first look, so an arrival between the two is still seen.
+const serverReady =
+  serverOrigin !== null
+    ? Promise.resolve(serverOrigin)
+    : new Promise((resolve) => {
+        const urlFile = path.join(handoffPath, "url");
+        const takeUrl = () => {
+          let text;
+          try {
+            text = fs.readFileSync(urlFile, "utf8").trim();
+          } catch {
+            return false;
+          }
+          const url = parseReviewUrl(text);
+          // Plannotator advertises localhost, the one server name the resolver rules below let through.
+          if (!url || url.hostname !== "localhost") {
+            logDecision("deny", "handoff", text);
+            app.exit(2);
+            return true;
+          }
+          logDecision("handoff", url.href);
+          serverOrigin = url.origin;
+          resolve(serverOrigin);
+          return true;
+        };
+        const watcher = fs.watch(handoffPath, () => {
+          if (takeUrl()) {
+            watcher.close();
+          }
+        });
+        if (takeUrl()) {
+          watcher.close();
+        }
+      });
+
 app.setPath("userData", profilePath);
 // Where Electron looks for a dictionary before it downloads one from Google's servers, which the namespace would stop.
 if (spellcheckEnabled) {
@@ -86,9 +176,12 @@ if (spellcheckEnabled) {
   fs.rmSync(dictionaryLinkFile, { force: true });
   fs.symlinkSync(spellcheckDictionaryFile, dictionaryLinkFile);
 }
-// Every other name resolves to nothing, IP literals included (Chromium maps them too),
-// so prefetching and preconnects go nowhere either.
-app.commandLine.appendSwitch("host-resolver-rules", `MAP * ~NOTFOUND, EXCLUDE ${reviewUrl.hostname}`);
+// Every name but the server's resolves to nothing, IP literals included (Chromium maps them too),
+// so prefetching and preconnects go nowhere either. The page's own origin never reaches the resolver (see below).
+app.commandLine.appendSwitch(
+  "host-resolver-rules",
+  `MAP * ~NOTFOUND, EXCLUDE ${argumentReviewUrl?.hostname ?? "localhost"}`,
+);
 
 app.on("web-contents-created", (event, contents) => {
   contents.setWebRTCIPHandlingPolicy("disable_non_proxied_udp");
@@ -167,24 +260,46 @@ app.whenReady().then(() => {
     callback(permission === "clipboard-sanitized-write"),
   );
   reviewSession.setPermissionCheckHandler((contents, permission) => permission === "clipboard-sanitized-write");
+  // The server's origin is let through for the requests the handler below passes on; one the page makes there itself
+  // reaches the handler, which refuses it.
   reviewSession.webRequest.onBeforeRequest((details, callback) => {
-    const allowed = isReviewOrigin(details.url) || details.url === TITLE_BAR_URL;
+    const allowed = isReviewOrigin(details.url) || isServerOrigin(details.url) || details.url === TITLE_BAR_URL;
     logDecision(allowed ? "allow" : "cancel", details.resourceType, details.url);
     callback({ cancel: !allowed });
   });
-  // Runs before the page sees the answer, so before the page can close the window on it.
-  reviewSession.webRequest.onHeadersReceived((details, callback) => {
-    if (
-      details.method === "POST" &&
-      details.statusCode >= 200 &&
-      details.statusCode < 300 &&
-      isReviewOrigin(details.url) &&
-      DECISION_PATHS.has(new URL(details.url).pathname)
-    ) {
-      logDecision("review-decided", details.url);
+  // Every http request of the session comes here, and only the page's origin is served: its page from the package's copy,
+  // when the window knows which, everything else from the server. Nothing ever listens on the page's origin.
+  protocol.handle("http", async (request) => {
+    const url = new URL(request.url);
+    if (url.origin !== reviewOrigin) {
+      return new Response(null, { status: 404 });
+    }
+    const pageFile = request.method === "GET" ? pageFiles[url.pathname] : undefined;
+    if (pageFile) {
+      logDecision("page", url.pathname);
+      return new Response(await fs.promises.readFile(path.join(pagesPath, pageFile.file)), {
+        headers: { "content-type": pageFile.type },
+      });
+    }
+    const server = await serverReady;
+    const headers = new Headers(request.headers);
+    // The server accepts writes from its own page only, which to it is the page at its own origin.
+    if (headers.get("origin") === reviewOrigin) {
+      headers.set("origin", server);
+    }
+    const response = await net.fetch(`${server}${url.pathname}${url.search}`, {
+      method: request.method,
+      headers,
+      body: request.body,
+      duplex: "half",
+      bypassCustomProtocolHandlers: true,
+    });
+    // Before the page sees the answer, so before the page can close the window on it.
+    if (request.method === "POST" && response.ok && DECISION_PATHS.has(url.pathname)) {
+      logDecision("review-decided", url.href);
       reviewDecided = true;
     }
-    callback({});
+    return response;
   });
   // No language until the page has loaded (below): a dictionary loaded before the page's renderer started never reaches it
   // (Electron 43), and the locale's own language would be downloaded, as it is with spell checking off.
@@ -291,7 +406,10 @@ app.whenReady().then(() => {
   });
 
   titleBarView.webContents.loadURL(TITLE_BAR_URL);
-  reviewView.webContents.loadURL(reviewUrl.href);
+  // The server's path and query, if the window has its URL already, on the page's origin.
+  reviewView.webContents.loadURL(
+    new URL(argumentReviewUrl ? `${argumentReviewUrl.pathname}${argumentReviewUrl.search}` : "/", reviewOrigin).href,
+  );
   reviewView.webContents.focus();
 });
 

@@ -5,22 +5,28 @@ which the test cannot reach directly. Then, as the session asks:
 - PLANNOTATOR_TEST_PROBE: runs namespace_probe.py's checks inside the namespace and writes probe.json;
 - PLANNOTATOR_TEST_LAUNCHER: execs the package's review-window launcher in its own place,
   so the launcher's parent is Plannotator, as in real use, with its output in launcher.log;
-  the forwarder lives on in a forked child.
+  the forwarder lives on in a forked child, until Plannotator exits, since a launcher that hands the URL to a window
+  started ahead of the server (prelaunch.sh) exits at once.
+  PLANNOTATOR_TEST_HANDOFF_AFTER: the start of a window log line to wait for before the launcher runs,
+  so a test can watch that early window act before the server's URL reaches it.
 """
 
 import ctypes
 import json
 import os
 import pathlib
+import select
 import signal
 import socket
 import sys
 import threading
+import time
 import urllib.parse
 
 import namespace_probe
 
 PR_SET_PDEATHSIG = 1
+HANDOFF_WAIT_SECONDS = 90
 
 
 def die_with_parent():
@@ -29,6 +35,31 @@ def die_with_parent():
     ctypes.CDLL(None, use_errno=True).prctl(PR_SET_PDEATHSIG, signal.SIGKILL)
     if os.getppid() != parent_id:
         os._exit(0)
+
+
+def die_with(process_id):
+    """Ends this process when another one exits, which need not be its parent."""
+    try:
+        process_descriptor = os.pidfd_open(process_id)
+    except ProcessLookupError:
+        os._exit(0)
+
+    def watch():
+        select.select([process_descriptor], [], [])
+        os._exit(0)
+
+    threading.Thread(target=watch, daemon=True).start()
+
+
+def wait_for_window_log_line(line_start):
+    log_file = pathlib.Path(os.environ["PLANNOTATOR_WINDOW_LOG"])
+    deadline = time.monotonic() + HANDOFF_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if log_file.exists() and any(
+            line.startswith(line_start) for line in log_file.read_text().splitlines()
+        ):
+            return
+        time.sleep(0.1)
 
 
 def write_json(file, value):
@@ -78,10 +109,15 @@ def main():
 
     launcher = os.environ.get("PLANNOTATOR_TEST_LAUNCHER")
     if launcher:
+        # The parent is the Plannotator server: Bun runs the browser command as its direct child.
+        server_process_id = os.getppid()
         if os.fork() == 0:
-            die_with_parent()
+            die_with(server_process_id)
             forward(listener, port)
         listener.close()
+        line_start = os.environ.get("PLANNOTATOR_TEST_HANDOFF_AFTER")
+        if line_start:
+            wait_for_window_log_line(line_start)
         log = os.open(
             state_path / "launcher.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644
         )
