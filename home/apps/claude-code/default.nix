@@ -47,6 +47,8 @@ let
   };
   # The bubble's PreToolUse arbiter; see arbiter/claude-arbiter.sh.
   claude-arbiter = pkgs.callPackage ./arbiter/package.nix { };
+  # /away: a PermissionRequest hook (./notifications.nix) and the mod that drives it (./settings.nix); see away/package.nix.
+  claude-away = pkgs.callPackage ./away/package.nix { };
   # High-precedence --settings layer for bubbled sessions: the inner Bash sandbox off, no bypass-mode dialog, the arbiter.
   bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit lib pkgs claude-arbiter; };
   # cc and _cc pass it as --model; bare `claude` reads it from settings.json, where every switch also resets what /model saved.
@@ -64,9 +66,9 @@ in
         ;
     })
     ./keybindings.nix
-    (import ./settings.nix { inherit claude-code-statusline baseModel; })
+    (import ./settings.nix { inherit claude-code-statusline claude-away baseModel; })
     ./mcp.nix
-    ./notifications.nix
+    (import ./notifications.nix { inherit claude-away; })
     ./remote # phone remote access
     ./skills
   ];

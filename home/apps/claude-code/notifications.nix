@@ -1,3 +1,4 @@
+{ claude-away }:
 {
   config,
   lib,
@@ -53,6 +54,13 @@ let
     timeout = 5;
   };
 
+  # /away's deny; see away/claude-away.sh. 3660 seconds covers its longest timeout, 60 minutes.
+  awayHook = {
+    type = "command";
+    command = lib.getExe claude-away;
+    timeout = 3660;
+  };
+
   hooks = {
     # nixfmt: off
     SessionStart = [
@@ -66,7 +74,7 @@ let
       { matcher = "AskUserQuestion"; hooks = [ chimeHook ]; }
     ];
     PermissionRequest = [
-      { hooks = [ chimeHook stateHook ]; }
+      { hooks = [ chimeHook stateHook awayHook ]; }
     ];
     Elicitation = [ { hooks = [ stateHook ]; } ];
     Stop = [ { hooks = [ stateHook ]; } ];

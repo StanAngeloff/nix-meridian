@@ -1,4 +1,8 @@
-{ claude-code-statusline, baseModel }:
+{
+  claude-code-statusline,
+  claude-away,
+  baseModel,
+}:
 {
   config,
   lib,
@@ -89,6 +93,11 @@ let
     attribution = {
       commit = "";
       pr = "";
+    };
+    env = {
+      # The away mod. Set here rather than in the claude wrapper so it comes with the hook it hands its timeout to (./notifications.nix):
+      # a session that skips user settings loads neither.
+      CLAUDE_CODE_PLUGIN_DIRS = "${claude-away.mod}";
     };
     viewMode = "verbose";
     statusLine = {

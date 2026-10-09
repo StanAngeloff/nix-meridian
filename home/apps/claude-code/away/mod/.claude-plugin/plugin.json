@@ -1,0 +1,9 @@
+{
+  "name": "away",
+  "version": "0.1.0",
+  "description": "Away mode: /away shows that you are away, and each waiting prompt counts down to an automatic deny",
+  "author": {
+    "name": "Stan Angeloff"
+  },
+  "types": "./types/index.d.ts"
+}
