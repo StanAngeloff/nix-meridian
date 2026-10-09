@@ -563,10 +563,14 @@ class Commands(unittest.TestCase):
     def test_export_with_no_notes_fails_quietly(self):
         self.assertEqual(self.run_main("export", str(self.git_dir)), (1, ""))
 
-    def install_fake_tools(self, wl_copy_exit_code=0, gio_exit_code=0):
+    def install_fake_tools(
+        self, wl_copy_exit_code=0, gio_exit_code=0, hanging_tool=None
+    ):
         """wl-copy and gio stand-ins on PATH; returns the clipboard file and the file gio logs its arguments to.
 
-        The fake wl-copy writes the clipboard to a file; the fake gio removes the files it is asked to trash.
+        The fake wl-copy writes the clipboard to a file and its arguments to wl-copy.json beside it; the fake gio
+        removes the files it is asked to trash. The tool named by `hanging_tool` waits for a signal instead of
+        finishing, like a tool stuck on a desktop service, and the store's timeout drops to a fraction of a second.
         """
         tools_directory = tempfile.TemporaryDirectory()
         self.addCleanup(tools_directory.cleanup)
@@ -576,11 +580,17 @@ class Commands(unittest.TestCase):
         scripts = {
             "wl-copy": f"""
                 from pathlib import Path
-                Path({str(clipboard_path)!r}).write_bytes(sys.stdin.buffer.read())
+                Path({str(tools_path / "wl-copy.json")!r}).write_text(json.dumps(sys.argv[1:]))
+                clipboard = sys.stdin.buffer.read()
+                if {hanging_tool == "wl-copy"}:
+                    signal.pause()
+                Path({str(clipboard_path)!r}).write_bytes(clipboard)
                 sys.exit({wl_copy_exit_code})
             """,
             "gio": f"""
                 from pathlib import Path
+                if {hanging_tool == "gio"}:
+                    signal.pause()
                 Path({str(gio_log_path)!r}).write_text(json.dumps(sys.argv[1:]))
                 if {gio_exit_code}:
                     print("gio: Error trashing file", file=sys.stderr)
@@ -592,7 +602,8 @@ class Commands(unittest.TestCase):
         for name, body in scripts.items():
             script_path = tools_path / name
             script_path.write_text(
-                f"#!{sys.executable}\nimport json, os, sys\n" + textwrap.dedent(body),
+                f"#!{sys.executable}\nimport json, os, signal, sys\n"
+                + textwrap.dedent(body),
                 encoding="utf-8",
             )
             script_path.chmod(0o755)
@@ -601,6 +612,10 @@ class Commands(unittest.TestCase):
         )
         path_patcher.start()
         self.addCleanup(path_patcher.stop)
+        if hanging_tool is not None:
+            timeout_patcher = mock.patch.object(store, "TOOL_TIMEOUT_SECONDS", 0.2)
+            timeout_patcher.start()
+            self.addCleanup(timeout_patcher.stop)
         return clipboard_path, gio_log_path
 
     def test_cut_trashes_what_it_copied_and_keeps_what_it_skipped(self):
@@ -652,6 +667,45 @@ class Commands(unittest.TestCase):
             self.run_main("cut", str(self.git_dir)),
             (1, "Copied 1 annotation(s) to clipboard, but gio trash failed\n"),
         )
+
+    def test_copy_tells_wl_copy_the_type(self):
+        self.annotate_beside_a_legacy_note()
+        clipboard_path, _ = self.install_fake_tools()
+        self.run_main("copy", str(self.git_dir))
+        self.assertEqual(
+            json.loads(
+                clipboard_path.with_name("wl-copy.json").read_text(encoding="utf-8")
+            ),
+            ["--type", "text/plain"],
+        )
+
+    def test_cut_trashes_nothing_when_wl_copy_hangs(self):
+        note_path, _ = self.annotate_beside_a_legacy_note()
+        _, gio_log_path = self.install_fake_tools(hanging_tool="wl-copy")
+        self.assertEqual(
+            self.run_main("cut", str(self.git_dir)),
+            (1, "wl-copy timed out; nothing was copied\n"),
+        )
+        self.assertTrue(note_path.exists())
+        self.assertFalse(gio_log_path.exists())
+
+    def test_cut_reports_a_hung_trash(self):
+        note_path, _ = self.annotate_beside_a_legacy_note()
+        self.install_fake_tools(hanging_tool="gio")
+        self.assertEqual(
+            self.run_main("cut", str(self.git_dir)),
+            (1, "Copied 1 annotation(s) to clipboard, but gio trash timed out\n"),
+        )
+        self.assertTrue(note_path.exists())
+
+    def test_trash_gives_up_on_a_hung_gio(self):
+        note_path, _ = self.annotate_beside_a_legacy_note()
+        self.install_fake_tools(hanging_tool="gio")
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            self.assertEqual(store.main(["trash", str(note_path)]), 1)
+        self.assertEqual(stderr.getvalue(), "gio trash timed out\n")
+        self.assertTrue(note_path.exists())
 
     def test_unknown_command_prints_usage(self):
         stderr = io.StringIO()

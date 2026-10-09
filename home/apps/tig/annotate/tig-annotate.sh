@@ -180,7 +180,8 @@ cmd_fzf_list() {
 
 	local summary
 	summary=$(tig-annotate-store copy "$git_dir" "${note_files[@]}")
-	notify-send \
+	# notify-send waits on the notification daemon, and the popup stays open until it returns.
+	timeout 5 notify-send \
 		--app-name=tig-annotate \
 		--icon=edit-copy \
 		--category=transfer.complete \

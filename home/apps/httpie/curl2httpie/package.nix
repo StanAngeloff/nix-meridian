@@ -40,10 +40,11 @@ writeShellApplication {
     fi
 
     echo -ne "👉 \033[0;36m"
+    # --type skips wl-copy's type guess, which waits on the GVfs metadata daemon; timeout stops a copy that never finishes.
     curlconverter --language httpie "$@" \
       | grep -viE '^\s+[[:punct:]]?(${builtins.concatStringsSep "|" excludeHeaders}):' \
       | perl -p -e 's/\s*\\\s*[\r\n]+\s*/ /' \
-      | tee >(wl-copy)
+      | tee >(timeout 5 wl-copy --type text/plain)
 
     echo -ne "\033[0;32m"
     echo '✅ Copied.' 1>&2

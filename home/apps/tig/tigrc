@@ -40,8 +40,10 @@ bind status T @trash %(file)
 # Mirror Neovim's tree explorer: y copies the file name, Y the relative path.
 # Bound generic so they also work in the stage and diff views (not just status);
 # guarded so an empty %(file) in commit-list views cannot clobber the clipboard.
-bind generic y +sh -c "f='%(file)'; [ -n \"$f\" ] && n=$(basename \"$f\") && printf '%s' \"$n\" | wl-copy && echo \"Copied name: $n\""
-bind generic Y +sh -c "f='%(file)'; [ -n \"$f\" ] && printf '%s' \"$f\" | wl-copy && echo \"Copied path: $f\""
+# --type skips wl-copy's type guess, which waits on the GVfs metadata daemon,
+# and timeout keeps a stuck copy from freezing tig.
+bind generic y +sh -c "f='%(file)'; [ -n \"$f\" ] && n=$(basename \"$f\") && printf '%s' \"$n\" | timeout 5 wl-copy --type text/plain && echo \"Copied name: $n\""
+bind generic Y +sh -c "f='%(file)'; [ -n \"$f\" ] && printf '%s' \"$f\" | timeout 5 wl-copy --type text/plain && echo \"Copied path: $f\""
 
 bind pager ] move-next-diff
 bind pager [ move-prev-diff

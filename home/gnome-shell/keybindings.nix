@@ -23,7 +23,10 @@ let
       command = lib.getExe (
         pkgs.callPackage ../apps/ghostty/overlay/package.nix {
           inherit name;
-          command = with pkgs; "${lib.getExe unipicker} --copy --copy-command wl-copy";
+          # --type skips wl-copy's type guess, which waits on the GVfs metadata daemon; timeout bounds a stuck copy.
+          command =
+            with pkgs;
+            "${lib.getExe unipicker} --copy --copy-command 'timeout 5 wl-copy --type text/plain'";
           window-width = 82;
           window-height = 24;
         }

@@ -32,6 +32,8 @@ DIFF_MARKERS = "+- "
 OUTDATED_LABEL = "[Outdated — the code changed after this comment]"
 KEY_SUFFIX_RE = re.compile(r"(-?)([1-9][0-9]*)")
 BACKTICK_RUN_RE = re.compile(r"`+")
+# wl-copy and gio wait on desktop services (the compositor, GVfs), and tig waits on them: a stuck service freezes tig.
+TOOL_TIMEOUT_SECONDS = 5
 USAGE = "Usage: tig-annotate-store {prepare|settle|export|copy|cut|entries|trash} ..."
 
 
@@ -395,21 +397,34 @@ def command_copy(git_dir, note_paths, cut=False):
         return 0
     markdown = export_markdown(notes, resolve_toplevel())
     # wl-copy forks a child that keeps serving the clipboard; pipes left open to it would block run().
-    completed = subprocess.run(
-        ["wl-copy"],
-        input=text_bytes(markdown),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    # Without a type it guesses one through xdg-mime, which on GNOME waits on the GVfs metadata daemon.
+    try:
+        completed = subprocess.run(
+            ["wl-copy", "--type", "text/plain"],
+            input=text_bytes(markdown),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=TOOL_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        print("wl-copy timed out; nothing was copied")
+        return 1
     if completed.returncode != 0:
         print("wl-copy failed; nothing was copied")
         return 1
     if cut:
         # tig shows the first line a binding prints, stderr included, so gio's own messages are kept out of it.
-        trashed = subprocess.run(
-            ["gio", "trash", *trash_targets(note.note_path for note in notes)],
-            capture_output=True,
-        )
+        try:
+            trashed = subprocess.run(
+                ["gio", "trash", *trash_targets(note.note_path for note in notes)],
+                capture_output=True,
+                timeout=TOOL_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"Copied {len(notes)} annotation(s) to clipboard, but gio trash timed out"
+            )
+            return 1
         if trashed.returncode != 0:
             print(
                 f"Copied {len(notes)} annotation(s) to clipboard, but gio trash failed"
@@ -444,9 +459,15 @@ def trash_targets(note_paths):
 
 def command_trash(note_paths):
     targets = trash_targets(note_paths)
-    if targets:
-        return subprocess.run(["gio", "trash", *targets]).returncode
-    return 0
+    if not targets:
+        return 0
+    try:
+        return subprocess.run(
+            ["gio", "trash", *targets], timeout=TOOL_TIMEOUT_SECONDS
+        ).returncode
+    except subprocess.TimeoutExpired:
+        print("gio trash timed out", file=sys.stderr)
+        return 1
 
 
 def main(arguments):
