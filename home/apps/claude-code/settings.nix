@@ -35,6 +35,7 @@ let
     effortLevel = "high";
     showThinkingSummaries = true;
     spinnerTipsEnabled = false;
+    bashEditDiffEnabled = false;
     # Learn more at https://code.claude.com/docs/en/settings#sandbox-settings
     sandbox = {
       enabled = true;
