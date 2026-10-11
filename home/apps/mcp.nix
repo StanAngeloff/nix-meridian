@@ -257,7 +257,7 @@ in
     claude = {
       mcp = perplexity-server;
       ask = [
-        "mcp__perplexity__perplexity_ask"
+        #"mcp__perplexity__perplexity_ask" – let Claude ask the questions, don't worry about the cost of the API calls (Ask is cheap)
         "mcp__perplexity__perplexity_reason"
         "mcp__perplexity__perplexity_research"
       ];
