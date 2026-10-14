@@ -64,9 +64,19 @@ rustPlatform.buildRustPackage (finalAttrs: {
       --zsh <($out/bin/git-lines completions zsh)
 
     echo "${skillSha256}  skills/git-lines/SKILL.md" | sha256sum -c -
+    # Upstream's skill shows only part of the reference syntax, while the help spells all of it out,
+    # so it is appended for Claude to read whenever the skill loads. The top-level help lists any subcommand added later.
+    {
+      cat skills/git-lines/SKILL.md
+      for command in "" diff stage; do
+        printf '\n## `git-lines%s --help`\n\n```\n' "''${command:+ $command}"
+        $out/bin/git-lines $command --help
+        printf '```\n'
+      done
+    } > git-lines-skill.md
     # Named file rather than the directory: anything upstream adds beside SKILL.md — scripts especially —
     # has to be listed here before it can reach Claude.
-    install -Dm444 skills/git-lines/SKILL.md -t $out/share/claude-code/skills/git-lines/
+    install -Dm444 -T git-lines-skill.md $out/share/claude-code/skills/git-lines/SKILL.md
   '';
 
   # git-lines reads the patch text `git diff` hands back, and its parser hard-codes git's default a/…b/ path prefixes.
