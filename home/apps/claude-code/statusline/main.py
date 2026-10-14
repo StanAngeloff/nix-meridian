@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import fit
+import pull_request
 import render
 import segments
 
@@ -105,10 +106,16 @@ def publish_rate_limits(payload, config_directory):
             pass
 
 
-def line_for(payload, branch, now_epoch, budget, github_url=""):
+def line_for(
+    payload, branch, now_epoch, budget, github_url="", found_pull_request=None
+):
     """The finished line for this payload at this width, or "" when there is nothing to show."""
     built = segments.build(
-        payload, branch=branch, now_epoch=now_epoch, github_url=github_url
+        payload,
+        branch=branch,
+        now_epoch=now_epoch,
+        github_url=github_url,
+        pull_request=found_pull_request,
     )
     if not built:
         return ""
@@ -130,12 +137,22 @@ def main():
         or (payload.get("workspace") or {}).get("current_dir")
         or os.getcwd()
     )
+    branch = git_branch(directory)
+    github_url = github_repo_url(directory)
+    now_epoch = int(time.time())
     line = line_for(
         payload,
-        git_branch(directory),
-        int(time.time()),
+        branch,
+        now_epoch,
         budget_from(os.environ),
-        github_url=github_repo_url(directory),
+        github_url=github_url,
+        found_pull_request=pull_request.current(
+            directory,
+            github_url,
+            branch,
+            pull_request.cache_directory_from(os.environ),
+            now_epoch,
+        ),
     )
     if line:
         print(line)

@@ -120,3 +120,23 @@ class GoldenLines(unittest.TestCase):
                 self.assertLessEqual(
                     render.visible_width(self.EXPECTED[columns]), budget
                 )
+
+
+class PullRequestPlacement(unittest.TestCase):
+    def test_gives_way_after_cost_duration_and_diff_but_before_the_branch(self):
+        segments_built = segments.build(
+            PAYLOAD,
+            branch="sc-54321/story-title-goes-here",
+            now_epoch=NOW,
+            pull_request={"number": 17212, "url": "https://github.com/o/r/pull/17212"},
+        )
+        sequence = [
+            (step.key, step.level)
+            for step in fit.degradation_sequence(
+                segments_built, render.measure_with(segments_built)
+            )
+        ]
+        dropped_at = sequence.index(("pull_request", 1))
+        for earlier in (("cost", 1), ("duration", 1), ("diff", 1)):
+            self.assertLess(sequence.index(earlier), dropped_at, earlier)
+        self.assertGreater(sequence.index(("branch", 2)), dropped_at)

@@ -284,6 +284,32 @@ class BranchSegment(unittest.TestCase):
         self.assertNotIn("\x1b]8", branch.forms[0].text)
 
 
+class PullRequestSegment(unittest.TestCase):
+    PULL_REQUEST = {"number": 17212, "url": "https://github.com/user/repo/pull/17212"}
+
+    def test_shows_the_number_linked_to_the_pull_request(self):
+        segment = by_key(FULL_PAYLOAD, "pull_request", pull_request=self.PULL_REQUEST)
+        self.assertEqual(plain(segment, 0), "#17212")
+        self.assertIn(
+            "\x1b]8;;https://github.com/user/repo/pull/17212\x1b\\",
+            segment.forms[0].text,
+        )
+
+    def test_reads_as_part_of_the_branch(self):
+        built = segments.build(
+            FULL_PAYLOAD, branch="trunk", pull_request=self.PULL_REQUEST
+        )
+        line = render.render(built, {segment.key: 0 for segment in built})
+        self.assertIn("trunk #17212", render.ANSI_SEQUENCE.sub("", line))
+
+    def test_can_be_dropped(self):
+        segment = by_key(FULL_PAYLOAD, "pull_request", pull_request=self.PULL_REQUEST)
+        self.assertEqual(plain(segment, 1), "")
+
+    def test_absent_without_a_pull_request(self):
+        self.assertIsNone(by_key(FULL_PAYLOAD, "pull_request", branch="trunk"))
+
+
 class CheapSegments(unittest.TestCase):
     def test_cost_rounds_to_cents_and_can_be_dropped(self):
         cost = by_key(FULL_PAYLOAD, "cost")
@@ -318,13 +344,23 @@ class CheapSegments(unittest.TestCase):
 class Ordering(unittest.TestCase):
     def test_segments_render_in_the_established_order(self):
         keys = [
-            s.key for s in segments.build(FULL_PAYLOAD, branch="trunk", now_epoch=NOW)
+            s.key
+            for s in segments.build(
+                FULL_PAYLOAD,
+                branch="trunk",
+                now_epoch=NOW,
+                pull_request={
+                    "number": 1,
+                    "url": "https://github.com/user/repo/pull/1",
+                },
+            )
         ]
         self.assertEqual(
             keys,
             [
                 "model",
                 "branch",
+                "pull_request",
                 "cost",
                 "duration",
                 "diff",

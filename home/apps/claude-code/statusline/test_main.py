@@ -177,5 +177,21 @@ class LineFor(unittest.TestCase):
         self.assertIn("34%", plain)
         self.assertIn("5h", plain)
 
+    def test_shows_the_pull_request_after_the_branch(self):
+        line = render.ANSI_SEQUENCE.sub(
+            "",
+            main.line_for(
+                self.PAYLOAD,
+                "sc-54321/story-title-goes-here",
+                0,
+                196,
+                found_pull_request={
+                    "number": 17212,
+                    "url": "https://github.com/user/repo/pull/17212",
+                },
+            ),
+        )
+        self.assertIn("sc-54321/story-title-goes-here #17212", line)
+
     def test_is_empty_for_a_payload_with_nothing_to_show(self):
         self.assertEqual(main.line_for({}, "", 0, 100), "")

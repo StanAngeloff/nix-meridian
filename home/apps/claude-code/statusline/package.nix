@@ -3,6 +3,7 @@
   stdenv,
   python3,
   git,
+  gh,
   makeWrapper,
 }:
 stdenv.mkDerivation {
@@ -18,11 +19,13 @@ stdenv.mkDerivation {
       ./render.py
       ./segments.py
       ./main.py
+      ./pull_request.py
       ./test_fit.py
       ./test_render.py
       ./test_segments.py
       ./test_main.py
       ./test_golden.py
+      ./test_pull_request.py
     ];
   };
 
@@ -41,13 +44,19 @@ stdenv.mkDerivation {
     runHook postCheck
   '';
 
-  # git is the only thing the line shells out for: the branch, once per render.
+  # git is what the line shells out for on every render: the branch and the GitHub remote.
+  # gh only runs in the detached refresh pull_request.py starts when the cached pull request is due.
   installPhase = ''
     runHook preInstall
-    install -Dm644 -t $out/share/claude-code-statusline palette.py fit.py render.py segments.py main.py
+    install -Dm644 -t $out/share/claude-code-statusline palette.py fit.py render.py segments.py main.py pull_request.py
     makeWrapper ${python3}/bin/python3 $out/bin/claude-code-statusline \
       --add-flags $out/share/claude-code-statusline/main.py \
-      --prefix PATH : ${lib.makeBinPath [ git ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          git
+          gh
+        ]
+      }
     runHook postInstall
   '';
 

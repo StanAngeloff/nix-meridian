@@ -24,6 +24,7 @@ CONTEXT_BAR_WIDE = 10
 CONTEXT_BAR_NARROW = 6
 BRANCH_SHORT_COLUMNS = 12
 BRANCH_PREFIX_RE = re.compile(r"[+/@#.!?\s]")
+PULL_REQUEST_DROP_PENALTY = 12
 
 # The five-hour window only earns its reset countdown once it is half spent. Below that the
 # percentage alone is the whole story, and the countdown is nineteen columns that buy nothing.
@@ -99,15 +100,16 @@ def reset_countdown(resets_at, now_epoch):
     return f"{hours}h{minutes}m" if hours else f"{minutes}m"
 
 
-def build(payload, branch="", now_epoch=0, github_url=""):
+def build(payload, branch="", now_epoch=0, github_url="", pull_request=None):
     """Every segment that has data to show, in the order it renders.
 
-    The clock and the branch arrive as arguments rather than being read here, which keeps this module
-    free of subprocesses and of the current time.
+    The clock, the branch and its pull request arrive as arguments rather than being read here, which
+    keeps this module free of subprocesses and of the current time.
     """
     candidates = (
         _model(payload),
         _branch(branch, github_url=github_url),
+        _pull_request(pull_request),
         _cost(payload),
         _duration(payload),
         _diff(payload),
@@ -177,6 +179,22 @@ def _branch(branch, github_url=""):
             fit.Form(fit.DROP, 30),
         )
     return fit.Segment("branch", "branch", tuple(forms))
+
+
+def _pull_request(pull_request):
+    """The branch's pull request number, linked to the pull request.
+
+    It shares the branch's group so it reads as part of the branch, and gives way after cost, duration
+    and diff but before the branch itself.
+    """
+    if not pull_request:
+        return None
+    label = palette.link(f"#{pull_request['number']}", pull_request["url"])
+    return fit.Segment(
+        "pull_request",
+        "branch",
+        (fit.Form(label, 0), fit.Form(fit.DROP, PULL_REQUEST_DROP_PENALTY)),
+    )
 
 
 def _cost(payload):
