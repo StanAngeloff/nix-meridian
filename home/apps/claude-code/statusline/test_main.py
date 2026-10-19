@@ -56,6 +56,28 @@ class PublishRateLimits(unittest.TestCase):
             {"rate_limits": {"five_hour": {}}}, Path("/nonexistent/nowhere")
         )
 
+    def test_writes_into_the_profile_once_each_profile_has_its_own_directory(self):
+        limits = {"five_hour": {"used_percentage": 42.0}}
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory)
+            (config_path / "profiles" / "work").mkdir(parents=True)
+            (config_path / "profiles" / "active").symlink_to("work")
+            main.publish_rate_limits({"rate_limits": limits}, config_path)
+            profile_path = config_path / "profiles" / "work"
+            written = json.loads((profile_path / "usage-activity").read_text())
+            self.assertEqual(sorted(os.listdir(profile_path)), ["usage-activity"])
+            self.assertFalse((config_path / "usage-activity").exists())
+        self.assertEqual(written, limits)
+
+    def test_writes_the_shared_file_while_profiles_run_one_account_at_a_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory)
+            (config_path / "profiles").mkdir()
+            (config_path / "profiles" / "work.json").write_text("{}")
+            (config_path / "profiles" / "active").symlink_to("work.json")
+            main.publish_rate_limits({"rate_limits": {"five_hour": {}}}, config_path)
+            self.assertTrue((config_path / "usage-activity").exists())
+
 
 class GitBranch(unittest.TestCase):
     def test_reports_the_branch_of_a_repository(self):

@@ -68,7 +68,7 @@ def default_state_path():
 
 
 def default_activity_path():
-    """Where the status line hook publishes Claude Code's own rate-limit figures.
+    """Where the status line hook publishes the default profile's own rate-limit figures.
 
     Written by home/apps/claude-code/statusline/main.py, which puts the `rate_limits` object
     from its input in here verbatim. Claude Code recomputes those numbers from the inference API's
@@ -78,7 +78,14 @@ def default_activity_path():
     In the config directory rather than XDG_RUNTIME_DIR, because the bubble lays a masked tmpfs over
     the runtime directory: a ping written there by a bubbled session would land in the bubble's private
     copy and never reach this process. The config directory is bound through.
+
+    Once each profile has its own directory, every session writes into its own profile's, so only the
+    default profile's sessions feed this path. Like default_credentials_path it runs through the
+    profiles/active link, and Application renews the monitor on it when the link moves.
     """
+    slot_path = os.path.join(default_profiles_path(), PROFILES_ACTIVE_LINK)
+    if os.path.isdir(slot_path):
+        return os.path.join(slot_path, "usage-activity")
     return os.path.join(_config_directory(), "usage-activity")
 
 

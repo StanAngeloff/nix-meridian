@@ -132,6 +132,15 @@ class Application:
         self._monitor = client.watch_credentials(
             self._credentials_path, self._on_credentials_changed
         )
+        # The status line's figures are per profile too: follow the new profile's feed, and drop the old
+        # profile's figures rather than show them under the new name until one of its sessions renders.
+        self._activity_monitor.cancel()
+        self._activity_path = client.default_activity_path()
+        self._activity_monitor = client.watch_activity(
+            self._activity_path, self._on_activity
+        )
+        self._activity = None
+        self._take_activity()
         self._render()
         self._on_credentials_changed()
 

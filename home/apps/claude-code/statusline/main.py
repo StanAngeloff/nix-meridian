@@ -91,14 +91,22 @@ def publish_rate_limits(payload, config_directory):
     directory, so a file written there by a bubbled session would be invisible to the tray on the
     host. ~/.claude is bound through, which is the same channel bubble/modules/notifications uses.
     Renaming into place keeps concurrent sessions from writing over each other mid-write.
+
+    The figures belong to one account, so once each profile has its own directory they go into
+    profiles/active: inside a bubble that is the session's own profile, and outside one it links the
+    default profile, which is the account such a session runs as. Sessions of different accounts then
+    never overwrite each other's figures.
     """
     limits = payload.get("rate_limits")
     if not limits:
         return
-    scratch_path = config_directory / f"usage-activity.{os.getpid()}"
+    feed_directory = config_directory / "profiles" / "active"
+    if not feed_directory.is_dir():
+        feed_directory = config_directory
+    scratch_path = feed_directory / f"usage-activity.{os.getpid()}"
     try:
         scratch_path.write_text(json.dumps(limits, separators=(",", ":")))
-        os.replace(scratch_path, config_directory / "usage-activity")
+        os.replace(scratch_path, feed_directory / "usage-activity")
     except OSError:
         try:
             scratch_path.unlink(missing_ok=True)
