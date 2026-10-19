@@ -143,7 +143,8 @@ function _claude_bubble_initialize() {
         has_session_flag=1
         if (( i < $# )); then
           local next="${@[$i+1]}"
-          [[ "$next" != --* ]] && session_name="$next"
+          # A word starting with a dash is the next flag, as Claude Code reads it (-r alone opens the resume picker).
+          [[ "$next" != -* ]] && session_name="$next"
         fi
         break
         ;;

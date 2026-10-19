@@ -107,3 +107,35 @@ def test_strict_mode_still_refuses_a_plain_session(strict_value):
     )
     assert result.stdout.splitlines()[-1:] == ["status=1"]
     assert "pass -n/--name or -r/--resume" in result.stderr
+
+
+# Stand in for tmux and git, so the window rename prints the command it would run.
+RENAME_STUBS = """
+function tmux() { print -r -- "tmux $*" }
+function git() { print -r -- /projects/nix-meridian/.git }
+"""
+
+
+@pytest.mark.parametrize("option", HOSTILE_OPTIONS)
+@pytest.mark.parametrize(
+    "arguments, expected_window",
+    [
+        ("-r feature-x", "nix-meridian@feature-x"),
+        ("--resume=feature-x", "nix-meridian@feature-x"),
+        ("-P work -r feature-x", "nix-meridian@feature-x"),
+        # A flag after -r means the resume picker: there is no name to put in the window.
+        ("-r -P work", None),
+        ("-r --profile work", None),
+        ("-n -m opus", None),
+    ],
+)
+def test_window_rename_takes_only_a_session_name(option, arguments, expected_window):
+    result = run_zsh(
+        RENAME_STUBS + f"_claude_bubble_initialize {arguments}",
+        option,
+        environment={"CLAUDE_BUBBLE_TMUX": "1", "TMUX": "/tmp/tmux-test,1,0"},
+    )
+    expected_lines = (
+        [f"tmux rename-window {expected_window}"] if expected_window else []
+    )
+    assert result.stdout.splitlines() == expected_lines, result.stderr
