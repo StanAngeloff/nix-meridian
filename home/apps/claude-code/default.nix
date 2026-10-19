@@ -8,8 +8,9 @@
   ...
 }:
 let
+  claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
   claude-code = pkgs.callPackage ./package.nix {
-    claude-code-unwrapped = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
+    inherit claude-code-unwrapped;
     spellcheckLanguage = config.nix-meridian.language.code;
   };
   claude-code-statusline = pkgs.callPackage ./statusline/package.nix { };
@@ -49,6 +50,10 @@ let
   claude-arbiter = pkgs.callPackage ./arbiter/package.nix { };
   # /away: a PermissionRequest hook (./notifications.nix) and the mod that drives it (./settings.nix); see away/package.nix.
   claude-away = pkgs.callPackage ./away/package.nix { };
+  # /profile: the account profile a session runs as; see profile/mod/hooks/register.ts.
+  claude-profile = pkgs.callPackage ./profile/package.nix { };
+  # The Claude Code version the account-profile proofs last passed on; see bubble/modules/profiles/verified-version.nix.
+  profilesVerifiedVersion = import ./bubble/modules/profiles/verified-version.nix;
   # High-precedence --settings layer for bubbled sessions: the inner Bash sandbox off, no bypass-mode dialog, the arbiter.
   bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit lib pkgs claude-arbiter; };
   # cc and _cc pass it as --model; bare `claude` reads it from settings.json, where every switch also resets what /model saved.
@@ -66,7 +71,14 @@ in
         ;
     })
     ./keybindings.nix
-    (import ./settings.nix { inherit claude-code-statusline claude-away baseModel; })
+    (import ./settings.nix {
+      inherit
+        claude-code-statusline
+        claude-away
+        claude-profile
+        baseModel
+        ;
+    })
     ./mcp.nix
     (import ./notifications.nix { inherit claude-away; })
     ./remote # phone remote access
@@ -105,6 +117,17 @@ in
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
+
+  # Fails the switch when the profile layout has regressed; see bubble/modules/profiles/profiles.sh (check).
+  # A Claude Code version the profile proofs have not passed on yet gets a note first, because they rest on its internals.
+  home.activation.checkClaudeCodeProfiles = lib.hm.dag.entryBefore [ "writeBoundary" ] (
+    lib.optionalString (claude-code-unwrapped.version != profilesVerifiedVersion) ''
+      echo "Claude Code ${claude-code-unwrapped.version} is not yet verified for account profiles (last verified: ${profilesVerifiedVersion}): run cc profiles verify"
+    ''
+    + ''
+      ${claude-bubble.subcommandHandlers.profiles} check
+    ''
+  );
 
   home.sessionVariables.CLAUDE_BUBBLE_TMUX = "1";
 

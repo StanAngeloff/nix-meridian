@@ -1,6 +1,7 @@
 {
   claude-code-statusline,
   claude-away,
+  claude-profile,
   baseModel,
 }:
 {
@@ -83,6 +84,10 @@ let
         # Claude Code's own OAuth tokens: nothing a session does needs them, and the bubble binds ~/.claude read-write.
         # Bash reads Claude Code can see (`cat`, a `<` redirect) are refused as well; `bash -c` or a script still gets through.
         "Read(~/.claude/.credentials.json)"
+        # Since the profile migration each account keeps its tokens in its profile, and the migration backup keeps the
+        # older copies; inside a bubble the session's own profile is profiles/active.
+        "Read(~/.claude/profiles/*/credentials/.credentials.json)"
+        "Read(~/.claude/profiles/.v2-backup/**)"
       ];
       ask = lib.concatMap (integration: integration.claude.ask or [ ]) (lib.attrValues integrations);
       # The read-only half of each server, named one tool at a time rather than globbed.
@@ -96,9 +101,9 @@ let
       pr = "";
     };
     env = {
-      # The away mod. Set here rather than in the claude wrapper so it comes with the hook it hands its timeout to (./notifications.nix):
-      # a session that skips user settings loads neither.
-      CLAUDE_CODE_PLUGIN_DIRS = "${claude-away.mod}";
+      # The away and profile mods, colon-separated. Set here rather than in the claude wrapper so the away mod comes with the hook
+      # it hands its timeout to (./notifications.nix): a session that skips user settings loads neither.
+      CLAUDE_CODE_PLUGIN_DIRS = "${claude-away.mod}:${claude-profile}";
     };
     viewMode = "verbose";
     statusLine = {

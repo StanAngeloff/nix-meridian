@@ -45,6 +45,16 @@ def _config_directory():
 
 
 def default_credentials_path():
+    """The default profile's credentials once each profile has its own directory, else the shared file.
+
+    The path runs through the profiles/active link, so every read follows `cc profiles select`, and
+    Application renews the monitor on it when the link moves.
+    """
+    slot_path = os.path.join(
+        default_profiles_path(), PROFILES_ACTIVE_LINK, "credentials"
+    )
+    if os.path.isdir(slot_path):
+        return os.path.join(slot_path, ".credentials.json")
     return os.path.join(_config_directory(), ".credentials.json")
 
 
@@ -65,11 +75,11 @@ def default_activity_path():
     rate-limit headers on every render, so while a session is working this is both fresher than a
     poll and free.
 
-    Alongside the credentials rather than in XDG_RUNTIME_DIR, because the bubble lays a masked
-    tmpfs over the runtime directory: a ping written there by a bubbled session would land in the
-    bubble's private copy and never reach this process. The config directory is bound through.
+    In the config directory rather than XDG_RUNTIME_DIR, because the bubble lays a masked tmpfs over
+    the runtime directory: a ping written there by a bubbled session would land in the bubble's private
+    copy and never reach this process. The config directory is bound through.
     """
-    return os.path.join(os.path.dirname(default_credentials_path()), "usage-activity")
+    return os.path.join(_config_directory(), "usage-activity")
 
 
 def _watch(path, on_change):
@@ -122,26 +132,40 @@ def read_activity(activity_path):
         return None, None
 
 
-def read_profile(profiles_path):
-    """Read the active profile's JSON payload and its name, or (None, None).
+def _read_json(path):
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return None
 
-    The active profile is a symlink at profiles_path/active pointing to a profile JSON file. The
-    profile name is the symlink target without the .json extension.
+
+def read_profile(profiles_path):
+    """Read the default profile's identity payload and its name, or (None, None).
+
+    profiles_path/active links either a profile directory, with its own .claude.json and
+    credentials/, or in the older layout a <name>.json token file. The payload has the shape
+    usage.parse_profile reads either way.
     """
     active_link = os.path.join(profiles_path, PROFILES_ACTIVE_LINK)
     try:
         target = os.readlink(active_link)
     except OSError:
         return None, None
-    name = os.path.splitext(target)[0]
-    if not name:
+    if target.endswith(".json"):
+        name = os.path.splitext(target)[0]
+        payload = _read_json(os.path.join(profiles_path, target))
+        if not name or payload is None:
+            return None, None
+        return payload, name
+    profile_path = os.path.join(profiles_path, target)
+    config = _read_json(os.path.join(profile_path, ".claude.json"))
+    if not target or config is None:
         return None, None
-    profile_file = os.path.join(profiles_path, target)
-    try:
-        with open(profile_file, "r", encoding="utf-8") as handle:
-            return json.load(handle), name
-    except (OSError, ValueError):
-        return None, None
+    credentials = _read_json(
+        os.path.join(profile_path, "credentials", ".credentials.json")
+    )
+    return usage.slot_profile_payload(config, credentials), target
 
 
 def watch_profile(profiles_path, on_change):

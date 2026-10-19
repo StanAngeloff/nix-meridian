@@ -1,3 +1,4 @@
+import json
 import re
 import unittest
 from datetime import datetime
@@ -301,6 +302,69 @@ class ParseProfile(unittest.TestCase):
         self.assertIsNone(profile.email)
         self.assertIsNone(profile.subscription)
         self.assertIsNone(profile.organization)
+
+    def test_leaves_out_the_organization_named_after_a_personal_account(self):
+        payload = {
+            "oauthAccount": {
+                "emailAddress": "someone@personal.example",
+                "organizationName": "someone@personal.example's Organization",
+            },
+            "claudeAiOauth": {"subscriptionType": "max"},
+        }
+
+        profile = usage.parse_profile(payload, "personal")
+
+        self.assertEqual(profile.email, "someone@personal.example")
+        self.assertIsNone(profile.organization)
+
+
+class SlotProfilePayload(unittest.TestCase):
+    def test_takes_the_account_and_the_subscription_type(self):
+        payload = usage.slot_profile_payload(
+            {
+                "oauthAccount": {
+                    "emailAddress": "someone@work.example",
+                    "organizationName": "Example Org",
+                },
+                "projects": {},
+            },
+            {
+                "claudeAiOauth": {
+                    "accessToken": "fake-access",
+                    "refreshToken": "fake-refresh",
+                    "subscriptionType": "team",
+                }
+            },
+        )
+
+        profile = usage.parse_profile(payload, "work")
+
+        self.assertEqual(profile.email, "someone@work.example")
+        self.assertEqual(profile.subscription, "team")
+        self.assertEqual(profile.organization, "Example Org")
+
+    def test_never_carries_a_token(self):
+        payload = usage.slot_profile_payload(
+            {"oauthAccount": {"emailAddress": "someone@work.example"}},
+            {
+                "claudeAiOauth": {
+                    "accessToken": "fake-access",
+                    "refreshToken": "fake-refresh",
+                }
+            },
+        )
+
+        self.assertNotIn("fake-access", json.dumps(payload))
+        self.assertNotIn("fake-refresh", json.dumps(payload))
+
+    def test_tolerates_unreadable_files(self):
+        profile = usage.parse_profile(
+            usage.slot_profile_payload(None, None), "personal"
+        )
+
+        self.assertEqual(profile.name, "personal")
+        self.assertIsNone(profile.email)
+        self.assertIsNone(profile.subscription)
 
 
 class ProfileRow(unittest.TestCase):

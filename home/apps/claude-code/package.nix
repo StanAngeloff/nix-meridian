@@ -47,6 +47,13 @@ symlinkJoin {
         # Relocate ~/.claude.json into ~/.claude so it rides the bubble directory bind and Claude Code owns it live (never a single-file bind — EBUSY on rename).
         # Set host-wide so bare claude and the bubble agree on one inode.
         export CLAUDE_CONFIG_DIR="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+        # Each account profile keeps its own credentials (bubble/modules/profiles); a bubble names its session directory itself.
+        # Anything else runs as the default profile, resolved now so that a later cc profiles select cannot move it mid-session.
+        # Before the profile migration there is no such directory, and Claude Code keeps reading ~/.claude/.credentials.json.
+        if [ -z "''${CLAUDE_SECURESTORAGE_CONFIG_DIR:-}" ] && [ -d "$CLAUDE_CONFIG_DIR/profiles/active/credentials" ]; then
+          CLAUDE_SECURESTORAGE_CONFIG_DIR="$(realpath "$CLAUDE_CONFIG_DIR/profiles/active/credentials")"
+          export CLAUDE_SECURESTORAGE_CONFIG_DIR
+        fi
       ' \
       --run '
         # Resolve the GitHub token at launch: ~/.claude.json carries only a "Bearer ''${GH_TOKEN}" placeholder

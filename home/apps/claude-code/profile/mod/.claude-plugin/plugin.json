@@ -1,0 +1,8 @@
+{
+  "name": "profile",
+  "version": "0.1.0",
+  "description": "/profile: the account profile this session runs as",
+  "author": {
+    "name": "Stan Angeloff"
+  }
+}

@@ -5,6 +5,7 @@
 # Every descendant inherits the cgroup, and nothing inside the bubble can leave it (/sys is read-only, the user bus is masked),
 # which makes the scope the one handle on the whole session.
 # lifetime_unit_name is global: it crosses from the before-run hook to the cleanup hook.
+# lifetime_slice_name comes from the profiles module's prepare hook: sessions of one account share a slice.
 
 lifetime_before_run() {
 	lifetime_unit_name=""
@@ -25,6 +26,9 @@ lifetime_before_run() {
 		# so a short grace period keeps one that ignores SIGTERM from holding up the prompt.
 		--property=TimeoutStopSec=5s
 	)
+	if [[ -n "${lifetime_slice_name:-}" ]]; then
+		launcher_args+=(--slice="$lifetime_slice_name")
+	fi
 }
 
 lifetime_cleanup() {

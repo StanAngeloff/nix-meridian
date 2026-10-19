@@ -32,10 +32,12 @@ abbreviate_home() {
 	fi
 }
 
-# Arguments the bubble owns: --with-<grant>/--without-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), subcommand words followed by more arguments (handed to their handler), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
+# Arguments the bubble owns: --with-<grant>/--without-<grant> flags (declared by modules, see package.nix), -v/--volume specs (Docker-style host:container:mode), -P/--profile <name> (the account profile the session runs as, see modules/profiles), subcommand words followed by more arguments (handed to their handler), and --help/-h (for appending bubble docs). Every other argument passes to Claude Code untouched, so unknown --with-* spellings surface as Claude Code's own unknown-option error.
 declare -A bubble_grants=()
 @defaultGrantInitializers@
 bubble_volumes=()
+# Set by -P/--profile; the profiles module falls back to the default profile when it stays empty.
+bubble_profile_name=""
 claude_args=()
 help_requested=""
 
@@ -71,6 +73,11 @@ while [[ $index -lt ${#args[@]} ]]; do
 		model="${args[$index]}"
 		[[ "$model" != claude-* ]] && model="claude-${model}"
 		claude_args+=("--model" "$model")
+	elif [[ ("$argument" == "-P" || "$argument" == "--profile") && $((index + 1)) -lt ${#args[@]} ]]; then
+		index=$((index + 1))
+		bubble_profile_name="${args[$index]}"
+	elif [[ "$argument" == --profile=?* ]]; then
+		bubble_profile_name="${argument#--profile=}"
 	else
 		# A registered subcommand word followed by at least one more argument hands off to that subcommand's handler,
 		# before any bubble machinery starts. Requiring a trailing argument keeps a Claude option value that happens to be
@@ -163,6 +170,7 @@ set -e
 if [[ -n "$help_requested" ]]; then
 	printf '%s' '@grantsHelp@'
 	printf '\n  -v, --volume HOST[:CONTAINER[:MODE]]\n        Bind-mount HOST into the bubble at CONTAINER (default: same path).\n        MODE is rw (default) or ro. May be repeated.\n'
+	printf '\n  -P, --profile NAME\n        Run this session as account profile NAME rather than the default\n        (cc profiles list shows them). The default stays as it is.\n'
 	printf '%s' '@subcommandsHelp@'
 	printf '\nEnvironment:\n  CLAUDE_BUBBLE_ARGS\n        Arguments prepended to the command line, parsed with shell quoting.\n        Export it from a project .envrc for per-directory defaults; whatever\n        is given at the prompt is parsed afterwards and wins.\n'
 fi

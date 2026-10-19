@@ -5,13 +5,16 @@
   writeTextDir,
   bubblewrap,
   coreutils,
+  curl,
   dconf,
   findutils,
   gnupg,
+  inotify-tools,
   jq,
   libsecret,
   openssh,
   procps,
+  python3,
   tmux,
   pipewire,
   systemd,
@@ -79,13 +82,17 @@ let
       writeShellApplication
       runCommand
       writeTextDir
+      bubblewrap
       coreutils
+      curl
       dconf
       gnupg
+      inotify-tools
       jq
       libsecret
       openssh
       procps
+      python3
       tmux
       pipewire
       systemd
@@ -95,6 +102,8 @@ let
       keyringVariables
       dconfKeyfile
       ;
+    # The link opener, for the profiles handler's login; built below from modules/notifications.
+    inherit wwwBrowser;
   };
   modules = map (
     name:
@@ -188,11 +197,12 @@ let
     assert lib.assertMsg (lib.unique names == names) "claude-bubble: duplicate subcommand name";
     names;
   # The launcher runs this only when the word is followed by at least one more argument (see bubble.sh).
+  # CLAUDE_BUBBLE_COMMAND hands the handler the launcher's own path, so a handler can start a session (profiles add).
   subcommandDispatch =
     "case \"$argument\" in\n"
     + lib.concatMapStrings (
       subcommand:
-      "${subcommand.name}) exec ${lib.escapeShellArg subcommand.handler} \"\${args[@]:$((index + 1))}\" ;;\n"
+      "${subcommand.name}) CLAUDE_BUBBLE_COMMAND=\"$0\" exec ${lib.escapeShellArg subcommand.handler} \"\${args[@]:$((index + 1))}\" ;;\n"
     ) subcommandList
     + "esac";
   # Rendered after the bubble options. Spliced into a single-quoted shell string like grantsHelp, so descriptions must not contain single quotes.
@@ -234,6 +244,12 @@ writeShellApplication {
   );
   text = substitute valueSubstitutions (substitute slotSubstitutions (builtins.readFile ./bubble.sh));
   # aliases.nix hands subcommandNames to initialize.zsh, whose session checks mirror the launcher's handoff rule;
-  # wwwBrowser hands http(s) links to the host browser, for programs that take a browser command.
-  passthru = { inherit subcommandNames wwwBrowser; };
+  # wwwBrowser hands http(s) links to the host browser, for programs that take a browser command;
+  # subcommandHandlers names each handler's executable, for Home Manager's activation (`profiles check`, ../default.nix).
+  passthru = {
+    inherit subcommandNames wwwBrowser;
+    subcommandHandlers = lib.listToAttrs (
+      map (subcommand: lib.nameValuePair subcommand.name subcommand.handler) subcommandList
+    );
+  };
 }

@@ -68,6 +68,12 @@ def run_zsh(body, option="", environment=None):
         ("-p remote", 1),
         # -m consumes its value, so "remote" here is a model name.
         ("-m remote -h", 1),
+        # -P and --profile consume their value, like -m.
+        ("-P personal profiles list", 0),
+        ("--profile personal remote setup", 0),
+        ("--profile=personal profiles list", 0),
+        ("-P profiles list", 1),
+        ("--profile remote -h", 1),
         ("", 1),
     ],
 )

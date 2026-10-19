@@ -126,7 +126,14 @@ class Application:
 
     def _on_profile_changed(self):
         self._take_profile()
+        # select moves the link, and the migration moves the credentials into the profile: follow both.
+        self._monitor.cancel()
+        self._credentials_path = client.default_credentials_path()
+        self._monitor = client.watch_credentials(
+            self._credentials_path, self._on_credentials_changed
+        )
         self._render()
+        self._on_credentials_changed()
 
     def _on_activity(self):
         """Claude Code published new figures: take them, and re-time the poll rather than make one.

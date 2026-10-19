@@ -99,7 +99,7 @@ function _claude_expand_model_aliases() {
 
 # Succeeds when the launcher will hand these arguments to a subcommand handler instead of starting a session.
 # Mirrors the launcher's rule in bubble/bubble.sh (a registered subcommand word followed by at least one more argument,
-# after -m and -v/--volume have consumed their values), so the two must change together.
+# after -m, -P/--profile and -v/--volume have consumed their values), so the two must change together.
 # The words are in _claude_subcommand_names, which aliases.nix sets from the launcher's own registry.
 function _claude_is_subcommand_handoff() {
   emulate -L zsh
@@ -107,7 +107,7 @@ function _claude_is_subcommand_handoff() {
   local i
   for (( i=1; i <= $#; i++ )); do
     case "${@[$i]}" in
-      -m)
+      -m|-P|--profile)
         if (( i < $# )); then (( i += 1 )); fi
         ;;
       -v|--volume)

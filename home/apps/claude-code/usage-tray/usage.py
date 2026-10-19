@@ -263,12 +263,32 @@ def parse_profile(payload, name):
         return None
     oauth = payload.get("oauthAccount") or {}
     claude = payload.get("claudeAiOauth") or {}
+    email = oauth.get("emailAddress") or None
+    organization = oauth.get("organizationName") or None
+    # Claude.ai names a personal account's own organization after its email; that name repeats the email, so it is left out.
+    if organization == f"{email}'s Organization":
+        organization = None
     return Profile(
         name=name,
-        email=oauth.get("emailAddress") or None,
+        email=email,
         subscription=claude.get("subscriptionType") or None,
-        organization=oauth.get("organizationName") or None,
+        organization=organization,
     )
+
+
+def slot_profile_payload(config, credentials):
+    """The payload parse_profile reads, from a profile directory's .claude.json and credentials file.
+
+    Each profile has its own directory with both files once profiles run side by side; either may be
+    None when it could not be read. Only the subscription type comes from the credentials, never a token.
+    """
+    account = config.get("oauthAccount") if isinstance(config, dict) else None
+    tokens = credentials.get("claudeAiOauth") if isinstance(credentials, dict) else None
+    subscription = tokens.get("subscriptionType") if isinstance(tokens, dict) else None
+    return {
+        "oauthAccount": account or {},
+        "claudeAiOauth": {"subscriptionType": subscription},
+    }
 
 
 def compose(snapshot, activity, now):
