@@ -117,6 +117,9 @@ let
       }
     ];
     promptSuggestionEnabled = false;
+    # Idle compaction summarizes a 200K+ token conversation left idle for about 54 minutes, before its one-hour prompt cache expires.
+    # Keep the conversation whole: compact only when context fills, or by hand.
+    idleCompaction = false;
     spellcheck = {
       enabled = true;
       language = config.nix-meridian.language.locale;
