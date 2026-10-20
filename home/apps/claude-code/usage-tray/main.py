@@ -1,4 +1,4 @@
-"""Wiring: merge the status line's figures with the endpoint's, and poll only when they run out."""
+"""Wiring: one feed per shown profile, each merging the status line's figures with the endpoint's."""
 
 import sys
 from datetime import datetime, timedelta, timezone
@@ -29,15 +29,26 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-class Application:
-    def __init__(self):
-        self._credentials_path = client.default_credentials_path()
-        self._state_path = client.default_state_path()
-        self._activity_path = client.default_activity_path()
-        self._profiles_path = client.default_profiles_path()
-        self._session = client.build_session()
-        self._tray = tray.Tray(on_refresh=self.refresh_now, on_quit=self.quit)
+class ProfileFeed:
+    """One account's figures: its token, its status line feed, its endpoint poll and its cache.
 
+    Each shown profile has its own, so one account's backoff or 429s never hold up another's polls,
+    and each polls with its own token. on_change is called whenever something on screen may differ.
+    """
+
+    def __init__(self, paths, profiles_path, session, on_change):
+        self.key = paths.key
+        self.name = paths.name
+        self._credentials_path = paths.credentials_path
+        self._activity_path = paths.activity_path
+        self._state_path = paths.state_path
+        self._profiles_path = profiles_path
+        self._session = session
+        self._on_change = on_change
+
+        self._stopped = False
+        self._monitor = None
+        self._activity_monitor = None
         self._profile = None
         self._snapshot = None
         self._activity = None
@@ -57,22 +68,58 @@ class Application:
         self._activity_monitor = client.watch_activity(
             self._activity_path, self._on_activity
         )
-        self._profile_monitor = client.watch_profile(
-            self._profiles_path, self._on_profile_changed
+        self.take_profile()
+        restored_at = self._restore()
+        delay = usage.first_poll_delay(
+            restored_at, now=_now(), base=self._base_cadence()
         )
-        self._take_profile()
-        self._restore()
-        self._render()
-        self._poll()
-        GLib.timeout_add_seconds(RENDER_TICK_SECONDS, self._on_tick)
-        # Both renders above land before the shell has attached to the item, and the next one is a
-        # poll away. Repaint once it has, so the panel is not blank for the first minute.
-        GLib.timeout_add_seconds(
-            SHELL_ATTACH_GRACE_SECONDS, self._repaint_once_attached
+        if delay > 0:
+            self._arm(delay)
+        else:
+            self._poll()
+
+    def stop(self):
+        """Stop watching and polling; a request already in flight lands on a feed that ignores it."""
+        self._stopped = True
+        self._monitor.cancel()
+        self._activity_monitor.cancel()
+        self._cancel_timer()
+
+    def take_profile(self):
+        """Read which account this feed is, for the dropdown header."""
+        if self.key[0] == "profile":
+            payload = client.read_named_profile(self._profiles_path, self.name)
+            self._profile = usage.parse_profile(payload, self.name)
+        else:
+            payload, name = client.read_profile(self._profiles_path)
+            self._profile = usage.parse_profile(payload, name)
+
+    def panel(self, now):
+        view = usage.compose(self._snapshot, self._activity, now=now)
+        stale = usage.is_stale(view, self._consecutive_failures, now=now)
+        return usage.ProfilePanel(
+            name=self.name or "",
+            view=view,
+            stale=stale,
+            signed_out=self._signed_out,
+            header=usage.profile_row(self._profile),
+            rows=tuple(
+                usage.menu_rows(
+                    view,
+                    stale=stale,
+                    now=now,
+                    signed_out=self._signed_out,
+                    reason=self._reason,
+                )
+            ),
         )
 
+    def refresh_now(self):
+        """The Refresh menu item, under the same request floor as every other trigger."""
+        self._pull_in(0)
+
     def _restore(self):
-        """Show whatever the two feeds left on disk until a poll replaces it.
+        """Show whatever the two feeds left on disk until a poll replaces it, returning when the cache was written.
 
         Stale-while-revalidate: a restart while the endpoint is refusing us would otherwise sit on
         the loading ellipsis indefinitely, even though perfectly good numbers are on disk. The status
@@ -83,28 +130,13 @@ class Application:
 
         payload, fetched_at = client.read_state(self._state_path)
         if payload is None or not usage.is_worth_restoring(fetched_at, now=_now()):
-            return
+            return None
         try:
             self._snapshot = usage.parse_snapshot(payload, now=fetched_at)
         except (AttributeError, TypeError, ValueError):
-            return
+            return None
         self._reason = "restored from cache"
-
-    def _repaint_once_attached(self):
-        self._render()
-        self._tray.repaint()
-        return False
-
-    def quit(self):
-        Gtk.main_quit()
-
-    def refresh_now(self):
-        """The Refresh menu item, under the same request floor as every other trigger."""
-        self._pull_in(0)
-
-    def _on_tick(self):
-        self._render()
-        return True
+        return fetched_at
 
     def _on_credentials_changed(self):
         """A different token is the one event that makes an immediate retry worth attempting.
@@ -120,30 +152,6 @@ class Application:
         self._retry_after = None
         self._pull_in(0)
 
-    def _take_profile(self):
-        payload, name = client.read_profile(self._profiles_path)
-        self._profile = usage.parse_profile(payload, name)
-
-    def _on_profile_changed(self):
-        self._take_profile()
-        # select moves the link, and the migration moves the credentials into the profile: follow both.
-        self._monitor.cancel()
-        self._credentials_path = client.default_credentials_path()
-        self._monitor = client.watch_credentials(
-            self._credentials_path, self._on_credentials_changed
-        )
-        # The status line's figures are per profile too: follow the new profile's feed, and drop the old
-        # profile's figures rather than show them under the new name until one of its sessions renders.
-        self._activity_monitor.cancel()
-        self._activity_path = client.default_activity_path()
-        self._activity_monitor = client.watch_activity(
-            self._activity_path, self._on_activity
-        )
-        self._activity = None
-        self._take_activity()
-        self._render()
-        self._on_credentials_changed()
-
     def _on_activity(self):
         """Claude Code published new figures: take them, and re-time the poll rather than make one.
 
@@ -154,7 +162,7 @@ class Application:
         """
         if not self._take_activity():
             return
-        self._render()
+        self._on_change()
         self._pull_in(
             usage.poll_delay(
                 self._consecutive_failures,
@@ -206,6 +214,8 @@ class Application:
 
     def _set_timer(self, delay, may_postpone):
         """The one place a poll is scheduled, so no trigger can get around the floor."""
+        if self._stopped:
+            return
         delay = usage.schedule_delay(
             delay,
             seconds_until_pending=self._seconds_until_deadline(),
@@ -227,6 +237,8 @@ class Application:
         client.fetch_usage(self._session, token, self._on_response)
 
     def _on_response(self, payload, error):
+        if self._stopped:
+            return
         if error is not None:
             self._on_failure(error)
             return
@@ -240,41 +252,25 @@ class Application:
         self._reason = None
         self._retry_after = None
         client.write_state(self._state_path, payload)
-        self._render()
+        self._on_change()
         self._arm(usage.poll_delay(0, base=self._base_cadence()))
 
     def _on_failure(self, error, signed_out=False):
+        if self._stopped:
+            return
         self._consecutive_failures += 1
         self._retry_after = getattr(error, "retry_after", None)
         self._signed_out = signed_out
         self._reason = str(error)
-        print(f"claude-usage-tray: {error}", file=sys.stderr, flush=True)
-        self._render()
+        name = f" ({self.name})" if self.name else ""
+        print(f"claude-usage-tray{name}: {error}", file=sys.stderr, flush=True)
+        self._on_change()
         self._arm(
             usage.poll_delay(
                 self._consecutive_failures,
                 self._retry_after,
                 base=self._base_cadence(),
             )
-        )
-
-    def _render(self):
-        now = _now()
-        view = usage.compose(self._snapshot, self._activity, now=now)
-        stale = usage.is_stale(view, self._consecutive_failures, now=now)
-        header = usage.profile_row(self._profile)
-        data_rows = usage.menu_rows(
-            view,
-            stale=stale,
-            now=now,
-            signed_out=self._signed_out,
-            reason=self._reason,
-        )
-        rows = ([header, None] if header is not None else []) + data_rows
-        self._tray.render(
-            label=usage.panel_label(view, stale=stale, signed_out=self._signed_out),
-            rows=rows,
-            stale=stale,
         )
 
     def _cancel_timer(self):
@@ -284,8 +280,102 @@ class Application:
 
     def _on_timer(self):
         self._timer_id = None
-        self._poll()
+        if not self._stopped:
+            self._poll()
         return False
+
+
+class Application:
+    """The tray: the default profile, plus every profile a session runs on, each with its own feed."""
+
+    def __init__(self):
+        self._profiles_path = client.default_profiles_path()
+        self._session = client.build_session()
+        self._tray = tray.Tray(on_refresh=self.refresh_now, on_quit=self.quit)
+        self._sessions = client.SessionWatch(self._on_sessions_changed)
+        self._live_names = frozenset()
+        # In display order, keyed by FeedPaths.key.
+        self._feeds = {}
+        self._reconciling = False
+
+    def start(self):
+        self._profile_monitor = client.watch_profile(
+            self._profiles_path, self._reconcile
+        )
+        self._reconcile()
+        self._sessions.start()
+        GLib.timeout_add_seconds(RENDER_TICK_SECONDS, self._on_tick)
+        # The first renders land before the shell has attached to the item, and the next one is a
+        # poll away. Repaint once it has, so the panel is not blank for the first minute.
+        GLib.timeout_add_seconds(
+            SHELL_ATTACH_GRACE_SECONDS, self._repaint_once_attached
+        )
+
+    def _wanted_paths(self):
+        if not client.is_profile_layout():
+            return [client.shared_feed_paths()]
+        return [
+            client.profile_feed_paths(name)
+            for name in usage.shown_profiles(
+                client.default_profile_name(), self._live_names
+            )
+        ]
+
+    def _reconcile(self):
+        """Match the feeds to the profiles wanted now, after a `select` or a session starting or ending.
+
+        A feed still wanted keeps its figures and its schedule. One no longer wanted stops: its
+        profile has no session left and is not the default, so it has nothing current to show.
+        """
+        self._reconciling = True
+        feeds = {}
+        for paths in self._wanted_paths():
+            feed = self._feeds.pop(paths.key, None)
+            if feed is None:
+                feed = ProfileFeed(
+                    paths, self._profiles_path, self._session, self._render
+                )
+                feed.start()
+            else:
+                feed.take_profile()
+            feeds[paths.key] = feed
+        for feed in self._feeds.values():
+            feed.stop()
+        self._feeds = feeds
+        self._reconciling = False
+        self._render()
+
+    def _on_sessions_changed(self, names):
+        self._live_names = names
+        self._reconcile()
+
+    def _repaint_once_attached(self):
+        self._render()
+        self._tray.repaint()
+        return False
+
+    def quit(self):
+        Gtk.main_quit()
+
+    def refresh_now(self):
+        for feed in self._feeds.values():
+            feed.refresh_now()
+
+    def _on_tick(self):
+        self._render()
+        return True
+
+    def _render(self):
+        # A feed started mid-reconcile may report before the feed set is complete; the reconcile renders once at its end.
+        if self._reconciling:
+            return
+        now = _now()
+        panels = [feed.panel(now) for feed in self._feeds.values()]
+        self._tray.render(
+            label=usage.profiles_panel_label(panels),
+            rows=usage.profiles_menu_rows(panels),
+            stale=usage.all_stale(panels),
+        )
 
 
 def main():

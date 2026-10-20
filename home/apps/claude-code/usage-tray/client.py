@@ -5,6 +5,8 @@ Kept apart from usage.py so that the decisions stay testable without a network o
 
 import json
 import os
+import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import gi
@@ -28,6 +30,31 @@ REQUEST_TIMEOUT_SECONDS = 5
 MONITOR_SETTLE_MILLISECONDS = 250
 
 
+# The systemd user manager, which runs every bubbled session in its own scope; see SessionWatch.
+SYSTEMD_BUS_NAME = "org.freedesktop.systemd1"
+SYSTEMD_OBJECT_PATH = "/org/freedesktop/systemd1"
+SYSTEMD_MANAGER_INTERFACE = "org.freedesktop.systemd1.Manager"
+SYSTEMD_SCOPE_INTERFACE = "org.freedesktop.systemd1.Scope"
+# bubble/modules/lifetime names each session's scope claude-bubble-<suffix>.scope.
+SESSION_SCOPE_PREFIX = "claude-bubble-"
+SESSION_SCOPE_SUFFIX = ".scope"
+
+
+@dataclass(frozen=True)
+class FeedPaths:
+    """Where one shown profile's figures come from and go to.
+
+    key tells two feeds apart across a change of layout or default: a feed whose key is still wanted
+    keeps its figures and its schedule. name is None in the older layouts when no profile is named.
+    """
+
+    key: tuple
+    name: str | None
+    credentials_path: str
+    activity_path: str
+    state_path: str
+
+
 class Unavailable(Exception):
     """The usage numbers could not be refreshed.
 
@@ -44,49 +71,67 @@ def _config_directory():
     return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
 
 
-def default_credentials_path():
-    """The default profile's credentials once each profile has its own directory, else the shared file.
-
-    The path runs through the profiles/active link, so every read follows `cc profiles select`, and
-    Application renews the monitor on it when the link moves.
-    """
-    slot_path = os.path.join(
-        default_profiles_path(), PROFILES_ACTIVE_LINK, "credentials"
-    )
-    if os.path.isdir(slot_path):
-        return os.path.join(slot_path, ".credentials.json")
-    return os.path.join(_config_directory(), ".credentials.json")
-
-
 def default_profiles_path():
     return os.path.join(_config_directory(), "profiles")
 
 
-def default_state_path():
-    runtime_directory = GLib.get_user_runtime_dir()
-    return os.path.join(runtime_directory, "claude-usage.json")
+def is_profile_layout():
+    """Whether each profile has its own directory, which is what lets several be shown at once.
 
-
-def default_activity_path():
-    """Where the status line hook publishes the default profile's own rate-limit figures.
-
-    Written by home/apps/claude-code/statusline/main.py, which puts the `rate_limits` object
-    from its input in here verbatim. Claude Code recomputes those numbers from the inference API's
-    rate-limit headers on every render, so while a session is working this is both fresher than a
-    poll and free.
-
-    In the config directory rather than XDG_RUNTIME_DIR, because the bubble lays a masked tmpfs over
-    the runtime directory: a ping written there by a bubbled session would land in the bubble's private
-    copy and never reach this process. The config directory is bound through.
-
-    Once each profile has its own directory, every session writes into its own profile's, so only the
-    default profile's sessions feed this path. Like default_credentials_path it runs through the
-    profiles/active link, and Application renews the monitor on it when the link moves.
+    Before the migration profiles/active linked a token file, or there were no profiles, and one
+    account at a time lived in the shared files.
     """
-    slot_path = os.path.join(default_profiles_path(), PROFILES_ACTIVE_LINK)
-    if os.path.isdir(slot_path):
-        return os.path.join(slot_path, "usage-activity")
-    return os.path.join(_config_directory(), "usage-activity")
+    return os.path.isdir(
+        os.path.join(default_profiles_path(), PROFILES_ACTIVE_LINK, "credentials")
+    )
+
+
+def default_profile_name():
+    """The default profile's name, which profiles/active links, or None."""
+    try:
+        target = os.readlink(
+            os.path.join(default_profiles_path(), PROFILES_ACTIVE_LINK)
+        )
+    except OSError:
+        return None
+    return os.path.splitext(target)[0] if target.endswith(".json") else target or None
+
+
+def profile_feed_paths(name):
+    """One profile's own files, by name rather than through profiles/active.
+
+    Every bubbled session writes its status line figures into its own profile's directory: inside the
+    bubble profiles/active is bound to that directory (bubble/modules/profiles/hooks.sh), so the host
+    sees them at profiles/<name>/usage-activity. That file is under the config directory, not the runtime
+    directory, because the bubble masks the runtime directory; see publish_rate_limits in statusline/main.py.
+    The cache is the profile's own too, so a restart shows each account's last figures under its own name.
+    """
+    profile_path = os.path.join(default_profiles_path(), name)
+    return FeedPaths(
+        key=("profile", name),
+        name=name,
+        credentials_path=os.path.join(profile_path, "credentials", ".credentials.json"),
+        activity_path=os.path.join(profile_path, "usage-activity"),
+        state_path=os.path.join(
+            GLib.get_user_runtime_dir(), f"claude-usage-{name}.json"
+        ),
+    )
+
+
+def shared_feed_paths():
+    """The one feed of the older layouts, which kept the live account in the shared files.
+
+    Keyed by the profile profiles/active names, so a switch of account drops the previous one's figures
+    rather than showing them under the new name.
+    """
+    name = default_profile_name()
+    return FeedPaths(
+        key=("shared", name),
+        name=name,
+        credentials_path=os.path.join(_config_directory(), ".credentials.json"),
+        activity_path=os.path.join(_config_directory(), "usage-activity"),
+        state_path=os.path.join(GLib.get_user_runtime_dir(), "claude-usage.json"),
+    )
 
 
 def _watch(path, on_change):
@@ -165,14 +210,24 @@ def read_profile(profiles_path):
         if not name or payload is None:
             return None, None
         return payload, name
-    profile_path = os.path.join(profiles_path, target)
-    config = _read_json(os.path.join(profile_path, ".claude.json"))
-    if not target or config is None:
+    if not target:
         return None, None
+    payload = read_named_profile(profiles_path, target)
+    if payload is None:
+        return None, None
+    return payload, target
+
+
+def read_named_profile(profiles_path, name):
+    """Read one profile directory's identity payload, in the shape usage.parse_profile reads, or None."""
+    profile_path = os.path.join(profiles_path, name)
+    config = _read_json(os.path.join(profile_path, ".claude.json"))
+    if config is None:
+        return None
     credentials = _read_json(
         os.path.join(profile_path, "credentials", ".credentials.json")
     )
-    return usage.slot_profile_payload(config, credentials), target
+    return usage.slot_profile_payload(config, credentials)
 
 
 def watch_profile(profiles_path, on_change):
@@ -195,6 +250,166 @@ def read_token(credentials_path):
         return None
     token = (payload.get("claudeAiOauth") or {}).get("accessToken")
     return token or None
+
+
+class SessionWatch:
+    """Follows which profiles have a running session, from the systemd user manager on the session bus.
+
+    Each bubbled session runs in its own claude-bubble-<suffix>.scope, filed under its profile's slice
+    (bubble/modules/lifetime and bubble/modules/profiles). A scope appearing, finishing a job or being
+    collected starts a fresh listing of the active session scopes and their slices, which is the same
+    question `cc profiles list` asks. Listings are asynchronous, so a slow manager never stalls the panel,
+    and the answer to a listing that a newer one has overtaken is dropped.
+
+    on_change(names) receives the set of profile names whenever it changes. Without a session bus or a
+    manager there are no live profiles to report, and the tray shows the default profile alone.
+    """
+
+    def __init__(self, on_change):
+        self._on_change = on_change
+        self._connection = None
+        self._generation = 0
+        self._listing_pending = None
+        self._names = frozenset()
+
+    def start(self):
+        try:
+            self._connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        except GLib.Error as error:
+            print(
+                f"claude-usage-tray: no session bus, so other profiles' sessions stay hidden ({error.message})",
+                file=sys.stderr,
+                flush=True,
+            )
+            return
+        self._connection.signal_subscribe(
+            SYSTEMD_BUS_NAME,
+            SYSTEMD_MANAGER_INTERFACE,
+            None,
+            SYSTEMD_OBJECT_PATH,
+            None,
+            Gio.DBusSignalFlags.NONE,
+            self._on_signal,
+        )
+        # The manager sends its unit and job signals only to clients that asked for them.
+        self._connection.call(
+            SYSTEMD_BUS_NAME,
+            SYSTEMD_OBJECT_PATH,
+            SYSTEMD_MANAGER_INTERFACE,
+            "Subscribe",
+            None,
+            None,
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+            self._on_subscribed,
+        )
+        self._list()
+
+    def _on_subscribed(self, connection, result):
+        try:
+            connection.call_finish(result)
+        except GLib.Error as error:
+            print(
+                f"claude-usage-tray: systemd refused the subscription, so sessions are listed once only ({error.message})",
+                file=sys.stderr,
+                flush=True,
+            )
+
+    def _on_signal(self, _connection, _sender, _path, _interface, signal, parameters):
+        arguments = parameters.unpack()
+        if signal in ("UnitNew", "UnitRemoved"):
+            unit_name = arguments[0]
+        elif signal == "JobRemoved":
+            unit_name = arguments[2]
+        else:
+            return
+        if not (
+            unit_name.startswith(SESSION_SCOPE_PREFIX)
+            and unit_name.endswith(SESSION_SCOPE_SUFFIX)
+        ):
+            return
+        # A session's start or stop arrives as several signals in one burst; one listing answers them all.
+        if self._listing_pending is None:
+            self._listing_pending = GLib.idle_add(self._on_idle)
+
+    def _on_idle(self):
+        self._listing_pending = None
+        self._list()
+        return False
+
+    def _list(self):
+        self._generation += 1
+        self._connection.call(
+            SYSTEMD_BUS_NAME,
+            SYSTEMD_OBJECT_PATH,
+            SYSTEMD_MANAGER_INTERFACE,
+            "ListUnitsByPatterns",
+            GLib.Variant(
+                "(asas)",
+                (["active"], [f"{SESSION_SCOPE_PREFIX}*{SESSION_SCOPE_SUFFIX}"]),
+            ),
+            GLib.VariantType.new("(a(ssssssouso))"),
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+            self._on_listed,
+            self._generation,
+        )
+
+    def _on_listed(self, connection, result, generation):
+        try:
+            units = connection.call_finish(result).unpack()[0]
+        except GLib.Error as error:
+            print(
+                f"claude-usage-tray: could not list the sessions ({error.message})",
+                file=sys.stderr,
+                flush=True,
+            )
+            return
+        if generation != self._generation:
+            return
+        unit_paths = [unit[6] for unit in units]
+        slices = {}
+        if not unit_paths:
+            self._publish(generation, slices)
+            return
+        for unit_path in unit_paths:
+            connection.call(
+                SYSTEMD_BUS_NAME,
+                unit_path,
+                "org.freedesktop.DBus.Properties",
+                "Get",
+                GLib.Variant("(ss)", (SYSTEMD_SCOPE_INTERFACE, "Slice")),
+                GLib.VariantType.new("(v)"),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+                self._on_slice,
+                (generation, unit_path, len(unit_paths), slices),
+            )
+
+    def _on_slice(self, connection, result, context):
+        generation, unit_path, expected_count, slices = context
+        try:
+            slices[unit_path] = connection.call_finish(result).unpack()[0]
+        except GLib.Error:
+            # The scope ended between the listing and this question: it has no session to report.
+            slices[unit_path] = ""
+        if len(slices) == expected_count:
+            self._publish(generation, slices)
+
+    def _publish(self, generation, slices):
+        if generation != self._generation:
+            return
+        names = frozenset(
+            name
+            for name in map(usage.profile_from_slice, slices.values())
+            if name is not None
+        )
+        if names != self._names:
+            self._names = names
+            self._on_change(names)
 
 
 def build_session():

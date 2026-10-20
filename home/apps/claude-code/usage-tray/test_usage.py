@@ -1025,5 +1025,173 @@ class SignedOut(unittest.TestCase):
         )
 
 
+def _panel(name, payload=None, activity=None, stale=False, signed_out=False):
+    return usage.ProfilePanel(
+        name=name,
+        view=_view(payload, activity),
+        stale=stale,
+        signed_out=signed_out,
+        header=f"header {name}",
+        rows=(f"rows {name}",),
+    )
+
+
+WINDOWS = {
+    "five_hour": {"utilization": 12.0, "resets_at": None},
+    "seven_day": {"utilization": 30.0, "resets_at": None},
+    "limits": [],
+}
+
+
+class ProfileFromSlice(unittest.TestCase):
+    def test_reads_the_profile_a_session_slice_names(self):
+        self.assertEqual(
+            usage.profile_from_slice("claude-profile-personal.slice"), "personal"
+        )
+
+    def test_undoes_systemd_escape(self):
+        # systemd-escape writes a dash in a profile name as \x2d, so the slice nests under no other.
+        self.assertEqual(
+            usage.profile_from_slice(r"claude-profile-side\x2dproject.slice"),
+            "side-project",
+        )
+
+    def test_ignores_slices_that_name_no_profile(self):
+        for slice_name in (
+            "app.slice",
+            "claude-profile.slice",
+            "claude-profile-.slice",
+            "claude-profile-active.slice",
+            r"claude-profile-a\x2fb.slice",
+        ):
+            with self.subTest(slice_name=slice_name):
+                self.assertIsNone(usage.profile_from_slice(slice_name))
+
+
+class ShownProfiles(unittest.TestCase):
+    def test_shows_the_default_alone_without_sessions(self):
+        self.assertEqual(usage.shown_profiles("personal", set()), ("personal",))
+
+    def test_puts_the_default_first_and_the_rest_in_order(self):
+        self.assertEqual(
+            usage.shown_profiles("personal", {"work", "personal", "club"}),
+            ("personal", "club", "work"),
+        )
+
+    def test_shows_live_profiles_when_no_default_is_known(self):
+        self.assertEqual(usage.shown_profiles(None, {"work"}), ("work",))
+
+
+class LabelTags(unittest.TestCase):
+    def test_uses_the_first_letter(self):
+        self.assertEqual(
+            usage.label_tags(["work", "personal"]), {"work": "W", "personal": "P"}
+        )
+
+    def test_grows_only_the_tags_that_would_read_alike(self):
+        self.assertEqual(
+            usage.label_tags(["personal", "pro", "work"]),
+            {"personal": "PE", "pro": "PR", "work": "W"},
+        )
+
+    def test_stops_at_the_whole_name(self):
+        self.assertEqual(usage.label_tags(["ab", "abc"]), {"ab": "AB", "abc": "ABC"})
+
+
+class ProfilesPanelLabel(unittest.TestCase):
+    def test_one_profile_reads_as_it_always_has(self):
+        panel = _panel("personal", WINDOWS)
+        self.assertEqual(
+            usage.profiles_panel_label([panel]),
+            usage.panel_label(panel.view, stale=False),
+        )
+
+    def test_two_profiles_read_tag_and_both_windows_each(self):
+        label = usage.profiles_panel_label(
+            [_panel("personal", WINDOWS), _panel("work", WINDOWS)]
+        )
+        self.assertEqual(_text(label), "P 12/30 · W 12/30")
+        self.assertEqual(
+            label,
+            "\u200b"
+            '<span foreground="#377880">'
+            'P <span foreground="#56b6c2">12</span>/<span foreground="#56b6c2">30</span>'
+            " · "
+            'W <span foreground="#56b6c2">12</span>/<span foreground="#56b6c2">30</span>'
+            "</span>",
+        )
+
+    def test_greys_only_the_stale_profile(self):
+        label = usage.profiles_panel_label(
+            [_panel("personal", WINDOWS), _panel("work", WINDOWS, stale=True)]
+        )
+        self.assertIn('<span foreground="#646464">W 12/30</span>', label)
+        self.assertIn('P <span foreground="#56b6c2">12</span>', label)
+
+    def test_marks_a_missing_window_and_a_profile_still_loading_or_signed_out(self):
+        five_hour_only = {
+            "five_hour": {"utilization": 5.0, "resets_at": None},
+            "limits": [],
+        }
+        label = usage.profiles_panel_label(
+            [
+                _panel("personal", five_hour_only),
+                _panel("work"),
+                _panel("club", signed_out=True),
+            ]
+        )
+        self.assertEqual(_text(label), "P 5/– · W … · C ?")
+
+    def test_no_profile_reads_as_loading(self):
+        self.assertEqual(
+            usage.profiles_panel_label([]),
+            '\u200b<span foreground="#646464">…</span>',
+        )
+
+
+class ProfilesMenuRows(unittest.TestCase):
+    def test_one_profile_reads_as_it_always_has(self):
+        self.assertEqual(
+            usage.profiles_menu_rows([_panel("personal")]),
+            ["header personal", None, "rows personal"],
+        )
+
+    def test_separates_the_profiles(self):
+        self.assertEqual(
+            usage.profiles_menu_rows([_panel("personal"), _panel("work")]),
+            [
+                "header personal",
+                None,
+                "rows personal",
+                None,
+                "header work",
+                None,
+                "rows work",
+            ],
+        )
+
+
+class AllStale(unittest.TestCase):
+    def test_dims_the_icon_only_when_every_profile_is_stale(self):
+        fresh = _panel("personal", WINDOWS)
+        stale = _panel("work", WINDOWS, stale=True)
+        self.assertFalse(usage.all_stale([fresh, stale]))
+        self.assertTrue(usage.all_stale([stale]))
+        self.assertFalse(usage.all_stale([]))
+
+
+class FirstPoll(unittest.TestCase):
+    def test_polls_at_once_without_a_cache(self):
+        self.assertEqual(usage.first_poll_delay(None, now=NOW, base=300), 0)
+
+    def test_waits_out_a_cache_younger_than_the_cadence(self):
+        restored_at = _at("2026-07-30T11:03:00+00:00")
+        self.assertEqual(usage.first_poll_delay(restored_at, now=NOW, base=300), 180)
+
+    def test_polls_at_once_when_the_cache_is_older_than_the_cadence(self):
+        restored_at = _at("2026-07-30T10:00:00+00:00")
+        self.assertEqual(usage.first_poll_delay(restored_at, now=NOW, base=300), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -7,6 +7,7 @@ no display and no session bus.
 """
 
 import html
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -86,6 +87,20 @@ class Profile:
     email: str | None
     subscription: str | None
     organization: str | None
+
+
+# The bubble files each session's scope under claude-profile-<name>.slice (bubble/modules/profiles/hooks.sh),
+# the name escaped by systemd-escape, which writes a dash as \x2d.
+PROFILE_SLICE_PREFIX = "claude-profile-"
+SLICE_SUFFIX = ".slice"
+_ESCAPED_BYTE = re.compile(r"\\x([0-9a-fA-F]{2})")
+# What `cc profiles` accepts as a name (bubble/modules/profiles/profiles.sh); "active" belongs to the link.
+_PROFILE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
+
+# Between one profile's figures and the next in the panel label.
+PROFILE_SEPARATOR = " · "
+# A window the payload did not report, in a label that shows both windows side by side.
+MISSING_WINDOW = "–"
 
 
 @dataclass(frozen=True)
@@ -396,6 +411,112 @@ def panel_label(view, stale, signed_out=False):
     return _offset(_span(inner, PREFIX_COLOUR))
 
 
+@dataclass(frozen=True)
+class ProfilePanel:
+    """One shown profile's part of the tray: its figures for the label, its header and rows for the dropdown."""
+
+    name: str
+    view: View
+    stale: bool
+    signed_out: bool
+    header: str | None
+    rows: tuple
+
+
+def profile_from_slice(slice_name):
+    """The profile a session's slice names, or None for a slice that names none.
+
+    Every bubbled session with a profile runs under claude-profile-<name>.slice; a session outside
+    the bubble, or one from before profiles had directories, has some other slice.
+    """
+    if not slice_name.startswith(PROFILE_SLICE_PREFIX) or not slice_name.endswith(
+        SLICE_SUFFIX
+    ):
+        return None
+    escaped = slice_name[len(PROFILE_SLICE_PREFIX) : -len(SLICE_SUFFIX)]
+    name = _ESCAPED_BYTE.sub(lambda match: chr(int(match.group(1), 16)), escaped)
+    if name == "active" or not _PROFILE_NAME.fullmatch(name):
+        return None
+    return name
+
+
+def shown_profiles(default_name, live_names):
+    """The profiles the tray shows, in order: the default first, then every other one a session runs on.
+
+    The default is shown with no session too, because it is the account a new session starts as.
+    """
+    others = sorted(set(live_names) - {default_name})
+    return ((default_name,) if default_name else ()) + tuple(others)
+
+
+def label_tags(names):
+    """A short tag per profile for the panel label: its first letter, longer only where two would read alike.
+
+    `work` and `personal` read W and P; `personal` and `pro` read PE and PR.
+    """
+    tags = {}
+    for name in names:
+        width = 1
+        while width < len(name) and any(
+            other != name and other[:width].upper() == name[:width].upper()
+            for other in names
+        ):
+            width += 1
+        tags[name] = name[:width].upper()
+    return tags
+
+
+def _panel_label_part(tag, panel):
+    """One profile's figures in a label that shows several: `<tag> <5h>/<7d>`, greyed when stale."""
+    view = panel.view
+    if not view.has_data:
+        text = SIGNED_OUT_LABEL if panel.signed_out else LOADING_LABEL
+        return _span(f"{tag} {text}", STALE_COLOUR)
+    values = [
+        str(limit.percent) if limit is not None else MISSING_WINDOW
+        for limit in (view.five_hour, view.seven_day)
+    ]
+    if panel.stale:
+        return _span(f"{tag} {'/'.join(values)}", STALE_COLOUR)
+    return f"{tag} " + "/".join(_span(value, VALUE_COLOUR) for value in values)
+
+
+def profiles_panel_label(panels):
+    """The panel text for every shown profile, as Pango markup.
+
+    One profile reads exactly as panel_label words it. Two or more read `P 12/30 · C 40/62`: each
+    profile's tag, then its 5-hour and 7-day percentages. Each profile is greyed on its own when its
+    figures are stale, so one account's outage does not dim another's live numbers.
+    """
+    if not panels:
+        return _offset(_span(LOADING_LABEL, STALE_COLOUR))
+    if len(panels) == 1:
+        panel = panels[0]
+        return panel_label(panel.view, stale=panel.stale, signed_out=panel.signed_out)
+    tags = label_tags([panel.name for panel in panels])
+    inner = PROFILE_SEPARATOR.join(
+        _panel_label_part(tags[panel.name], panel) for panel in panels
+    )
+    return _offset(_span(inner, PREFIX_COLOUR))
+
+
+def profiles_menu_rows(panels):
+    """The dropdown for every shown profile: each one's header, then its rows, with a separator between profiles."""
+    rows = []
+    for panel in panels:
+        if rows:
+            rows.append(None)
+        if panel.header is not None:
+            rows += [panel.header, None]
+        rows += panel.rows
+    return rows
+
+
+def all_stale(panels):
+    """Whether the icon dims: only when no shown profile has figures worth trusting."""
+    return bool(panels) and all(panel.stale for panel in panels)
+
+
 def format_reset(resets_at, now):
     """Word a reset time the way it is most useful to read.
 
@@ -572,6 +693,19 @@ def base_cadence(activity_at, now):
     if activity_at is not None and (now - activity_at) <= ACTIVITY_FRESH_FOR:
         return ACTIVE_CADENCE_SECONDS
     return HEALTHY_CADENCE_SECONDS
+
+
+def first_poll_delay(restored_at, now, base):
+    """How long a feed that has just started waits before its first poll.
+
+    A feed starts whenever a session of a profile that was not shown begins, so starting several
+    sessions in a row would otherwise put a request on the endpoint each time. Figures restored from
+    the cache that are younger than the cadence in force are as good as a poll would be, so the
+    first one waits until they would have been due; without them the feed polls at once.
+    """
+    if restored_at is None:
+        return 0
+    return max(0, base - (now - restored_at).total_seconds())
 
 
 def poll_delay(consecutive_failures, retry_after=None, base=None):
