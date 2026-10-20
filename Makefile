@@ -7,6 +7,7 @@ default:
 
 switch:
 	nix shell 'nixpkgs#nh' --command nh os switch --ask .
+	claude-bubble profiles publish .
 
 format:
 	nix shell 'nixpkgs#treefmt' 'nixpkgs#nixfmt-rfc-style' 'nixpkgs#gawk' 'nixpkgs#uv' 'nixpkgs#shfmt' 'nixpkgs#stylua' --command treefmt .

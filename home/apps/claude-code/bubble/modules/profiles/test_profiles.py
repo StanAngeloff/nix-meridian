@@ -629,5 +629,186 @@ class Add(HomeTestCase):
         self.assertFalse((self.home.path / "bubble-arguments").exists())
 
 
+# Anthropic's client metadata document as served on 2026-10-20; every profile's document is spliced from the live one.
+UPSTREAM_CLIENT_METADATA = {
+    "client_id": "https://claude.ai/oauth/claude-code-client-metadata",
+    "client_name": "Claude Code",
+    "client_uri": "https://claude.ai",
+    "redirect_uris": ["http://localhost/callback", "http://127.0.0.1/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "token_endpoint_auth_method": "none",
+}
+BASE_URL = "https://pages.example"
+
+
+def document_path(name):
+    return "oauth/" + name + ".json"
+
+
+class ClientUrl(HomeTestCase):
+    def test_names_the_document_after_the_profile(self):
+        result = self.home.run(
+            "client-url",
+            "work",
+            environment={"CLAUDE_PROFILES_OAUTH_CLIENTS_BASE_URL": BASE_URL + "/"},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), BASE_URL + "/oauth/work.json")
+
+    def test_prints_nothing_without_a_base_url(self):
+        result = self.home.run(
+            "client-url",
+            "work",
+            environment={"CLAUDE_PROFILES_OAUTH_CLIENTS_BASE_URL": ""},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_refuses_an_invalid_name(self):
+        result = self.home.run("client-url", "active")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("invalid profile name", result.stderr)
+
+
+class Publish(HomeTestCase):
+    """The publisher against a bare origin on disk and an upstream document served from a file."""
+
+    def setUp(self):
+        super().setUp()
+        self.home.slot()
+        self.origin = self.home.path / "origin.git"
+        self.repository = self.home.path / "checkout"
+        self.git("init", "-q", "--bare", str(self.origin))
+        self.git("init", "-q", str(self.repository))
+        self.git(
+            "-C", str(self.repository), "remote", "add", "origin", str(self.origin)
+        )
+        self.upstream_file = self.home.path / "upstream.json"
+        write_json(self.upstream_file, UPSTREAM_CLIENT_METADATA)
+
+    def git(self, *arguments):
+        return subprocess.run(
+            ["git", *arguments],
+            env={"HOME": str(self.home.path), "PATH": os.environ["PATH"]},
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+
+    def publish(self, base_url=BASE_URL, upstream=None):
+        return self.home.run(
+            "publish",
+            str(self.repository),
+            environment={
+                "CLAUDE_PROFILES_OAUTH_CLIENTS_BASE_URL": base_url,
+                "CLAUDE_PROFILES_UPSTREAM_CLIENT_METADATA_URL": upstream
+                or self.upstream_file.as_uri(),
+                "GIT_AUTHOR_NAME": "Test",
+                "GIT_AUTHOR_EMAIL": "test@example",
+                "GIT_COMMITTER_NAME": "Test",
+                "GIT_COMMITTER_EMAIL": "test@example",
+            },
+        )
+
+    def published_files(self):
+        return self.git(
+            "-C", str(self.origin), "ls-tree", "-r", "--name-only", "gh-pages"
+        ).split()
+
+    def published_document(self, name):
+        return json.loads(
+            self.git("-C", str(self.origin), "show", "gh-pages:" + document_path(name))
+        )
+
+    def commit_count(self):
+        return int(self.git("-C", str(self.origin), "rev-list", "--count", "gh-pages"))
+
+    def test_creates_the_branch_with_one_document_per_profile(self):
+        result = self.publish()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("published:", result.stderr)
+        self.assertEqual(
+            sorted(self.published_files()),
+            sorted(
+                [".nojekyll", "CNAME", document_path("personal"), document_path("work")]
+            ),
+        )
+        self.assertEqual(
+            self.git("-C", str(self.origin), "show", "gh-pages:CNAME"),
+            "pages.example\n",
+        )
+        document = self.published_document("work")
+        self.assertEqual(document["client_id"], BASE_URL + "/" + document_path("work"))
+        self.assertEqual(document["client_name"], "Claude Code (work)")
+        for key in (
+            "redirect_uris",
+            "grant_types",
+            "token_endpoint_auth_method",
+            "client_uri",
+        ):
+            self.assertEqual(document[key], UPSTREAM_CLIENT_METADATA[key])
+        # The checkout's own index and branches are not touched.
+        self.assertEqual(
+            self.git("-C", str(self.repository), "status", "--porcelain"), ""
+        )
+        self.assertEqual(self.git("-C", str(self.repository), "branch", "--list"), "")
+
+    def test_pushes_nothing_when_the_documents_are_current(self):
+        self.publish()
+        result = self.publish()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("are current", result.stderr)
+        self.assertEqual(self.commit_count(), 1)
+
+    def test_a_new_profile_publishes_a_new_commit(self):
+        self.publish()
+        self.home.profile("second", PRO_TOKENS)
+        result = self.publish()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.commit_count(), 2)
+        self.assertEqual(
+            self.published_document("second")["client_name"], "Claude Code (second)"
+        )
+        self.assertIn(document_path("second"), result.stderr)
+
+    def test_an_unreachable_origin_is_a_note_not_a_failure(self):
+        self.git(
+            "-C",
+            str(self.repository),
+            "remote",
+            "set-url",
+            "origin",
+            str(self.home.path / "missing.git"),
+        )
+        result = self.publish()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("origin is unreachable", result.stderr)
+
+    def test_an_unreachable_upstream_is_a_note_not_a_failure(self):
+        result = self.publish(upstream=(self.home.path / "missing.json").as_uri())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("could not fetch", result.stderr)
+        self.assertFalse((self.origin / "refs" / "heads" / "gh-pages").exists())
+
+    def test_an_upstream_of_another_shape_is_refused(self):
+        write_json(
+            self.upstream_file,
+            {
+                **UPSTREAM_CLIENT_METADATA,
+                "token_endpoint_auth_method": "client_secret_basic",
+            },
+        )
+        result = self.publish()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("changed shape", result.stderr)
+        self.assertFalse((self.origin / "refs" / "heads" / "gh-pages").exists())
+
+    def test_refuses_without_a_base_url(self):
+        result = self.publish(base_url="")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("no base URL", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

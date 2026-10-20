@@ -8,6 +8,7 @@
   curl,
   dconf,
   findutils,
+  git,
   gnupg,
   inotify-tools,
   jq,
@@ -28,6 +29,8 @@
   dconfKeyfile ? "",
   # Subcommands that are not bubble modules, as { name, handler, description }; modules declare theirs in module.nix.
   subcommands ? [ ],
+  # Where each profile's OAuth client metadata document is served from, or "" for Claude Code's shared client; see modules/profiles/profiles.sh.
+  profilesOAuthClientsBaseUrl ? "",
 }:
 # Builds `claude-bubble` by assembling bubble.sh (the skeleton) from the modules under modules/<name>/hooks.sh.
 # Each hooks.sh defines <module>_<phase>() hook functions (hyphens become underscores, e.g. notifications_before_run); the assembler concatenates every hooks.sh into the skeleton's functions slot and generates the per-phase call lines.
@@ -86,6 +89,7 @@ let
       coreutils
       curl
       dconf
+      git
       gnupg
       inotify-tools
       jq
@@ -104,6 +108,7 @@ let
       ;
     # The link opener, for the profiles handler's login; built below from modules/notifications.
     inherit wwwBrowser;
+    oauthClientsBaseUrl = profilesOAuthClientsBaseUrl;
   };
   modules = map (
     name:

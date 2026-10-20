@@ -45,6 +45,8 @@ let
         description = "Reach cc sessions from the phone over Tailscale (setup)";
       }
     ];
+    # Each profile's OAuth client metadata document lives on this repository's gh-pages branch; `make switch` publishes them.
+    profilesOAuthClientsBaseUrl = "https://meridian.angeloff.name";
   };
   # The bubble's PreToolUse arbiter; see arbiter/claude-arbiter.sh.
   claude-arbiter = pkgs.callPackage ./arbiter/package.nix { };

@@ -76,6 +76,7 @@ profiles_mount() {
 }
 
 profiles_environment() {
+	local client_url
 	if [[ -z "$profiles_name" ]]; then
 		return 0
 	fi
@@ -83,6 +84,11 @@ profiles_environment() {
 		--setenv CLAUDE_SECURESTORAGE_CONFIG_DIR "$profiles_path/active/credentials"
 		--setenv CLAUDE_BUBBLE_PROFILE "$profiles_name"
 	)
+	# The profile's own OAuth client for MCP servers, when one is configured; see profiles.sh (client-url).
+	client_url="$("@profilesHandler@" client-url "$profiles_name")"
+	if [[ -n "$client_url" ]]; then
+		bwrap_args+=(--setenv MCP_OAUTH_CLIENT_METADATA_URL "$client_url")
+	fi
 }
 
 profiles_before_run() {

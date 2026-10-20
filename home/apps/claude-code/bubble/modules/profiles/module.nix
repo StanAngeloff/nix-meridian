@@ -4,6 +4,7 @@
   bubblewrap,
   coreutils,
   curl,
+  git,
   inotify-tools,
   jq,
   procps,
@@ -11,6 +12,7 @@
   systemd,
   tmux,
   wwwBrowser,
+  oauthClientsBaseUrl,
   ...
 }:
 let
@@ -49,18 +51,21 @@ let
     name = "claude-profiles";
     runtimeInputs = [
       coreutils
+      curl # the upstream client metadata document, for publish
+      git # the Pages branch, for publish
       jq
       procps # pgrep, for the running-instance guards
       systemd # systemctl and systemd-escape, for the running-session registry
     ];
     text =
       builtins.replaceStrings
-        [ "@wwwBrowser@" "@profilesVerify@" ]
-        [ (lib.getExe wwwBrowser) (lib.getExe verify) ]
+        [ "@wwwBrowser@" "@profilesVerify@" "@oauthClientsBaseUrl@" ]
+        [ (lib.getExe wwwBrowser) (lib.getExe verify) oauthClientsBaseUrl ]
         (logHelpers + builtins.readFile ./profiles.sh);
     # Every build runs the behaviour tests against the command it just built, after shellcheck; see test_profiles.py.
+    # The publish tests drive git themselves (a bare origin on disk), so it is on the test's own PATH as well.
     derivationArgs.postCheck = ''
-      PROFILES_COMMAND="$target" ${python3.interpreter} ${./test_profiles.py}
+      PATH="${lib.makeBinPath [ git ]}:$PATH" PROFILES_COMMAND="$target" ${python3.interpreter} ${./test_profiles.py}
     '';
   };
 in

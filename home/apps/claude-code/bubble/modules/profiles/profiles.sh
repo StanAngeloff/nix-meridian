@@ -38,6 +38,19 @@ www_browser="@wwwBrowser@"
 # The proofs the layout rests on, run against the installed Claude Code; see verify.sh beside this file.
 verify_command="@profilesVerify@"
 
+# One OAuth client per profile. An MCP authorization server that keeps one grant per user and client (Shortcut does)
+# lets only one profile stay logged in while every session presents Claude Code's shared client id. Each profile
+# therefore presents its own client metadata document, a copy of Anthropic's with its own client_id and a client_name
+# carrying the profile name, served from the Pages branch of this configuration. The hook hands a session its document's URL in
+# MCP_OAUTH_CLIENT_METADATA_URL (hooks.sh), and `publish` keeps the branch current after every switch (Makefile).
+# Empty when no base URL is configured (bubble/package.nix); the tests set the variable to try both states.
+oauth_clients_base_url="${CLAUDE_PROFILES_OAUTH_CLIENTS_BASE_URL-@oauthClientsBaseUrl@}"
+# Every document is spliced from Anthropic's own, so the redirect URIs and grant types track Claude Code's.
+# The tests point the variable at a copy on disk.
+upstream_client_metadata_url="${CLAUDE_PROFILES_UPSTREAM_CLIENT_METADATA_URL:-https://claude.ai/oauth/claude-code-client-metadata}"
+upstream_client_id="https://claude.ai/oauth/claude-code-client-metadata"
+pages_branch="gh-pages"
+
 # Unlike the launcher this command leaves bubble_prefix empty, so the severity word leads and results print bare — see utilities/log.sh.
 
 # First argument is the message, any further ones are continuation lines.
@@ -517,6 +530,122 @@ _profile_cmd_add() {
 	bubble_info "start a session on it with: cc -P $name" "or make it the default: cc profiles select $name"
 }
 
+# The document's path on the Pages branch, which is public: the profile name is in the document's client_name anyway.
+_profile_client_document_path() {
+	printf 'oauth/%s.json' "$1"
+}
+
+# The client id a session of the profile presents, or nothing when no base URL is configured.
+_profile_cmd_client_url() {
+	local name="${1:-}"
+	_profile_require_name client-url "$name"
+	if [[ -z "$oauth_clients_base_url" ]]; then
+		return 0
+	fi
+	echo "${oauth_clients_base_url%/}/$(_profile_client_document_path "$name")"
+}
+
+# The name an authorization server shows for the profile's client, on consent pages and in its list of connected applications.
+_profile_client_name() {
+	printf 'Claude Code (%s)' "$1"
+}
+
+# Whether a fetched upstream document has the shape the splice was written for; a surprise is reported, not copied.
+_profile_upstream_document_is_expected() {
+	jq -e --arg upstream "$upstream_client_id" \
+		'.client_id == $upstream
+		and (.redirect_uris | type == "array" and index("http://localhost/callback") != null and index("http://127.0.0.1/callback") != null)
+		and .token_endpoint_auth_method == "none"' "$1" >/dev/null 2>&1
+}
+
+# The profile's document: the upstream one verbatim but for client_id, which must equal the document's own URL, and client_name.
+_profile_client_document() {
+	local upstream_file="$1" name="$2"
+	# shellcheck disable=SC2016 # A jq program: $id and $name are its variables.
+	jq --arg id "$(_profile_cmd_client_url "$name")" --arg name "$(_profile_client_name "$name")" \
+		'.client_id = $id | .client_name = $name' "$upstream_file"
+}
+
+# Publishes every profile's document to origin's Pages branch, through git's plumbing on a private index: the checkout,
+# its index and its branches are never touched, and nothing is pushed unless the documents changed.
+# Unreachable origin or upstream: a note and success, so an offline switch still completes; the branch keeps what it has.
+_profile_cmd_publish() {
+	local repository="${1:-.}" remote_ref="refs/remotes/origin/$pages_branch" parent="" work_path upstream_file tree commit
+	local host name document_file blob count=0 status
+	local -a parent_arguments=()
+	_profile_refuse_inside_bubble publish
+	_profile_require_slot
+	if [[ -z "$oauth_clients_base_url" ]]; then
+		_profile_die "no base URL for the client documents is configured" "see profilesOAuthClientsBaseUrl in bubble/package.nix"
+	fi
+	if ! git -C "$repository" rev-parse --git-dir >/dev/null 2>&1; then
+		_profile_die "$repository is not a git repository" "usage: cc profiles publish [<repository>]"
+	fi
+	host="${oauth_clients_base_url#https://}"
+	host="${host%%/*}"
+
+	work_path="$(mktemp -d)"
+	# shellcheck disable=SC2064 # Expanded now on purpose: the path is fixed, and RETURN runs after the local is gone.
+	trap "rm -rf -- '$work_path'" RETURN
+	# Every git call below works on this index, never on the checkout's. The diff goes to stderr, which leaves git's stdout on
+	# the terminal, so --no-pager keeps git from opening a pager there.
+	_git() {
+		GIT_INDEX_FILE="$work_path/index" git --no-pager -C "$repository" "$@"
+	}
+
+	# 0: the branch exists; 2: origin has no such branch yet; anything else: origin could not be asked.
+	status=0
+	_git ls-remote --exit-code origin "refs/heads/$pages_branch" >/dev/null 2>&1 || status=$?
+	if [[ $status -eq 0 ]]; then
+		_git fetch -q origin "+refs/heads/$pages_branch:$remote_ref" 2>/dev/null ||
+			_profile_die "could not fetch origin $pages_branch"
+		parent="$(_git rev-parse "$remote_ref")"
+		parent_arguments=(-p "$parent")
+	elif [[ $status -ne 2 ]]; then
+		bubble_info "origin is unreachable; the published client documents stay as they are"
+		return 0
+	fi
+	upstream_file="$work_path/upstream.json"
+	if ! curl -sSf --max-time 20 -o "$upstream_file" "$upstream_client_metadata_url" 2>/dev/null; then
+		bubble_info "could not fetch $upstream_client_metadata_url; the published client documents stay as they are"
+		return 0
+	fi
+	if ! _profile_upstream_document_is_expected "$upstream_file"; then
+		_profile_die "the upstream client metadata document changed shape; nothing published" \
+			"expected client_id $upstream_client_id, the loopback redirect URIs and token_endpoint_auth_method none" \
+			"$(head -c 600 "$upstream_file")"
+	fi
+
+	_git read-tree --empty
+	while read -r name; do
+		document_file="$work_path/document.json"
+		_profile_client_document "$upstream_file" "$name" >"$document_file"
+		blob="$(_git hash-object -w -- "$document_file")"
+		_git update-index --add --cacheinfo "100644,$blob,$(_profile_client_document_path "$name")"
+		count=$((count + 1))
+	done < <(_profile_names)
+	blob="$(printf '%s\n' "$host" | _git hash-object -w --stdin)"
+	_git update-index --add --cacheinfo "100644,$blob,CNAME"
+	blob="$(_git hash-object -w --stdin </dev/null)"
+	_git update-index --add --cacheinfo "100644,$blob,.nojekyll"
+	tree="$(_git write-tree)"
+
+	if [[ -n "$parent" && "$(_git rev-parse "$parent^{tree}")" == "$tree" ]]; then
+		bubble_info "the $count client documents on $pages_branch are current"
+		return 0
+	fi
+	if [[ -n "$parent" ]]; then
+		_git diff --stat "$parent" "$tree" >&2
+		_git diff "$parent" "$tree" -- oauth >&2
+	fi
+	commit="$(_git commit-tree "$tree" "${parent_arguments[@]}" -m "Pages: OAuth client documents for $count profiles" </dev/null)"
+	_git push -q origin "$commit:refs/heads/$pages_branch" ||
+		_profile_die "could not push $pages_branch to origin"
+	_git update-ref "$remote_ref" "$commit"
+	printf '%spublished:%s %s client documents at %s/oauth/ (%s)\n' "$bubble_family_on" "$bubble_off" \
+		"$count" "${oauth_clients_base_url%/}" "${commit:0:7}" >&2
+}
+
 _profile_cmd_verify() {
 	exec "$verify_command"
 }
@@ -534,6 +663,8 @@ Commands:
   migrate [<name>]  Move to one directory per profile (once, with every session closed)
   check             Verify the profile layout (run before every session and every switch)
   verify            Prove what the layout relies on against the installed Claude Code
+  publish [<repository>] Publish every profile's OAuth client document to origin's Pages branch
+  client-url <name> Print the profile's OAuth client id, the document's URL
 
 Start one session on another profile with: cc -P <name> (or --profile <name>)
 USAGE
@@ -554,6 +685,8 @@ _profile_main() {
 	add) _profile_cmd_add "$@" ;;
 	remove) _profile_cmd_remove "$@" ;;
 	verify) _profile_cmd_verify ;;
+	publish) _profile_cmd_publish "$@" ;;
+	client-url) _profile_cmd_client_url "$@" ;;
 	*) _profile_usage ;;
 	esac
 }
