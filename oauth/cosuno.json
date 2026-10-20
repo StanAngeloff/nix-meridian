@@ -1,6 +1,6 @@
 {
-  "client_id": "https://meridian.angeloff.name/oauth/test-b.json",
-  "client_name": "Claude Code (test B)",
+  "client_id": "https://meridian.angeloff.name/oauth/cosuno.json",
+  "client_name": "Claude Code (cosuno)",
   "client_uri": "https://claude.ai",
   "redirect_uris": [
     "http://localhost/callback",
