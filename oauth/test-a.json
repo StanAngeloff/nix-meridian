@@ -1,0 +1,17 @@
+{
+  "client_id": "https://meridian.angeloff.name/oauth/test-a.json",
+  "client_name": "Claude Code (test A)",
+  "client_uri": "https://claude.ai",
+  "redirect_uris": [
+    "http://localhost/callback",
+    "http://127.0.0.1/callback"
+  ],
+  "grant_types": [
+    "authorization_code",
+    "refresh_token"
+  ],
+  "response_types": [
+    "code"
+  ],
+  "token_endpoint_auth_method": "none"
+}
