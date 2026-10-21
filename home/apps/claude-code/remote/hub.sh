@@ -109,10 +109,11 @@ new_session_flow() {
 
 	ensure_remote_session
 
-	local zsh_cmd
-	zsh_cmd="cd $(printf '%q' "$target_dir") && cc -n $(printf '%q' "$session_name")"
-	tmux new-window -t "$SESSION" -n "$session_name" \
-		"zsh -ic $(printf '%q' "$zsh_cmd"); tmux detach-client"
+	# direnv loads the .envrc the directory or a parent holds, such as bubble binds or a session-name rule, as a shell does
+	# on cd. claude-cc then starts the session the way cc does.
+	local launch
+	printf -v launch '%q ' @direnv@ exec . @claudeCc@ -n "$session_name"
+	tmux new-window -t "$SESSION" -n "$session_name" -c "$target_dir" "$launch; tmux detach-client"
 	tmux select-window -t "$SESSION:{end}"
 	tmux attach -t "$SESSION"
 }

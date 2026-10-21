@@ -1,4 +1,5 @@
-{ pkgs, ... }:
+{ claude-cc }:
+{ lib, pkgs, ... }:
 let
   cc-hub = pkgs.writeShellApplication {
     name = "cc-hub";
@@ -8,7 +9,13 @@ let
       pkgs.gnugrep
       pkgs.gawk
     ];
-    text = builtins.readFile ./hub.sh;
+    # hub.sh gets store paths rather than command names, because tmux runs a new window's command in the tmux server's
+    # environment rather than the hub's.
+    text =
+      builtins.replaceStrings
+        [ "@claudeCc@" "@direnv@" ]
+        [ (lib.getExe claude-cc) (lib.getExe pkgs.direnv) ]
+        (builtins.readFile ./hub.sh);
   };
 in
 {

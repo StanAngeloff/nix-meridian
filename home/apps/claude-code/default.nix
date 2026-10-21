@@ -44,6 +44,11 @@ let
         handler = lib.getExe cc-remote;
         description = "Reach cc sessions from the phone over Tailscale (setup)";
       }
+      {
+        name = "jobs";
+        handler = lib.getExe claude-jobs;
+        description = "Start a scheduled Claude Code job now or resume its latest run (run, resume)";
+      }
     ];
     # Each profile's OAuth client metadata document lives on this repository's gh-pages branch; `make switch` publishes them.
     profilesOAuthClientsBaseUrl = "https://meridian.angeloff.name";
@@ -60,6 +65,13 @@ let
   bubbleSettings = import ./bubble/bubble-settings.json.nix { inherit lib pkgs claude-arbiter; };
   # cc and _cc pass it as --model; bare `claude` reads it from settings.json, where every switch also resets what /model saved.
   baseModel = "claude-opus-5-5[1m]";
+  # The command every bubbled session starts through. See cc/package.nix.
+  claude-cc = pkgs.callPackage ./cc/package.nix { inherit claude-bubble bubbleSettings baseModel; };
+  # `cc jobs`: runs and resumes the headless sessions nix-meridian.claude.jobs declares. See jobs/default.nix.
+  claude-jobs = pkgs.callPackage ./jobs/package.nix {
+    # The usage tray's artwork, so a job's notifications show Claude's starburst.
+    icon = ./usage-tray/icons/claude-symbolic.svg;
+  };
 in
 {
   imports = [
@@ -67,9 +79,7 @@ in
       inherit
         lib
         claude-code
-        claude-bubble
-        bubbleSettings
-        baseModel
+        claude-cc
         ;
     })
     ./keybindings.nix
@@ -83,13 +93,15 @@ in
     })
     ./mcp.nix
     (import ./notifications.nix { inherit claude-away; })
-    ./remote # phone remote access
+    (import ./jobs { inherit claude-jobs; }) # scheduled headless sessions
+    (import ./remote { inherit claude-cc; }) # phone remote access
     ./skills
   ];
 
   home.packages = [
     claude-code
     claude-bubble
+    claude-cc
     claude-usage-tray
     (pkgs.plannotator.override {
       installSkills = true;
