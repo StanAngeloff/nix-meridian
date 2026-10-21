@@ -285,4 +285,74 @@ in
       ];
     };
   };
+
+  # Google Workspace via claude.ai's managed connectors. Each server's writes are named one tool at a time; every remaining tool reads.
+  google-workspace-ai = {
+    claude = {
+      ask = [
+        "mcp__claude_ai_Google_Calendar__create_event"
+        "mcp__claude_ai_Google_Calendar__update_event"
+        "mcp__claude_ai_Google_Calendar__delete_event"
+        "mcp__claude_ai_Google_Calendar__respond_to_event"
+        "mcp__claude_ai_Google_Drive__create_file"
+        "mcp__claude_ai_Google_Drive__copy_file"
+        "mcp__claude_ai_Google_Drive__update_file"
+        "mcp__claude_ai_Google_Drive__share_file"
+        "mcp__claude_ai_Google_Drive__trash_file"
+        "mcp__claude_ai_Google_Docs__update_doc"
+        "mcp__claude_ai_Google_Sheets__insert_dimension"
+        "mcp__claude_ai_Google_Sheets__update_formulas"
+        "mcp__claude_ai_Google_Sheets__update_spreadsheet"
+        "mcp__claude_ai_Google_Sheets__update_values"
+        "mcp__claude_ai_Google_Slides__update_presentation"
+      ];
+    };
+  };
+
+  # Claude Docs via claude.ai's managed connector: create, update, batch and delete change a shared doc; guide, query, read and export read.
+  claude-docs-ai = {
+    claude = {
+      ask = [
+        "mcp__claude_ai_Claude_Docs__create"
+        "mcp__claude_ai_Claude_Docs__update"
+        "mcp__claude_ai_Claude_Docs__batch"
+        "mcp__claude_ai_Claude_Docs__delete"
+      ];
+    };
+  };
+
+  # Looker via claude.ai's managed connector. The writes change LookML files, dashboards, looks or the session's dev mode.
+  looker-ai = {
+    claude = {
+      ask = [
+        "mcp__claude_ai_Looker__add_*"
+        "mcp__claude_ai_Looker__create_*"
+        "mcp__claude_ai_Looker__update_*"
+        "mcp__claude_ai_Looker__delete_*"
+        "mcp__claude_ai_Looker__make_*"
+        "mcp__claude_ai_Looker__dev_mode"
+      ];
+    };
+  };
+
+  # Figma: project-local MCP. create_session is left out because every read needs one; the other creates, and every send, update,
+  # upload, generate and run, write to a Figma file or start paid generation.
+  figma = {
+    claude = {
+      ask = [
+        "mcp__figma__add_*"
+        "mcp__figma__create_new_file"
+        "mcp__figma__create_generative_plugin"
+        "mcp__figma__create_shader"
+        "mcp__figma__update_*"
+        "mcp__figma__upload_assets"
+        "mcp__figma__send_*"
+        "mcp__figma__use_figma"
+        "mcp__figma__generate_*"
+        "mcp__figma__weave_run_*"
+        "mcp__figma__weave_upload_asset"
+        "mcp__figma__weave_cancel_tool_run"
+      ];
+    };
+  };
 }
