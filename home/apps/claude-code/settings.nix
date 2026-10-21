@@ -88,6 +88,11 @@ let
         # older copies; inside a bubble the session's own profile is profiles/active.
         "Read(~/.claude/profiles/*/credentials/.credentials.json)"
         "Read(~/.claude/profiles/.v2-backup/**)"
+        # Claude Code's own settings, in user scope (~/.claude) and in any checkout's project and local scope:
+        # a session that rewrites them can widen its own permissions or add hooks.
+        # Bash writes Claude Code can see (a `>` redirect) are refused as well; a script that writes the file still gets through.
+        "Edit(//**/.claude/settings.json)"
+        "Edit(//**/.claude/settings.local.json)"
       ];
       ask = lib.concatMap (integration: integration.claude.ask or [ ]) (lib.attrValues integrations);
       # The read-only half of each server, named one tool at a time rather than globbed.
