@@ -17,8 +17,7 @@ let
   # Same message formatting as the launcher and `cc profiles`, which take their own copy of the library too.
   logHelpers = builtins.readFile ../bubble/utilities/log.sh;
 
-  # GNOME shows a notification's banner and hands its clicks back only when it knows the app that sent it,
-  # so every job notification names this entry.
+  # The app every job notification names with the desktop-entry hint, Claude Code jobs with the tray's icon.
   desktopEntry = "claude-jobs";
   desktopItem = makeDesktopItem {
     name = desktopEntry;

@@ -25,8 +25,7 @@ die() {
 	exit 1
 }
 
-# Every notification names the package's desktop entry: GNOME files a notification from an app it cannot tell straight
-# under the clock, without a banner, and drops clicks on it.
+# The arguments every notification shares: its app name, the tray's icon and the package's desktop entry for the app.
 notification_args=(--app-name='Claude Code jobs' --icon="$icon" --hint=string:desktop-entry:@desktopEntry@)
 
 # notify-send waits on the notification daemon, so timeout keeps a missing daemon from holding up the run.
