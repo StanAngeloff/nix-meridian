@@ -57,7 +57,10 @@ open_on_click() {
 	action=$(timeout 1d notify-send "${notification_args[@]}" --action=default=Open --action=open=Open --wait "$@") || true
 	bubble_info "the notification closed with action '${action:-none}'"
 	if [[ "$action" == default || "$action" == open ]]; then
-		xdg-open "$file"
+		# xdg-open starts the viewer as a child of this unit, and systemd stops whatever is left in the unit once this
+		# returns. In a scope of its own the viewer keeps running after the unit has gone.
+		systemd-run --user --scope --quiet --collect --unit="claude-jobs-open-$(uuidgen).scope" xdg-open "$file" ||
+			xdg-open "$file"
 	fi
 }
 
