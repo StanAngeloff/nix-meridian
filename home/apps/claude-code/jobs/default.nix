@@ -168,6 +168,9 @@ in
       message = "nix-meridian.claude.jobs.${name}: set a trigger, such as triggers.schedule";
     }) jobs;
 
+    # The desktop entry the job notifications name, installed where GNOME looks for applications.
+    home.packages = [ claude-jobs.desktopItem ];
+
     systemd.user.services = lib.mapAttrs' (
       name: job:
       lib.nameValuePair "claude-job-${name}" {

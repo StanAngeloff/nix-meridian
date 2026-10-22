@@ -2,6 +2,7 @@
 #
 #   claude-jobs execute <job.json>   one run of a job, started by the job's systemd service
 #   cc jobs run <job>                start a job's service now instead of waiting for its schedule
+#   cc jobs open <job>               open the latest run's output, the file its notification opens
 #   cc jobs resume <job> [run]       reopen a run's session interactively, the latest run unless one is named
 #
 # A run keeps its files in $XDG_STATE_HOME/claude-jobs/<job>/<run>/: run.json for the latest attempt, result.md linked to
@@ -24,28 +25,38 @@ die() {
 	exit 1
 }
 
+# Every notification names the package's desktop entry: GNOME files a notification from an app it cannot tell straight
+# under the clock, without a banner, and drops clicks on it.
+notification_args=(--app-name='Claude Code jobs' --icon="$icon" --hint=string:desktop-entry:@desktopEntry@)
+
 # notify-send waits on the notification daemon, so timeout keeps a missing daemon from holding up the run.
 notify() {
-	timeout 5 notify-send --app-name='Claude Code jobs' --icon="$icon" "$@" || true
+	timeout 5 notify-send "${notification_args[@]}" "$@" || true
 }
 
 # Shows a notification that opens the file $1 when clicked, with the remaining arguments passed to notify-send.
 # Waiting for the click can take hours, so it runs in a unit of its own and the job's service ends meanwhile.
 # Without a user manager to start that unit in, the notification still shows, only without the click.
 notify_opening() {
-	local file=$1
+	local file=$1 error
 	shift
-	systemd-run --user --quiet --collect --no-block --unit="claude-jobs-notification-$(uuidgen)" \
-		"$self" open-on-click "$file" "$@" 2>/dev/null || notify "$@"
+	if ! error=$(systemd-run --user --quiet --collect --no-block --unit="claude-jobs-notification-$(uuidgen)" \
+		"$self" open-on-click "$file" "$@" 2>&1 >/dev/null); then
+		bubble_warn "could not start the notification in a unit of its own, so clicking it opens nothing" "$error"
+		notify "$@"
+	fi
 }
 
 # Shows the notification and opens $1 if it is clicked. notify_opening's unit runs this.
 open_on_click() {
-	local file=$1
+	local file=$1 action
 	shift
-	# notify-send --wait returns once the notification is clicked or dismissed. It prints the name of the action a click
-	# chose. A notification nobody touches for a day stops waiting.
-	if [[ "$(timeout 1d notify-send --app-name='Claude Code jobs' --icon="$icon" --action=default=Open --wait "$@")" == default ]]; then
+	# notify-send --wait returns once the notification is clicked or dismissed. It prints the name of the action chosen:
+	# default for a click on the notification itself, open for its Open button. A notification nobody touches for a day
+	# stops waiting.
+	action=$(timeout 1d notify-send "${notification_args[@]}" --action=default=Open --action=open=Open --wait "$@") || true
+	bubble_info "the notification closed with action '${action:-none}'"
+	if [[ "$action" == default || "$action" == open ]]; then
 		xdg-open "$file"
 	fi
 }
@@ -322,12 +333,27 @@ resume() {
 	launch env CLAUDE_BUBBLE_STRICT=0 claude-cc "${args[@]}"
 }
 
+# Opens what the latest run of a job left, the file its notification opens: the job's output when the run wrote it,
+# otherwise the last attempt's final message.
+open_latest() {
+	local name=$1 run_file report
+	run_file="$state_root/$name/latest/run.json"
+	[[ -f "$run_file" ]] || die "job $name has no runs yet" "its runs land in $state_root/$name"
+	report=$(jq -r '.output // empty' "$run_file")
+	if [[ -z "$report" || ! -s "$report" ]]; then
+		report="$state_root/$name/latest/result.md"
+	fi
+	bubble_info "opening $(abbreviate_home "$report")"
+	xdg-open "$report"
+}
+
 usage() {
 	cat >&2 <<'USAGE'
 Usage: cc jobs <command> [args]
 
 Commands:
   run <job>             Start a job now instead of waiting for its schedule
+  open <job>            Open the latest run's output, the file its notification opens
   resume <job> [<run>]  Reopen a run's session interactively, the latest run unless <run> names one
 
 The jobs are nix-meridian.claude.jobs. Each run keeps its files in ~/.local/state/claude-jobs/<job>/<run>/.
@@ -348,6 +374,10 @@ open-on-click)
 run)
 	[[ $# -eq 2 ]] || die "job name required" "usage: cc jobs run <job>"
 	run "$2"
+	;;
+open)
+	[[ $# -eq 2 ]] || die "job name required" "usage: cc jobs open <job>"
+	open_latest "$2"
 	;;
 resume)
 	[[ $# -eq 2 || $# -eq 3 ]] || die "job name required" "usage: cc jobs resume <job> [<run>]"
