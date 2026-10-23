@@ -127,6 +127,8 @@ let
       }
     ];
     promptSuggestionEnabled = false;
+    # Session recap, the one-line summary shown on return after being away; /config's "Session recap" toggle writes this undocumented key.
+    awaySummaryEnabled = false;
     # Idle compaction summarizes a 200K+ token conversation left idle for about 54 minutes, before its one-hour prompt cache expires.
     # Keep the conversation whole: compact only when context fills, or by hand.
     idleCompaction = false;
