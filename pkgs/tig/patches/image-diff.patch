@@ -1,0 +1,877 @@
+diff --git i/Makefile w/Makefile
+index f9ddf95..14c803a 100644
+--- i/Makefile
++++ w/Makefile
+@@ -361,10 +361,11 @@ TIG_OBJS = \
+ 	src/blob.o \
+ 	src/blame.o \
+ 	src/refs.o \
+ 	src/status.o \
+ 	src/stage.o \
++	src/image-diff.o \
+ 	src/main.o \
+ 	src/stash.o \
+ 	src/grep.o \
+ 	src/ui.o \
+ 	src/apps.o \
+diff --git i/include/tig/display.h w/include/tig/display.h
+index 04425e3..97d1b40 100644
+--- i/include/tig/display.h
++++ w/include/tig/display.h
+@@ -23,10 +23,11 @@ int get_input_char(void);
+ extern WINDOW *status_win;
+ 
+ void update_status(const char *msg, ...) PRINTF_LIKE(1, 2);
+ void update_status_with_context(const char *context, const char *msg, ...) PRINTF_LIKE(2, 3);
+ void report(const char *msg, ...) PRINTF_LIKE(1, 2);
++FILE *get_display_output(void);
+ void report_clear(void);
+ 
+ /*
+  * Display management.
+  */
+diff --git i/include/tig/image-diff.h w/include/tig/image-diff.h
+new file mode 100644
+index 0000000..95f9a7d
+--- /dev/null
++++ w/include/tig/image-diff.h
+@@ -0,0 +1,16 @@
++#ifndef TIG_IMAGE_DIFF_H
++#define TIG_IMAGE_DIFF_H
++
++#include "tig/view.h"
++#include "tig/status.h"
++
++bool image_diff_is_binary_file(const char *name);
++bool image_diff_is_binary_diff(struct view *view);
++void image_diff_reset(void);
++bool image_diff_load(struct view *view, const struct status *status, enum line_type stage_type);
++bool image_diff_active(struct view *view);
++void image_diff_adjust(int direction);
++bool image_diff_draw(struct view *view, struct line *line, unsigned int lineno);
++
++#endif
++/* vim: set ts=8 sw=8 noexpandtab: */
+diff --git i/include/tig/line.h w/include/tig/line.h
+index 34d4721..0ff40c8 100644
+--- i/include/tig/line.h
++++ w/include/tig/line.h
+@@ -41,10 +41,11 @@ struct ref;
+ 	_(DIFF_SIMILARITY,	"similarity "), \
+ 	_(DIFF_NO_NEWLINE,	"\\ No newline at end of file"), \
+ 	_(DIFF_ADD_HIGHLIGHT,	""), \
+ 	_(DIFF_DEL_HIGHLIGHT,	""), \
+ 	_(DIFF_HEADER_FILL,	""), \
++	_(IMAGE_DIFF,		""), \
+ 	_(ANNOTATION_MARK,	""), \
+ 	_(PP_MERGE,		"Merge: "), \
+ 	_(PP_REFS,		"Refs: "), \
+ 	_(PP_REFLOG,		"Reflog: "), \
+ 	_(PP_REFLOGMSG,		"Reflog message: "), \
+diff --git i/include/tig/options.h w/include/tig/options.h
+index 995999c..872a275 100644
+--- i/include/tig/options.h
++++ w/include/tig/options.h
+@@ -51,10 +51,11 @@ typedef struct view_column *view_settings;
+ 	_(history_size,			int,			VIEW_NO_FLAGS) \
+ 	_(horizontal_scroll,		double,			VIEW_NO_FLAGS) \
+ 	_(id_width,			int,			VIEW_LOG_LIKE) \
+ 	_(ignore_case,			enum ignore_case,	VIEW_NO_FLAGS) \
+ 	_(ignore_space,			enum ignore_space,	VIEW_DIFF_LIKE) \
++	_(image_diff_bin,		const char *,		VIEW_NO_FLAGS) \
+ 	_(line_graphics,		enum graphic,		VIEW_RESET_DISPLAY) \
+ 	_(log_options,			const char **,		VIEW_LOG_LIKE) \
+ 	_(log_view,			view_settings,		VIEW_NO_FLAGS) \
+ 	_(reflog_view,			view_settings,		VIEW_NO_FLAGS) \
+ 	_(mailmap,			bool,			VIEW_DIFF_LIKE | VIEW_LOG_LIKE) \
+diff --git i/src/display.c w/src/display.c
+index fefc1f4..5668692 100644
+--- i/src/display.c
++++ w/src/display.c
+@@ -41,10 +41,11 @@ struct display_tty {
+ 	int fd;
+ 	struct termios *attr;
+ 	pid_t opgrp;
+ };
+ static struct display_tty opt_tty = { NULL, -1, NULL, -1 };
++static FILE *display_output;
+ 
+ static struct io script_io = { -1 };
+ 
+ bool
+ is_script_executing(void)
+@@ -676,18 +677,20 @@ init_display(void)
+ 
+ 	/* Initialize the curses library */
+ 	if (!no_display && isatty(STDIN_FILENO)) {
+ 		/* Needed for ncurses 5.4 compatibility. */
+ 		cursed = !!initscr();
++		display_output = stdout;
+ 	} else {
+ 		/* Leave stdin and stdout alone when acting as a pager. */
+ 		FILE *out_tty;
+ 
+ 		out_tty = no_display ? fopen("/dev/null", "w+") : opt_tty.file;
+ 		if (!out_tty)
+ 			die("Failed to open tty for output");
+ 		cursed = !!newterm(NULL, out_tty, opt_tty.file);
++		display_output = out_tty;
+ 	}
+ 
+ 	if (!cursed)
+ 		die("Failed to initialize curses");
+ 
+@@ -718,10 +721,17 @@ init_display(void)
+ #else
+ 	TABSIZE = opt_tab_size;
+ #endif
+ }
+ 
++/* The stream curses draws on, for escape sequences curses has no call for. */
++FILE *
++get_display_output(void)
++{
++	return display_output;
++}
++
+ static bool
+ read_script(struct key *key)
+ {
+ 	static struct buffer input_buffer;
+ 	static const char *line = "";
+diff --git i/src/draw.c w/src/draw.c
+index b547875..53a54a0 100644
+--- i/src/draw.c
++++ w/src/draw.c
+@@ -13,10 +13,11 @@
+ 
+ #include "tig/tig.h"
+ #include "tig/graph.h"
+ #include "tig/draw.h"
+ #include "tig/diff.h"
++#include "tig/image-diff.h"
+ #include "tig/status.h"
+ #include "tig/options.h"
+ #include "tig/display.h"
+ #include "compat/hashtab.h"
+ 
+@@ -691,10 +692,13 @@ draw_view_line(struct view *view, unsigned int lineno)
+ 		set_view_attr(view, view == display[current_view] ? LINE_CURSOR : LINE_CURSOR_BLUR);
+ 		line->selected = true;
+ 		view->ops->select(view, line);
+ 	}
+ 
++	if (line->type == LINE_IMAGE_DIFF)
++		return image_diff_draw(view, line, lineno);
++
+ 	ok = view->ops->draw(view, line, lineno);
+ 
+ 	if (ok && line->search_result && *view->grep)
+ 		draw_view_line_search_result(view, lineno);
+ 
+diff --git i/src/image-diff.c w/src/image-diff.c
+new file mode 100644
+index 0000000..7518285
+--- /dev/null
++++ w/src/image-diff.c
+@@ -0,0 +1,604 @@
++/* Shows a single-file image diff in the stage view through the kitty graphics protocol.
++ *
++ * The program named by the image-diff-bin option renders both sides into raw RGBA files.
++ * tig asks the terminal to load each file as an image with a virtual placement, then draws the image as text:
++ * every cell is U+10EEEE followed by combining marks for its row, its column and the high byte of the image id,
++ * in a foreground color whose 256-color palette index is the id's low byte.
++ * Because the image is ordinary text, it scrolls with the view and tmux redraws it like any other cell.
++ */
++
++#include "tig/tig.h"
++#include "tig/io.h"
++#include "tig/repo.h"
++#include "tig/options.h"
++#include "tig/display.h"
++#include "tig/draw.h"
++#include "tig/line.h"
++#include "tig/image-diff.h"
++
++#define IMAGE_PLACEHOLDER	"\xf4\x8e\xbb\xae"	/* U+10EEEE */
++#define IMAGE_GAP		2	/* Columns between the old and the new panel. */
++#define IMAGE_MIN_ROWS		8
++#define IMAGE_OPACITY_STEP	10
++
++/* kitty's row and column marks: the index into this table is the value a mark encodes. */
++static const unsigned int image_marks[] = {
++	0x0305, 0x030D, 0x030E, 0x0310, 0x0312, 0x033D, 0x033E, 0x033F, 0x0346, 0x034A,
++	0x034B, 0x034C, 0x0350, 0x0351, 0x0352, 0x0357, 0x035B, 0x0363, 0x0364, 0x0365,
++	0x0366, 0x0367, 0x0368, 0x0369, 0x036A, 0x036B, 0x036C, 0x036D, 0x036E, 0x036F,
++	0x0483, 0x0484, 0x0485, 0x0486, 0x0487, 0x0592, 0x0593, 0x0594, 0x0595, 0x0597,
++	0x0598, 0x0599, 0x059C, 0x059D, 0x059E, 0x059F, 0x05A0, 0x05A1, 0x05A8, 0x05A9,
++	0x05AB, 0x05AC, 0x05AF, 0x05C4, 0x0610, 0x0611, 0x0612, 0x0613, 0x0614, 0x0615,
++	0x0616, 0x0617, 0x0657, 0x0658, 0x0659, 0x065A, 0x065B, 0x065D, 0x065E, 0x06D6,
++	0x06D7, 0x06D8, 0x06D9, 0x06DA, 0x06DB, 0x06DC, 0x06DF, 0x06E0, 0x06E1, 0x06E2,
++	0x06E4, 0x06E7, 0x06E8, 0x06EB, 0x06EC, 0x0730, 0x0732, 0x0733, 0x0735, 0x0736,
++	0x073A, 0x073D, 0x073F, 0x0740, 0x0741, 0x0743, 0x0745, 0x0747, 0x0749, 0x074A,
++	0x07EB, 0x07EC, 0x07ED, 0x07EE, 0x07EF, 0x07F0, 0x07F1, 0x07F3, 0x0816, 0x0817,
++	0x0818, 0x0819, 0x081B, 0x081C, 0x081D, 0x081E, 0x081F, 0x0820, 0x0821, 0x0822,
++	0x0823, 0x0825, 0x0826, 0x0827, 0x0829, 0x082A, 0x082B, 0x082C, 0x082D, 0x0951,
++	0x0953, 0x0954, 0x0F82, 0x0F83, 0x0F86, 0x0F87, 0x135D, 0x135E, 0x135F, 0x17DD,
++	0x193A, 0x1A17, 0x1A75, 0x1A76, 0x1A77, 0x1A78, 0x1A79, 0x1A7A, 0x1A7B, 0x1A7C,
++	0x1B6B, 0x1B6D, 0x1B6E, 0x1B6F, 0x1B70, 0x1B71, 0x1B72, 0x1B73, 0x1CD0, 0x1CD1,
++	0x1CD2, 0x1CDA, 0x1CDB, 0x1CE0, 0x1DC0, 0x1DC1, 0x1DC3, 0x1DC4, 0x1DC5, 0x1DC6,
++	0x1DC7, 0x1DC8, 0x1DC9, 0x1DCB, 0x1DCC, 0x1DD1, 0x1DD2, 0x1DD3, 0x1DD4, 0x1DD5,
++	0x1DD6, 0x1DD7, 0x1DD8, 0x1DD9, 0x1DDA, 0x1DDB, 0x1DDC, 0x1DDD, 0x1DDE, 0x1DDF,
++	0x1DE0, 0x1DE1, 0x1DE2, 0x1DE3, 0x1DE4, 0x1DE5, 0x1DE6, 0x1DFE, 0x20D0, 0x20D1,
++	0x20D4, 0x20D5, 0x20D6, 0x20D7, 0x20DB, 0x20DC, 0x20E1, 0x20E7, 0x20E9, 0x20F0,
++	0x2CEF, 0x2CF0, 0x2CF1, 0x2DE0, 0x2DE1, 0x2DE2, 0x2DE3, 0x2DE4, 0x2DE5, 0x2DE6,
++	0x2DE7, 0x2DE8, 0x2DE9, 0x2DEA, 0x2DEB, 0x2DEC, 0x2DED, 0x2DEE, 0x2DEF, 0x2DF0,
++	0x2DF1, 0x2DF2, 0x2DF3, 0x2DF4, 0x2DF5, 0x2DF6, 0x2DF7, 0x2DF8, 0x2DF9, 0x2DFA,
++	0x2DFB, 0x2DFC, 0x2DFD, 0x2DFE, 0x2DFF, 0xA66F, 0xA67C, 0xA67D, 0xA6F0, 0xA6F1,
++	0xA8E0, 0xA8E1, 0xA8E2, 0xA8E3, 0xA8E4, 0xA8E5, 0xA8E6, 0xA8E7, 0xA8E8, 0xA8E9,
++	0xA8EA, 0xA8EB, 0xA8EC, 0xA8ED, 0xA8EE, 0xA8EF, 0xA8F0, 0xA8F1, 0xAAB0, 0xAAB2,
++	0xAAB3, 0xAAB7, 0xAAB8, 0xAABE, 0xAABF, 0xAAC1, 0xFE20, 0xFE21, 0xFE22, 0xFE23,
++	0xFE24, 0xFE25, 0xFE26, 0x10A0F, 0x10A38, 0x1D185, 0x1D186, 0x1D187, 0x1D188, 0x1D189,
++	0x1D1AA, 0x1D1AB, 0x1D1AC, 0x1D1AD, 0x1D242, 0x1D243, 0x1D244,
++};
++
++#define IMAGE_MAX_CELLS ((int) ARRAY_SIZE(image_marks))
++
++struct image_panel {
++	bool present;
++	unsigned int width, height;	/* Pixels in the raw RGBA file. */
++	char path[SIZEOF_STR];
++	const char *label;
++};
++
++static struct {
++	struct view *view;		/* The stage view showing an image, or NULL. */
++	struct image_panel panels[2];	/* Old, then new. */
++	bool has_mask;
++	bool skipped;			/* The helper found no image, which is no news. */
++	char note[SIZEOF_STR];
++	char error[SIZEOF_STR];
++	size_t label_line;		/* The label row; the image rows follow it. */
++	int rows;
++	int placed_columns;		/* Panel width in cells at the last placement. */
++} image_diff;
++
++static unsigned int image_ids[2];
++static short image_pairs[2];
++static int image_opacity = 50;
++static char image_cache_dir[SIZEOF_STR];
++static pid_t image_owner_pid;
++static int image_tmux_layers;
++
++static size_t
++image_encode_utf8(unsigned int codepoint, char *out)
++{
++	if (codepoint < 0x80) {
++		out[0] = codepoint;
++		return 1;
++	}
++	if (codepoint < 0x800) {
++		out[0] = 0xc0 | (codepoint >> 6);
++		out[1] = 0x80 | (codepoint & 0x3f);
++		return 2;
++	}
++	if (codepoint < 0x10000) {
++		out[0] = 0xe0 | (codepoint >> 12);
++		out[1] = 0x80 | ((codepoint >> 6) & 0x3f);
++		out[2] = 0x80 | (codepoint & 0x3f);
++		return 3;
++	}
++	out[0] = 0xf0 | (codepoint >> 18);
++	out[1] = 0x80 | ((codepoint >> 12) & 0x3f);
++	out[2] = 0x80 | ((codepoint >> 6) & 0x3f);
++	out[3] = 0x80 | (codepoint & 0x3f);
++	return 4;
++}
++
++static void
++image_base64(const char *input, char *output, size_t output_size)
++{
++	static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
++	size_t length = strlen(input), in = 0, out = 0;
++
++	while (in < length && out + 5 < output_size) {
++		unsigned int chunk = (unsigned char) input[in] << 16;
++		size_t available = MIN(length - in, 3);
++
++		if (available > 1)
++			chunk |= (unsigned char) input[in + 1] << 8;
++		if (available > 2)
++			chunk |= (unsigned char) input[in + 2];
++
++		output[out++] = alphabet[(chunk >> 18) & 0x3f];
++		output[out++] = alphabet[(chunk >> 12) & 0x3f];
++		output[out++] = available > 1 ? alphabet[(chunk >> 6) & 0x3f] : '=';
++		output[out++] = available > 2 ? alphabet[chunk & 0x3f] : '=';
++		in += 3;
++	}
++	output[out] = 0;
++}
++
++/* Counts the tmux servers a graphics command crosses on its way to the terminal.
++ * The client showing this pane adds one when it runs inside tmux itself, as a client attached from a tmux popup does.
++ * Nothing links a popup to the client that shows it, so nesting deeper than that is not followed. */
++static int
++image_count_tmux_layers(void)
++{
++	const char *tmux = getenv("TMUX");
++	const char *pane = getenv("TMUX_PANE");
++	const char *argv[] = { "tmux", "display-message", "-p", "-t", pane, "#{client_pid}", NULL };
++	char client_pid[SIZEOF_STR];
++	char environment_path[SIZEOF_STR];
++	char *entry = NULL;
++	size_t entry_size = 0;
++	int layers = 1;
++	FILE *file;
++
++	if (!tmux || !*tmux)
++		return 0;
++	if (!pane || !*pane || !io_run_buf(argv, client_pid, sizeof(client_pid), NULL, false) ||
++	    !string_format(environment_path, "/proc/%s/environ", client_pid) ||
++	    !(file = fopen(environment_path, "r")))
++		return layers;
++
++	while (getdelim(&entry, &entry_size, '\0', file) > 0)
++		if (!prefixcmp(entry, "TMUX=") && entry[STRING_SIZE("TMUX=")])
++			layers = 2;
++	free(entry);
++	fclose(file);
++	return layers;
++}
++
++/* Writes a graphics command to the terminal at once.
++ * putp would leave it in stdio's buffer until the next newline; curses empties its own buffer after every screen update,
++ * so the command still lands in order with the screen. */
++static void
++image_send(const char *command)
++{
++	FILE *output = get_display_output();
++	char sequence[SIZEOF_STR * 4], wrapped[SIZEOF_STR * 4];
++	int layer;
++
++	if (!output || !string_format(sequence, "\033_G%s\033\\", command))
++		return;
++
++	/* tmux drops escape sequences it does not know, and each tmux layer unwraps one passthrough: ESC P tmux; ... ESC \,
++	 * with every ESC inside doubled. */
++	for (layer = 0; layer < image_tmux_layers; layer++) {
++		size_t in, out = STRING_SIZE("\033Ptmux;");
++
++		memcpy(wrapped, "\033Ptmux;", out);
++		for (in = 0; sequence[in]; in++) {
++			if (out + 4 >= sizeof(wrapped))
++				return;
++			if (sequence[in] == '\033')
++				wrapped[out++] = '\033';
++			wrapped[out++] = sequence[in];
++		}
++		memcpy(wrapped + out, "\033\\", 3);
++		string_copy(sequence, wrapped);
++	}
++
++	fputs(sequence, output);
++	fflush(output);
++}
++
++/* q=2 keeps the terminal from answering, since an answer would arrive as keyboard input. */
++static void
++image_transmit(int index, int columns)
++{
++	struct image_panel *panel = &image_diff.panels[index];
++	char path[SIZEOF_STR * 2];
++	char command[SIZEOF_STR * 3];
++
++	image_base64(panel->path, path, sizeof(path));
++	string_format(command, "a=T,U=1,q=2,f=32,t=f,s=%u,v=%u,i=%u,p=1,c=%d,r=%d;%s",
++		      panel->width, panel->height, image_ids[index], columns, image_diff.rows, path);
++	image_send(command);
++}
++
++static void
++image_place(int index, int columns)
++{
++	char command[SIZEOF_STR];
++
++	string_format(command, "a=p,U=1,q=2,i=%u,p=1,c=%d,r=%d", image_ids[index], columns, image_diff.rows);
++	image_send(command);
++}
++
++static int
++image_panel_columns(struct view *view)
++{
++	bool both = image_diff.panels[0].present && image_diff.panels[1].present;
++	int width = getmaxx(view->win);
++	int columns = both ? (width - IMAGE_GAP) / 2 : width;
++
++	return MIN(MAX(columns, 1), IMAGE_MAX_CELLS);
++}
++
++/* A lone panel starts at the left edge, whichever side it is. */
++static int
++image_panel_x(int index, int columns)
++{
++	return index == 1 && image_diff.panels[0].present ? columns + IMAGE_GAP : 0;
++}
++
++static const char *
++image_cache(void)
++{
++	if (!*image_cache_dir) {
++		const char *runtime = getenv("XDG_RUNTIME_DIR");
++		char parent[SIZEOF_STR], lock_path[SIZEOF_STR];
++		int lock_fd;
++
++		if (!runtime || !*runtime)
++			runtime = get_temp_dir();
++		string_format(parent, "%s/tig-image-diff", runtime);
++		string_format(image_cache_dir, "%s/%d", parent, (int) getpid());
++
++		/* Held until tig exits and never closed, so the helper can sweep the caches of tig processes that died.
++		 * Close-on-exec keeps the helper and git from holding it on after tig is gone. */
++		if (string_format(lock_path, "%s.lock", image_cache_dir) &&
++		    (mkdir(parent, 0700) == 0 || errno == EEXIST) &&
++		    (lock_fd = open(lock_path, O_RDWR | O_CREAT | O_CLOEXEC, 0600)) >= 0)
++			flock(lock_fd, LOCK_EX);
++	}
++	return image_cache_dir;
++}
++
++static enum status_code
++image_read_fact(char *name, size_t namelen, char *value, size_t valuelen, void *data)
++{
++	int index = !strcmp(name, "old") ? 0 : !strcmp(name, "new") ? 1 : -1;
++
++	if (index >= 0) {
++		struct image_panel *panel = &image_diff.panels[index];
++		int offset = 0;
++
++		if (sscanf(value, "%u %u %n", &panel->width, &panel->height, &offset) == 2 && offset > 0) {
++			string_ncopy(panel->path, value + offset, strlen(value + offset));
++			panel->present = true;
++		}
++	} else if (!strcmp(name, "mask")) {
++		image_diff.has_mask = true;
++	} else if (!strcmp(name, "note")) {
++		string_ncopy(image_diff.note, value, valuelen);
++	} else if (!strcmp(name, "skip")) {
++		image_diff.skipped = true;
++	} else if (!strcmp(name, "error")) {
++		string_ncopy(image_diff.error, value, valuelen);
++	}
++
++	return SUCCESS;
++}
++
++static bool
++image_run_helper(const char *argv[])
++{
++	struct io io;
++
++	image_diff.error[0] = 0;
++	image_diff.skipped = false;
++	if (!io_run(&io, IO_RD, repo.exec_dir, NULL, argv)) {
++		string_format(image_diff.error, "cannot run %s", opt_image_diff_bin);
++		return false;
++	}
++	if (io_load(&io, " ", image_read_fact, NULL) != SUCCESS && !*image_diff.error && !image_diff.skipped)
++		string_copy(image_diff.error, "the helper failed");
++
++	return !*image_diff.error && !image_diff.skipped;
++}
++
++static bool
++image_init_ids(void)
++{
++	static bool initialized;
++	struct line_info *info;
++	int top, index;
++
++	if (initialized)
++		return true;
++
++	/* The id's low byte is a 256-color palette index. */
++	if (COLORS < 256)
++		return false;
++
++	/* Random ids, because every tmux pane shares one terminal screen and its images. */
++	srand(time(NULL) ^ getpid());
++	image_ids[0] = 16 + rand() % 240;
++	do {
++		image_ids[1] = 16 + rand() % 240;
++	} while (image_ids[1] == image_ids[0]);
++	for (index = 0; index < 2; index++)
++		image_ids[index] |= (unsigned int) (1 + rand() % 255) << 24;
++
++	/* Pairs at the top of the range stay clear of the ones tig allocates upwards from 1. */
++	top = MIN(COLOR_PAIRS, 32768) - 1;
++	info = get_line_info(NULL, LINE_DEFAULT);
++	for (index = 0; index < 2; index++) {
++		image_pairs[index] = top - index;
++		if (init_pair(image_pairs[index], image_ids[index] & 0xff, info->bg) == ERR)
++			return false;
++	}
++
++	initialized = true;
++	return true;
++}
++
++static void
++image_diff_exit(void)
++{
++	const char *argv[] = { opt_image_diff_bin, "cleanup", "--cache", image_cache(), NULL };
++	char command[SIZEOF_STR];
++	int index;
++
++	/* Children that fail to start a program exit through here too; only tig itself cleans up. */
++	if (getpid() != image_owner_pid)
++		return;
++
++	/* Sent before done_display's endwin leaves the alternate screen the images live on. */
++	for (index = 0; index < 2; index++) {
++		string_format(command, "a=d,d=I,q=2,i=%u", image_ids[index]);
++		image_send(command);
++	}
++	io_run_bg(argv, NULL);
++}
++
++static void
++image_report(void)
++{
++	if (image_diff.has_mask)
++		report("%s · highlight %d%%", image_diff.note, image_opacity);
++	else
++		report("%s", image_diff.note);
++}
++
++/* Git's own test: a NUL byte in the first 8000 bytes makes a file binary. */
++bool
++image_diff_is_binary_file(const char *name)
++{
++	char path[SIZEOF_STR];
++	char buf[8000];
++	FILE *file;
++	size_t size;
++
++	if (!opt_image_diff_bin || !*opt_image_diff_bin ||
++	    !string_format(path, "%s%s", repo.exec_dir, name) ||
++	    !(file = fopen(path, "rb")))
++		return false;
++
++	size = fread(buf, 1, sizeof(buf), file);
++	fclose(file);
++	return memchr(buf, 0, size) != NULL;
++}
++
++/* Git prints "Binary files ... differ" for a binary file and the pointer text for a Git LFS file. */
++bool
++image_diff_is_binary_diff(struct view *view)
++{
++	size_t index;
++
++	if (!opt_image_diff_bin || !*opt_image_diff_bin)
++		return false;
++
++	for (index = 0; index < view->lines; index++) {
++		const char *text;
++
++		if (!view->line[index].data)
++			continue;
++		text = box_text(&view->line[index]);
++		if (!prefixcmp(text, "Binary files ") ||
++		    strstr(text, "version https://git-lfs.github.com/spec/v1"))
++			return true;
++	}
++
++	return false;
++}
++
++void
++image_diff_reset(void)
++{
++	image_diff.view = NULL;
++}
++
++bool
++image_diff_active(struct view *view)
++{
++	return image_diff.view == view && image_diff.label_line < view->lines &&
++	       view->line[image_diff.label_line].type == LINE_IMAGE_DIFF;
++}
++
++bool
++image_diff_load(struct view *view, const struct status *status, enum line_type stage_type)
++{
++	const char *old_revision = status->old.rev;
++	const char *new_revision = status->new.rev;
++	const char *old_path = *status->old.name ? status->old.name : status->new.name;
++	char opacity[8];
++	const char *argv[] = {
++		opt_image_diff_bin, "prepare", "--cache", image_cache(),
++		"--path", status->new.name, "--old-path", old_path,
++		"--old", NULL, "--new", NULL, "--opacity", opacity, NULL
++	};
++	int columns, height, index, row;
++
++	if (!opt_image_diff_bin || !*opt_image_diff_bin || status->status == 'U')
++		return false;
++
++	memset(&image_diff, 0, sizeof(image_diff));
++	switch (stage_type) {
++	case LINE_STAT_STAGED:
++		image_diff.panels[0].label = "old (HEAD)";
++		image_diff.panels[1].label = "new (index)";
++		break;
++
++	case LINE_STAT_UNSTAGED:
++		image_diff.panels[0].label = "old (index)";
++		image_diff.panels[1].label = "new (working tree)";
++		new_revision = "worktree";
++		break;
++
++	case LINE_STAT_UNTRACKED:
++		image_diff.panels[1].label = "new (untracked)";
++		old_revision = NULL_ID;
++		new_revision = "worktree";
++		break;
++
++	default:
++		return false;
++	}
++
++	argv[9] = old_revision;
++	argv[11] = new_revision;
++	image_tmux_layers = image_count_tmux_layers();
++	string_format(opacity, "%d", image_opacity);
++
++	if (!image_run_helper(argv) || !(image_diff.panels[0].present || image_diff.panels[1].present)) {
++		if (!image_diff.skipped)
++			report("Image diff: %s", *image_diff.error ? image_diff.error : "the helper printed no image");
++		return false;
++	}
++
++	if (!image_init_ids()) {
++		report("Image diff needs a terminal with 256 colors");
++		return false;
++	}
++
++	/* Fit the image under the diff text when there is room, else give it the whole view and let it scroll. */
++	height = view->height > 1 ? view->height : LINES - 2;
++	image_diff.rows = height - 1 - (int) view->lines;
++	if (image_diff.rows < IMAGE_MIN_ROWS)
++		image_diff.rows = height - 1;
++	image_diff.rows = MIN(MAX(image_diff.rows, 1), IMAGE_MAX_CELLS);
++
++	columns = image_panel_columns(view);
++	for (index = 0; index < 2; index++)
++		if (image_diff.panels[index].present)
++			image_transmit(index, columns);
++	image_diff.placed_columns = columns;
++
++	if (!image_owner_pid && !atexit(image_diff_exit))
++		image_owner_pid = getpid();
++
++	image_diff.label_line = view->lines;
++	for (row = 0; row <= image_diff.rows; row++)
++		if (!add_line_text(view, "", LINE_IMAGE_DIFF))
++			return false;
++
++	image_diff.view = view;
++	image_report();
++	return true;
++}
++
++void
++image_diff_adjust(int direction)
++{
++	int opacity = MIN(MAX(image_opacity + direction * IMAGE_OPACITY_STEP, 0), 100);
++	char opacity_arg[8];
++	const char *argv[] = { opt_image_diff_bin, "tint", "--cache", image_cache(), "--opacity", opacity_arg, NULL };
++
++	if (!image_diff.has_mask) {
++		report("%s · nothing to highlight", image_diff.note);
++		return;
++	}
++
++	if (opacity != image_opacity) {
++		string_format(opacity_arg, "%d", opacity);
++		if (!image_run_helper(argv)) {
++			report("Image diff: %s", image_diff.error);
++			return;
++		}
++		image_opacity = opacity;
++		image_transmit(1, image_diff.placed_columns);
++	}
++
++	image_report();
++}
++
++static void
++image_draw_cells(struct view *view, unsigned int lineno, int index, int row, int columns)
++{
++	char cells[IMAGE_MAX_CELLS * 16];
++	char row_mark[4], high_mark[4];
++	size_t row_size = image_encode_utf8(image_marks[row], row_mark);
++	size_t high_size = image_encode_utf8(image_marks[image_ids[index] >> 24], high_mark);
++	size_t size = 0;
++	int column;
++
++	for (column = 0; column < columns; column++) {
++		memcpy(cells + size, IMAGE_PLACEHOLDER, STRING_SIZE(IMAGE_PLACEHOLDER));
++		size += STRING_SIZE(IMAGE_PLACEHOLDER);
++		memcpy(cells + size, row_mark, row_size);
++		size += row_size;
++		size += image_encode_utf8(image_marks[column], cells + size);
++		memcpy(cells + size, high_mark, high_size);
++		size += high_size;
++	}
++
++	wattr_set(view->win, A_NORMAL, image_pairs[index], NULL);
++	mvwaddnstr(view->win, lineno, image_panel_x(index, columns), cells, size);
++}
++
++bool
++image_diff_draw(struct view *view, struct line *line, unsigned int lineno)
++{
++	size_t line_index = line - view->line;
++	int width = getmaxx(view->win);
++	int columns, index, row;
++
++	wmove(view->win, lineno, 0);
++	wclrtoeol(view->win);
++
++	if (!image_diff_active(view) || line_index < image_diff.label_line)
++		return true;
++
++	columns = image_panel_columns(view);
++	if (columns != image_diff.placed_columns) {
++		for (index = 0; index < 2; index++)
++			if (image_diff.panels[index].present)
++				image_place(index, columns);
++		image_diff.placed_columns = columns;
++	}
++
++	/* The cursor shows as a bar under the labels, or around the panels on an image row. */
++	if (line->selected) {
++		for (index = 0; index < width; index++)
++			waddch(view->win, ' ');
++	} else {
++		(void) wattrset(view->win, get_view_attr(view, LINE_IMAGE_DIFF));
++	}
++
++	if (line_index == image_diff.label_line) {
++		for (index = 0; index < 2; index++)
++			if (image_diff.panels[index].present)
++				mvwaddnstr(view->win, lineno, image_panel_x(index, columns),
++					   image_diff.panels[index].label, columns);
++		return true;
++	}
++
++	row = line_index - image_diff.label_line - 1;
++	if (row < image_diff.rows) {
++		for (index = 0; index < 2; index++)
++			if (image_diff.panels[index].present)
++				image_draw_cells(view, lineno, index, row, columns);
++		wattr_set(view->win, A_NORMAL, 0, NULL);
++	}
++
++	return true;
++}
++
++/* vim: set ts=8 sw=8 noexpandtab: */
+diff --git i/src/stage.c w/src/stage.c
+index 9b4ddec..2d7b413 100644
+--- i/src/stage.c
++++ w/src/stage.c
+@@ -24,10 +24,11 @@
+ #include "tig/diff.h"
+ #include "tig/status.h"
+ #include "tig/main.h"
+ #include "tig/stage.h"
+ #include "tig/search.h"
++#include "tig/image-diff.h"
+ 
+ static struct status stage_status;
+ static enum line_type stage_line_type;
+ 
+ typedef enum
+@@ -51,10 +52,11 @@ open_stage_view(struct view *prev, struct status *status, enum line_type type, e
+ 	open_view(prev, &stage_view, flags);
+ }
+ 
+ struct stage_state {
+ 	struct diff_state diff;
++	bool image_untracked;	/* An untracked binary file, shown as an image instead of its bytes. */
+ };
+ 
+ static inline bool
+ stage_diff_done(struct line *line, struct line *end)
+ {
+@@ -674,10 +676,18 @@ stage_request(struct view *view, enum request request, struct line *line)
+ 		return request;
+ 
+ 	case REQ_ENTER:
+ 		return diff_common_enter(view, request, line);
+ 
++	/* A single file has no other diff to move to, so these keys tune the image highlight instead. */
++	case REQ_MOVE_PREV_DIFF:
++	case REQ_MOVE_NEXT_DIFF:
++		if (!image_diff_active(view))
++			return request;
++		image_diff_adjust(request == REQ_MOVE_NEXT_DIFF ? 1 : -1);
++		return REQ_NONE;
++
+ 	default:
+ 		return request;
+ 	}
+ 
+ 	/* Check whether the staged entry still exists, and close the
+@@ -774,10 +784,14 @@ stage_open(struct view *view, enum open_flags flags)
+ 	state->diff.stage = true;
+ 
+ 	if (stage_line_type != LINE_STAT_UNTRACKED)
+ 		diff_save_line(view, &state->diff, flags);
+ 
++	image_diff_reset();
++	state->image_untracked = stage_line_type == LINE_STAT_UNTRACKED &&
++				 image_diff_is_binary_file(stage_status.new.name);
++
+ 	view->vid[0] = 0;
+ 	code = begin_update(view, repo.exec_dir, argv, flags | OPEN_WITH_STDERR);
+ 	if (code == SUCCESS && stage_line_type != LINE_STAT_UNTRACKED)
+ 		return diff_init_highlight(view, &state->diff);
+ 
+@@ -790,12 +804,18 @@ stage_read(struct view *view, struct buffer *buf, bool force_stop)
+ 	struct stage_state *state = view->private;
+ 
+ 	if (!stage_line_type)
+ 		return true;
+ 
+-	if (stage_line_type == LINE_STAT_UNTRACKED)
++	if (stage_line_type == LINE_STAT_UNTRACKED) {
++		if (state->image_untracked) {
++			if (!buf && !force_stop && !image_diff_load(view, &stage_status, stage_line_type))
++				add_line_text(view, "Binary file not shown", LINE_DEFAULT);
++			return true;
++		}
+ 		return pager_common_read(view, buf ? buf->data : NULL, LINE_DEFAULT, NULL);
++	}
+ 
+ 	if (!buf) {
+ 		if (!diff_done_highlight(&state->diff)) {
+ 			if (!force_stop)
+ 				report("Failed to run the diff-highlight program: %s", opt_diff_highlight);
+@@ -810,10 +830,13 @@ stage_read(struct view *view, struct buffer *buf, bool force_stop)
+ 			return false;
+ 		}
+ 
+ 		diff_restore_line(view, &state->diff);
+ 
++		if (!force_stop && image_diff_is_binary_diff(view))
++			image_diff_load(view, &stage_status, stage_line_type);
++
+ 		return true;
+ 	}
+ 
+ 	return diff_common_read(view, buf->data, &state->diff);
+ }

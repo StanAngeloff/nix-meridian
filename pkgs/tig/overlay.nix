@@ -5,5 +5,6 @@ tig.overrideAttrs (prev: {
     ./patches/diff-line-fill.patch
     ./patches/echo-status-survives.patch
     ./patches/annotation-marks.patch
+    ./patches/image-diff.patch
   ];
 })

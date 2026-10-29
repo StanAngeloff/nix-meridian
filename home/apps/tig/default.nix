@@ -12,6 +12,9 @@ let
   # Owns the note store and the export; see annotate/store.py.
   tigAnnotateStore = pkgs.callPackage ./annotate/store.nix { };
 
+  # Renders the stage view's image diffs; see image-diff/helper.py.
+  tigImageDiff = pkgs.callPackage ./image-diff/package.nix { };
+
   tigAnnotate = pkgs.writeShellApplication {
     name = "tig-annotate";
     bashOptions = [
@@ -36,7 +39,9 @@ in
     tigAnnotate
   ];
 
-  home.file.".config/tig/config".source = ./tigrc;
+  home.file.".config/tig/config".text =
+    builtins.replaceStrings [ "@tigImageDiff@" ] [ (lib.getExe tigImageDiff) ]
+      (builtins.readFile ./tigrc);
   home.file.".config/tig/vim.tigrc".text =
     builtins.readFile ./vim.tigrc
     + builtins.replaceStrings [ "@tigAnnotate@" ] [ (lib.getExe tigAnnotate) ] (

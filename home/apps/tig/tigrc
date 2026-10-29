@@ -49,3 +49,8 @@ bind pager ] move-next-diff
 bind pager [ move-prev-diff
 bind diff ] move-next-diff
 bind diff [ move-prev-diff
+# On an image, the stage view turns these into fading the tint on changed pixels (pkgs/tig/patches/image-diff.patch).
+bind stage ] move-next-diff
+bind stage [ move-prev-diff
+
+set image-diff-bin = @tigImageDiff@
