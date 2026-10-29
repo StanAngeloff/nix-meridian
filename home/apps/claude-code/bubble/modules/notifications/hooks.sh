@@ -3,10 +3,12 @@
 
 notifications_prepare() {
 	# Event channel to the relay; lives under the writable ~/.claude so in-bubble hooks can append to it and the host relay can read it.
-	# mktemp: several sessions may run in the same project directory simultaneously, one event channel each.
+	# bubble_id: several sessions may run in the same project directory simultaneously, one event channel each.
 	event_path="$home_path/.claude/bubble-events"
 	mkdir -p "$event_path"
-	event_file="$(mktemp "$event_path/$(basename "$project_path").XXXXXX")"
+	event_file="$event_path/$(basename "$project_path").$bubble_id"
+	# Created exclusively and private, as mktemp did: a leftover of a crashed session with a reissued identifier fails the launch.
+	(umask 077 && set -o noclobber && : >"$event_file")
 }
 
 notifications_environment() {

@@ -93,6 +93,9 @@ while [[ $index -lt ${#args[@]} ]]; do
 done
 
 scratch_path="$(mktemp -d "/tmp/claude-bubble.$user_id.XXXXXX")"
+# The launch's one identifier, unique among live sessions: every other per-session name reuses it,
+# so the scope, the state directory and the event file of one session share a suffix.
+bubble_id="${scratch_path##*.}"
 
 @moduleFunctions@
 

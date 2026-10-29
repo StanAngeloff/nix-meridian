@@ -16,8 +16,8 @@ lifetime_before_run() {
 		bubble_warn "systemd user manager unreachable: processes this session detaches will outlive it"
 		return 0
 	fi
-	# The scratch directory's random suffix is unique among live sessions, so sessions in one project get distinct units.
-	lifetime_unit_name="claude-bubble-${scratch_path##*.}"
+	# bubble_id is unique among live sessions, so sessions in one project get distinct units.
+	lifetime_unit_name="claude-bubble-$bubble_id"
 	launcher_args+=(
 		systemd-run --user --scope --quiet --collect
 		--unit="$lifetime_unit_name"

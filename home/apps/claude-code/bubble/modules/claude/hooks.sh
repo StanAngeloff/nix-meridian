@@ -2,10 +2,14 @@ claude_prepare() {
 	# Claude Code slugifies with path.replace(/[^a-zA-Z0-9]/g, "-").
 	project_slug="${project_path//[^a-zA-Z0-9]/-}"
 	mkdir -p "$home_path/.claude/projects/$project_slug"
-	# Scratch-backed overlay replaces a kernel tmpfs so the contents survive bwrap's exit
-	# and claude_after_run can merge stray directories (worktree slugs) back into the project.
-	projects_overlay="$scratch_path/projects-overlay"
-	mkdir -p "$projects_overlay"
+	# Stray project directories land here, notably worktree slugs: EnterWorktree moves the session's transcript into one.
+	# On disk rather than in the scratch directory under /tmp, which lives in memory, so a crash leaves them for manual recovery.
+	# No bubble mounts the state directory, so sessions still cannot read one another's transcripts.
+	local projects_state_path="${XDG_STATE_HOME:-$home_path/.local/state}/claude-bubble/projects"
+	mkdir -p "$projects_state_path"
+	# No -p: an identifier reissued after a crash wiped /tmp must not adopt that session's leftovers.
+	mkdir "$projects_state_path/$bubble_id"
+	projects_overlay="$projects_state_path/$bubble_id"
 	# Cross-session messaging (SendMessage, ListAgents) finds a peer through the socket path its ~/.claude/sessions entry records,
 	# $XDG_RUNTIME_DIR/cc-socks/<pid>.sock. Created host-side so every session shares one directory (see claude_mount).
 	mkdir -p "$xdg_runtime_path/cc-socks"
@@ -35,6 +39,8 @@ claude_after_run() {
 	local stray stray_name stray_files target is_worktree target_display
 	for stray in "$projects_overlay"/*/; do
 		[[ -d "$stray" ]] || continue
+		# The glob's trailing slash would defeat the "$stray/" prefix strip in the conflict scan.
+		stray="${stray%/}"
 		stray_name="$(basename "$stray")"
 		[[ "$stray_name" == "$project_slug" ]] && continue
 		# Claude Code registers project directories for paths it works in — notably git worktrees it
@@ -72,16 +78,18 @@ claude_after_run() {
 				fi
 			done < <(find "$stray" -type f -print0)
 			if ! cp -a -n "$stray"/. "$target"/; then
-				bubble_error "failed to merge some session data into $(abbreviate_home "$target") — unsaved files will be lost with scratch cleanup"
+				bubble_error "failed to merge some session data into $(abbreviate_home "$target") — left in $(abbreviate_home "$stray")"
+			elif [[ ${#failed[@]} -eq 0 ]]; then
+				rm -rf "$stray"
 			fi
 		else
 			if ! mv "$stray" "$target"; then
-				bubble_error "failed to move session data to $(abbreviate_home "$target") — files will be lost with scratch cleanup"
+				bubble_error "failed to move session data to $(abbreviate_home "$target") — left in $(abbreviate_home "$stray")"
 			fi
 		fi
 		target_display="$(abbreviate_home "$target")"
 		if [[ ${#failed[@]} -gt 0 ]]; then
-			bubble_error "failed to save ${#failed[@]} conflicting file(s) — worktree versions lost:" \
+			bubble_error "failed to save ${#failed[@]} conflicting file(s) — worktree versions left in $(abbreviate_home "$stray"):" \
 				"${failed[*]}"
 		fi
 		if [[ -n "$is_worktree" ]]; then
@@ -95,4 +103,12 @@ claude_after_run() {
 			bubble_warn "moved stray session data to $target_display"
 		fi
 	done
+}
+
+claude_cleanup() {
+	# Removes what claude_after_run emptied and keeps every directory still holding files:
+	# its merge failed, or the session ended through the EXIT trap alone (a closed pane) and claude_after_run never ran.
+	if [[ -d "${projects_overlay:-}" ]]; then
+		find "$projects_overlay" -type d -empty -delete 2>/dev/null || true
+	fi
 }
