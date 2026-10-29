@@ -1,4 +1,7 @@
 { inputs, system }:
+let
+  nixpkgs-unstable = inputs.nixpkgs-unstable.legacyPackages.${system};
+in
 final: prev: {
   # nixfmt: off
   curlconverter = final.callPackage ./curlconverter/package.nix { };
@@ -6,12 +9,12 @@ final: prev: {
   infonotary-idprime = final.callPackage ./infonotary-idprime/package.nix { };
   infonotary-client-software = final.callPackage ./infonotary-client-software/package.nix { };
   heidisql = final.qt6Packages.callPackage ./heidisql/package.nix { };
-  ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = prev.ghostty; };
+  ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = nixpkgs-unstable.ghostty; };
   git-lines = final.callPackage ./git-lines/package.nix { };
   slopsift = final.callPackage ./slopsift/package.nix { };
   cc-safety-net = final.callPackage ./cc-safety-net/package.nix { };
   ataraxy-sem = final.callPackage ./ataraxy-sem/package.nix { };
-  plannotator = final.callPackage ./plannotator/package.nix { electron = inputs.nixpkgs-unstable.legacyPackages.${system}.electron; };
+  plannotator = final.callPackage ./plannotator/package.nix { electron = nixpkgs-unstable.electron; };
   academic-forge = final.callPackage ./academic-forge/package.nix { };
   ponytail = final.callPackage ./ponytail/package.nix { };
   cursor-plugins = final.callPackage ./cursor-plugins/package.nix { };
