@@ -64,6 +64,12 @@
           };
           nixd = {
             enable = true;
+            # NOTE: nixd's default --log=info traces every request and reply to stderr,
+            #       and Neovim writes each stderr chunk to lsp.log as an ERROR line.
+            cmd = [
+              "nixd"
+              "--log=error"
+            ];
             settings = {
               formatting.command = [ "nixpkgs-fmt" ];
             };
