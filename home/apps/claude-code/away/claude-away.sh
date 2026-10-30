@@ -1,11 +1,16 @@
 # shellcheck shell=bash
 # PermissionRequest hook for away mode: denies a prompt nobody answered in time.
-# The away mod (mod/hooks/register.tsx) adds away_timeout_seconds to this hook's input while its session is in away mode;
-# without it the hook passes at once. Claude Code runs this hook beside the dialog, so an answer from the person before the
-# deadline wins and the deny printed after it is dropped.
+# The away mod (mod/hooks/register.tsx) sets CLAUDE_AWAY in the session's environment while away mode is on: JSON with the session_id
+# and timeout_seconds. Without it, or when it names another session (a claude started from the Bash tool inherits it), the hook passes
+# at once. Claude Code runs this hook beside the dialog, so an answer from the person before the deadline wins and the deny printed
+# after it is dropped.
 
 payload=$(cat)
-timeout_seconds=$(jq -r '.away_timeout_seconds | select(type == "number" and . >= 1) | ceil' <<<"$payload")
+timeout_seconds=$(jq -r --arg away_json "${CLAUDE_AWAY-}" '
+	($away_json | try fromjson catch null | objects) as $away
+	| select($away.session_id == .session_id)
+	| $away.timeout_seconds | select(type == "number" and . >= 1) | ceil
+' <<<"$payload")
 if [ -z "$timeout_seconds" ]; then
 	exit 0
 fi

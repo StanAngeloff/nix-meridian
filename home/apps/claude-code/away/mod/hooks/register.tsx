@@ -6,7 +6,9 @@ import type { WaitingPrompt } from '../types'
 // Away mode for one session. /away pins a status line, and every permission prompt, question or plan approval that opens while it is on
 // counts down on its tool row, which stays on screen above the dialog.
 // The deny itself comes from the claude-away PermissionRequest command hook (../../claude-away.sh), which waits out the timeout this mod
-// hands it in its input and then denies. A session with away mode off hands it nothing, and the hook passes at once.
+// leaves in the session's environment and then denies. A session with away mode off leaves nothing there, and the hook passes at once.
+// The handoff can't go through the hook's input: Claude Code's built-in sec-default plugin, seated on Team and Enterprise logins and on
+// machines with managed settings, sends every classic.* event past the plugins a person installs, this one included.
 
 const DEFAULT_MINUTES = 5
 const MAXIMUM_MINUTES = 60
@@ -20,10 +22,8 @@ const now = atom({ plugin: 'away', key: 'now' } as const, 0)
 
 type Timer = ReturnType<EngineInterface['clock']['every']>
 
-// tool_use_ids of the calls whose verdict was ask, by callKey, until their dialog opens or the call ends.
-const askedCalls = new Map<string, string[]>()
 // The prompts counting down, kept here rather than read back from $.state: every $.state.get of one dispatch reads one moment,
-// so the PermissionRequest hook, which waits through the whole dialog, and the ticker it starts would never see /away off.
+// so the ticker, which lives as long as a prompt waits, would never see /away off.
 let waiting: WaitingPrompt[] = []
 let ticker: Timer | undefined
 
@@ -41,38 +41,15 @@ function countdownText(prompt: WaitingPrompt, currentTime: number): string {
   return remainingMs > 0 ? `away: denied in ${formatDuration(remainingMs)} unless you answer` : 'away: no answer, denying'
 }
 
-// Pairs a tool.check verdict, which carries the tool_use_id, with the PermissionRequest event that follows it, which does not.
-function callKey(tool: string, input: unknown): string {
-  return `${tool}\u0000${JSON.stringify(input)}`
-}
+// Leaves the timeout for the claude-away hooks this session starts, or takes it back with undefined; the session id keeps a claude
+// started from the Bash tool, which inherits the variable, out of it. Resolves with why the engine refused, if it did.
+async function handOver($: EngineInterface, away: { sessionId: string; timeoutMs: number } | undefined): Promise<string | undefined> {
+  const value = away === undefined ? undefined : JSON.stringify({ session_id: away.sessionId, timeout_seconds: away.timeoutMs / 1000 })
+  const result = await $.env.set('CLAUDE_AWAY', value).catch((error: unknown) => ({
+    deny: error instanceof Error ? error.message : String(error),
+  }))
 
-function rememberAskedCall(key: string, toolUseId: string): void {
-  const toolUseIds = askedCalls.get(key) ?? []
-  if (!toolUseIds.includes(toolUseId)) {
-    askedCalls.set(key, [...toolUseIds, toolUseId])
-  }
-}
-
-function takeAskedCall(key: string): string | undefined {
-  const [toolUseId, ...rest] = askedCalls.get(key) ?? []
-  if (rest.length === 0) {
-    askedCalls.delete(key)
-  } else {
-    askedCalls.set(key, rest)
-  }
-
-  return toolUseId
-}
-
-function forgetAskedCall(toolUseId: string): void {
-  for (const [key, toolUseIds] of askedCalls) {
-    const rest = toolUseIds.filter(askedId => askedId !== toolUseId)
-    if (rest.length === 0) {
-      askedCalls.delete(key)
-    } else if (rest.length !== toolUseIds.length) {
-      askedCalls.set(key, rest)
-    }
-  }
+  return result.deny
 }
 
 function showStatus($: EngineInterface, timeoutMs: number): void {
@@ -135,10 +112,10 @@ export const register: Register = on => {
 
     if (argument === 'off') {
       const wasAway = (await read($, promptTimeoutMs)) > 0
+      await handOver($, undefined)
       await $.state.set({ plugin: 'away', key: 'promptTimeoutMs' }, 0)
-      // A prompt still on screen keeps its dialog for the person to answer: its countdown ends here, and the deny its hook sends later is dropped.
+      // A prompt still on screen loses its countdown here, but its hook started with the timeout and still denies at the deadline.
       await setWaiting($, [])
-      askedCalls.clear()
       stopTicker()
       showStatus($, 0)
       if (!wasAway) {
@@ -154,6 +131,10 @@ export const register: Register = on => {
     const timeoutMs = Math.round(minutes * 60) * 1000
     if (!Number.isFinite(minutes) || timeoutMs < 1000 || minutes > MAXIMUM_MINUTES) {
       return { text: `Usage: /away [minutes, up to ${MAXIMUM_MINUTES}; ${DEFAULT_MINUTES} when left out] or /away off` }
+    }
+    const refusal = await handOver($, { sessionId: await $.session.id(), timeoutMs })
+    if (refusal !== undefined) {
+      return { text: `Away mode was not changed: the claude-away hook can't be told the timeout (${refusal}).` }
     }
     await $.state.set({ plugin: 'away', key: 'promptTimeoutMs' }, timeoutMs)
     showStatus($, timeoutMs)
@@ -186,59 +167,36 @@ export const register: Register = on => {
     )
   })
 
-  // Remember which calls are about to ask, so the dialog that opens for one can be matched to its tool row.
+  // A call about to ask: its dialog opens and the claude-away hook starts beside it, so the countdown starts now.
   on('tool.check', async ($, e, next) => {
     const verdict = await next(e)
-    if (verdict.decision === 'ask' && e.tool_use_id !== undefined && (await read($, promptTimeoutMs)) > 0) {
-      rememberAskedCall(callKey(e.tool, e.input), e.tool_use_id)
+    const timeoutMs = await read($, promptTimeoutMs)
+    if (verdict.decision === 'ask' && e.tool_use_id !== undefined && timeoutMs > 0 && !isWaiting(e.tool_use_id)) {
+      const deadline = (await $.clock.now()) + timeoutMs
+      await setWaiting($, [...waiting, { toolUseId: e.tool_use_id, tool: e.tool, deadline }])
+      startTicker($)
+      await tick($)
     }
 
     return verdict
   }).catch(($, e, next) => next(e))
 
-  // The dialog has opened and the settings PermissionRequest hooks start beside it: the countdown starts now.
-  on('classic.PermissionRequest', async ($, e, next) => {
-    const timeoutMs = await read($, promptTimeoutMs)
-    const toolUseId = timeoutMs === 0 ? undefined : takeAskedCall(callKey(e.tool_name, e.tool_input))
-    if (toolUseId === undefined) {
-      return next(e)
-    }
-    const deadline = (await $.clock.now()) + timeoutMs
-    await setWaiting($, [...waiting, { toolUseId, tool: e.tool_name, deadline }])
-    startTicker($)
-    await tick($)
-    try {
-      const handedDown = { ...e, away_timeout_seconds: timeoutMs / 1000, away_tool_use_id: toolUseId }
-      const result = await next(handedDown)
-      // /away off emptied the list while the prompt waited: the person answers it, so the hook's deny is dropped.
-      if (result.decision !== undefined && !isWaiting(toolUseId)) {
-        const { decision: _dropped, ...rest } = result
-
-        return rest
-      }
-
-      return result
-    } finally {
-      await forgetPrompt($, toolUseId)
-    }
-  }).catch(($, e, next) => next(e))
-
-  // The call has ended (answered, denied or run): its countdown is over, even while the hook beneath still waits.
+  // The call has ended (answered, denied or run): its countdown is over, even while the hook still waits.
   on('tool.call', async ($, e, next) => {
     try {
       return await next(e)
     } finally {
-      forgetAskedCall(e.tool_use_id)
       await forgetPrompt($, e.tool_use_id)
     }
   }).catch(($, e, next) => next(e))
 
-  // /clear and /resume carry on in this process under another session id, whose state starts over; the pinned status line would stay.
+  // /clear and /resume carry on in this process under another session id, whose state starts over; the pinned status line and the
+  // variable the hook reads would stay.
   on('session.end', async ($, e, next) => {
     $.ui.status(undefined)
-    askedCalls.clear()
     waiting = []
     stopTicker()
+    await handOver($, undefined)
 
     return next(e)
   })
