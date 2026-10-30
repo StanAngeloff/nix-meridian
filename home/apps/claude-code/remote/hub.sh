@@ -119,6 +119,15 @@ new_session_flow() {
 }
 
 ensure_remote_session() {
+	# tmux copies these into the session from whichever client creates or attaches it, and SSH has none of them.
+	# Take the laptop's values from the global environment so windows opened from the phone keep the desktop.
+	local name assignment
+	for name in WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE; do
+		if assignment=$(tmux show-environment -g "$name" 2>/dev/null) && [[ "$assignment" == "$name="* ]]; then
+			export "$name=${assignment#*=}"
+		fi
+	done
+
 	# Clean up legacy session name if it exists.
 	tmux kill-session -t phone 2>/dev/null || true
 
