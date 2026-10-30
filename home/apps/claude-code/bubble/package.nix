@@ -42,7 +42,7 @@
 let
   # Assembly order = bwrap argument order (later mounts layer over earlier ones). Hard edges:
   #  - system before nix and ssh (nix masks sockets inside its /nix bind; ssh binds its filtered ssh_config over a store path there);
-  #  - system before gpu (gpu binds the render nodes into system's fresh /dev);
+  #  - system before gpu and kvm (both bind device nodes into system's fresh /dev);
   #  - home before every module that binds under $HOME (claude, profiles, git, gpg, ssh, github, tools, nvim, pnpm, desktop);
   #  - claude before profiles (profiles masks ~/.claude/profiles inside the ~/.claude bind);
   #  - xdg before claude, gpg, ssh, clipboard and podman (their sockets re-expose into its tmpfs mask);
@@ -66,6 +66,7 @@ let
     "pnpm"
     "desktop"
     "gpu"
+    "kvm"
     "podman"
     "notifications"
   ];

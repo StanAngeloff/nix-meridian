@@ -125,20 +125,32 @@ launcher_args=()
 @environmentCalls@
 
 # User-requested volumes (-v/--volume): parsed as host[:container[:mode]] following Docker semantics.
+# The dev mode is ours: rw and ro mount without device access, so a device node bound that way exists inside but every open fails.
+# A device without it stops the launch rather than producing a session where the device only looks present.
 for volume_spec in "${bubble_volumes[@]}"; do
 	volume_host="" volume_container="" volume_mode="rw"
 	IFS=: read -r volume_host volume_container volume_mode_or_empty <<<"$volume_spec"
 	if [[ -z "$volume_container" ]]; then
 		volume_container="$volume_host"
-	elif [[ "$volume_container" == "ro" || "$volume_container" == "rw" ]]; then
+	elif [[ "$volume_container" == "ro" || "$volume_container" == "rw" || "$volume_container" == "dev" ]]; then
 		volume_mode="$volume_container"
 		volume_container="$volume_host"
 	fi
 	if [[ -n "$volume_mode_or_empty" ]]; then
 		volume_mode="$volume_mode_or_empty"
 	fi
+	if [[ "$volume_mode" != "dev" && (-b "$volume_host" || -c "$volume_host") ]]; then
+		volume_suggestion="$volume_host"
+		if [[ "$volume_container" != "$volume_host" ]]; then
+			volume_suggestion+=":$volume_container"
+		fi
+		bubble_error "-v $volume_spec: $volume_host is a device, and only the dev mode makes it usable inside" \
+			"to grant access to it, use: -v $volume_suggestion:dev"
+		exit 1
+	fi
 	case "$volume_mode" in
 	ro) bwrap_args+=(--ro-bind "$volume_host" "$volume_container") ;;
+	dev) bwrap_args+=(--dev-bind "$volume_host" "$volume_container") ;;
 	*) bwrap_args+=(--bind "$volume_host" "$volume_container") ;;
 	esac
 	# Only the interesting half: the arrow is noise when a volume lands on the same path it came from, which is the common case.
@@ -172,7 +184,7 @@ set -e
 # Claude Code has printed its own help by now; document the bubble-owned flags after it.
 if [[ -n "$help_requested" ]]; then
 	printf '%s' '@grantsHelp@'
-	printf '\n  -v, --volume HOST[:CONTAINER[:MODE]]\n        Bind-mount HOST into the bubble at CONTAINER (default: same path).\n        MODE is rw (default) or ro. May be repeated.\n'
+	printf '\n  -v, --volume HOST[:CONTAINER[:MODE]]\n        Bind-mount HOST into the bubble at CONTAINER (default: same path).\n        MODE is rw (default), ro or dev. A device node needs dev, which gives\n        the bubble full access to it (for /dev/kvm, prefer --with-kvm).\n        May be repeated.\n'
 	printf '\n  -P, --profile NAME\n        Run this session as account profile NAME rather than the default\n        (cc profiles list shows them). The default stays as it is.\n'
 	printf '%s' '@subcommandsHelp@'
 	printf '\nEnvironment:\n  CLAUDE_BUBBLE_ARGS\n        Arguments prepended to the command line, parsed with shell quoting.\n        Export it from a project .envrc for per-directory defaults; whatever\n        is given at the prompt is parsed afterwards and wins.\n'
