@@ -39,7 +39,7 @@ let
     "git -C /srv/repository push origin main" = "custom.arbiter-writes/git-push";
     "x=$(gh api -X POST repos/o/r/issues/1/comments -f body=hi)" = "custom.arbiter-writes/gh-api-write";
     "gh api repos/o/r/pulls --jq .[].number" = "none";
-    "curl -s -X POST https://example.com/api -d x" = "custom.arbiter-writes/curl-write";
+    "curl -s -X DELETE https://example.com/api/1" = "custom.arbiter-writes/curl-write";
     "curl -fsSL https://example.com/install.sh" = "none";
     "kubectl -n production delete pod web-1" = "custom.arbiter-writes/kubectl-write";
     "declare -x" = "custom.arbiter-flags/declare-exported";
