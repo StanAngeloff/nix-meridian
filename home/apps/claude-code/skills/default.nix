@@ -11,6 +11,7 @@ let
 in
 {
   imports = [
+    ./dictated.nix
     ./git-lines.nix
     ./learn.nix
     ./ponytail.nix
