@@ -7,6 +7,7 @@ of the way. Each case runs once per option that has broken zsh functions in this
 
 import os
 import pathlib
+import shlex
 import subprocess
 
 import pytest
@@ -109,11 +110,32 @@ def test_strict_mode_still_refuses_a_plain_session(strict_value):
     assert "pass -n/--name or -r/--resume" in result.stderr
 
 
-# Stand in for tmux and git, so the window rename prints the command it would run.
+# Stand in for tmux and git, so the window rename prints the commands it would run.
+# The tmux stand-in holds one window, @7, named $WINDOW_NAME until a rename-window gives it another name.
 RENAME_STUBS = """
-function tmux() { print -r -- "tmux $*" }
+typeset -g stub_window_name="$WINDOW_NAME"
+function tmux() {
+  emulate -L zsh
+  case $1 in
+    display-message)
+      [[ "$*" == *window_id* ]] && print -rn -- "@7 "
+      print -r -- "$stub_window_name"
+      ;;
+    rename-window)
+      stub_window_name="${@[-1]}"
+      print -r -- "tmux $*"
+      ;;
+  esac
+}
 function git() { print -r -- /projects/nix-meridian/.git }
 """
+TMUX_ENVIRONMENT = {
+    "CLAUDE_BUBBLE_TMUX": "1",
+    "TMUX": "/tmp/tmux-test,1,0",
+    "TMUX_PANE": "%3",
+    "WINDOW_NAME": "zsh",
+    "XDG_STATE_HOME": "/nonexistent",
+}
 
 
 @pytest.mark.parametrize("option", HOSTILE_OPTIONS)
@@ -133,9 +155,148 @@ def test_window_rename_takes_only_a_session_name(option, arguments, expected_win
     result = run_zsh(
         RENAME_STUBS + f"_claude_bubble_initialize {arguments}",
         option,
-        environment={"CLAUDE_BUBBLE_TMUX": "1", "TMUX": "/tmp/tmux-test,1,0"},
+        environment=TMUX_ENVIRONMENT,
     )
     expected_lines = (
-        [f"tmux rename-window {expected_window}"] if expected_window else []
+        [f"tmux rename-window -t @7 {expected_window}"] if expected_window else []
+    )
+    assert result.stdout.splitlines() == expected_lines, result.stderr
+
+
+@pytest.mark.parametrize("option", HOSTILE_OPTIONS)
+@pytest.mark.parametrize(
+    "window_name, is_renamed",
+    [
+        ("zsh", True),
+        ("nix-meridian@feature-x", False),
+        # A manual name around the session name stays, in any letter case.
+        ("nix-meridian@feature-x [DOCS]", False),
+        ("NIX-MERIDIAN@Feature-X [DOCS]", False),
+        ("[DOCS] nix-meridian@feature-x", False),
+        # The session name has to stand as a whole word.
+        ("nix-meridian@feature-x2 [DOCS]", True),
+        ("old-nix-meridian@feature-x", True),
+    ],
+)
+def test_window_rename_leaves_a_window_that_shows_the_name(
+    option, window_name, is_renamed
+):
+    result = run_zsh(
+        RENAME_STUBS + "_claude_bubble_initialize -n feature-x/v2",
+        option,
+        environment={**TMUX_ENVIRONMENT, "WINDOW_NAME": window_name},
+    )
+    expected_lines = (
+        ["tmux rename-window -t @7 nix-meridian@feature-x"] if is_renamed else []
+    )
+    assert result.stdout.splitlines() == expected_lines, result.stderr
+
+
+@pytest.mark.parametrize("option", HOSTILE_OPTIONS)
+@pytest.mark.parametrize(
+    "window_name, name_given_during_session, expected_lines",
+    [
+        (
+            "zsh",
+            None,
+            [
+                "tmux rename-window -t @7 nix-meridian@feature-x",
+                "tmux rename-window -t @7 zsh",
+            ],
+        ),
+        # cc left the window alone, so it has nothing to put back.
+        ("nix-meridian@feature-x [DOCS]", None, []),
+        # A manual rename during the session stays.
+        (
+            "zsh",
+            "nix-meridian@feature-x [DOCS]",
+            [
+                "tmux rename-window -t @7 nix-meridian@feature-x",
+                "tmux rename-window -t @7 nix-meridian@feature-x [DOCS]",
+            ],
+        ),
+    ],
+)
+def test_window_restore_puts_back_only_a_name_cc_replaced(
+    option, window_name, name_given_during_session, expected_lines
+):
+    during_session = (
+        f"tmux rename-window -t @7 {shlex.quote(name_given_during_session)}"
+        if name_given_during_session
+        else ""
+    )
+    result = run_zsh(
+        RENAME_STUBS
+        + "\n".join(
+            [
+                "_claude_bubble_initialize -n feature-x",
+                during_session,
+                "_claude_restore_window_name",
+            ]
+        ),
+        option,
+        environment={**TMUX_ENVIRONMENT, "WINDOW_NAME": window_name},
+    )
+    assert result.stdout.splitlines() == expected_lines, result.stderr
+
+
+def read_window_keywords(state_path):
+    keywords_path = state_path / "claude-cc" / "keywords"
+    if not keywords_path.exists():
+        return {}
+    return {path.name: path.read_text().strip() for path in keywords_path.iterdir()}
+
+
+@pytest.mark.parametrize("option", HOSTILE_OPTIONS)
+@pytest.mark.parametrize(
+    "window_name, expected_keywords",
+    [
+        ("nix-meridian@feature-x[DOCS]", {"feature-x": "DOCS"}),
+        ("nix-meridian@feature-x [DOCS]", {"feature-x": "DOCS"}),
+        ("nix-meridian@feature-x", {}),
+        ("bold-owl", {}),
+        # cc never names a window after feature/x, so the keyword has no session name to belong to.
+        ("nix-meridian@feature/x[DOCS]", {}),
+        # The keyword closes the name.
+        ("nix-meridian@feature-x[DOCS] draft", {}),
+    ],
+)
+def test_window_keyword_is_saved_from_a_rename(
+    option, window_name, expected_keywords, tmp_path
+):
+    result = run_zsh(
+        f"_claude_save_window_keyword {shlex.quote(window_name)}",
+        option,
+        environment={"XDG_STATE_HOME": str(tmp_path)},
+    )
+    assert read_window_keywords(tmp_path) == expected_keywords, result.stderr
+    assert result.stderr == ""
+
+
+@pytest.mark.parametrize("option", HOSTILE_OPTIONS)
+@pytest.mark.parametrize(
+    "window_name, expected_lines",
+    [
+        ("zsh", ["tmux rename-window -t @7 nix-meridian@feature-x[DOCS]"]),
+        # A window named by hand keeps its own keyword.
+        ("nix-meridian@feature-x[WIP]", []),
+    ],
+)
+def test_window_rename_adds_the_saved_keyword(
+    option, window_name, expected_lines, tmp_path
+):
+    run_zsh(
+        "_claude_save_window_keyword 'bold-owl@feature-x[DOCS]'",
+        option,
+        environment={"XDG_STATE_HOME": str(tmp_path)},
+    )
+    result = run_zsh(
+        RENAME_STUBS + "_claude_bubble_initialize -n feature-x/v2",
+        option,
+        environment={
+            **TMUX_ENVIRONMENT,
+            "WINDOW_NAME": window_name,
+            "XDG_STATE_HOME": str(tmp_path),
+        },
     )
     assert result.stdout.splitlines() == expected_lines, result.stderr

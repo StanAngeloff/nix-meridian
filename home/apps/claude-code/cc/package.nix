@@ -38,7 +38,15 @@ writeTextFile {
     typeset -ga _cli_args=( "$@" )
     _claude_expand_model_aliases ${lib.escapeShellArg baseModel}
     _claude_bubble_initialize "''${_cli_args[@]}" || exit
-    exec ${lib.getExe claude-bubble} ${lib.escapeShellArgs bubbleArgs} "''${_cli_args[@]}"
+    typeset -a bubble_command=( ${lib.getExe claude-bubble} ${lib.escapeShellArgs bubbleArgs} "''${_cli_args[@]}" )
+    if [[ -z "$_claude_renamed_window_id" ]]; then exec "''${bubble_command[@]}"; fi
+
+    # cc renamed the tmux window, so it stays alive until the session ends to give the window its old name back.
+    # zsh skips the EXIT trap when INT or TERM ends it, so both signals become a plain exit.
+    trap _claude_restore_window_name EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    "''${bubble_command[@]}"
   '';
   checkPhase = ''
     ${lib.getExe zsh} -n "$target"

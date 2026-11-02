@@ -121,6 +121,57 @@ function _claude_is_subcommand_handoff() {
   return 1
 }
 
+# Sets REPLY to the part of session name $1 that goes into the window name: feature-x for feature-x/v2.
+function _claude_window_session_name() {
+  emulate -L zsh
+  REPLY="${1%%[+/@#.!?[:space:]]*}"
+}
+
+# Sets REPLY to the file that holds the window keyword saved for session name $1.
+function _claude_window_keyword_path() {
+  emulate -L zsh
+  REPLY="${XDG_STATE_HOME:-$HOME/.local/state}/claude-cc/keywords/$1"
+}
+
+# Saves the keyword of a window name such as nix-meridian@feature-x[DOCS] for its session name.
+function _claude_save_window_keyword() {
+  emulate -L zsh
+  local MATCH MBEGIN MEND REPLY
+  local -a match mbegin mend
+
+  if [[ ! "$1" =~ '@([^@[:space:][]+) *\[([^]]+)\]$' ]]; then return 0; fi
+  local session_name="${match[1]}"
+  local keyword="${match[2]}"
+  _claude_window_session_name "$session_name"
+  if [[ "$REPLY" != "$session_name" ]]; then return 0; fi
+
+  _claude_window_keyword_path "$session_name"
+  mkdir -p "${REPLY:h}" && print -r -- "$keyword" > "$REPLY"
+}
+
+# Renames the tmux window cc runs in to $1, with keyword $2 in brackets when given,
+# unless the window name already holds $1 as a whole word in any letter case.
+# A name like that came from a manual rename (nix-meridian@feature-x[DOCS]), so cc keeps it.
+# The function records each rename for _claude_restore_window_name.
+function _claude_rename_window() {
+  emulate -L zsh
+
+  local base_name="$1"
+  local new_name="$1${2:+[$2]}"
+  local window
+  # Without a target, tmux picks the window in front, which may not be the one holding this pane.
+  window=$(tmux display-message -p -t "$TMUX_PANE" '#{window_id} #{window_name}' 2>/dev/null)
+  local window_id="${window%% *}"
+  local old_name="${window#* }"
+  if [[ -z "$window_id" ]]; then return 0; fi
+  if [[ "${(L)old_name}" == (|*[^[:alnum:]_-])"${(L)base_name}"(|[^[:alnum:]_-]*) ]]; then return 0; fi
+
+  tmux rename-window -t "$window_id" "$new_name"
+  typeset -g _claude_renamed_window_id="$window_id"
+  typeset -g _claude_renamed_window_old_name="$old_name"
+  typeset -g _claude_renamed_window_new_name="$new_name"
+}
+
 function _claude_bubble_initialize() {
   emulate -L zsh
 
@@ -196,10 +247,28 @@ function _claude_bubble_initialize() {
     git_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
     if [[ -n "$git_common" ]]; then
       local repository_name="${${git_common%/.git}:t}"
-      local normalized="${session_name%%[+/@#.!?[:space:]]*}"
+      local REPLY
+      _claude_window_session_name "$session_name"
+      local normalized="$REPLY"
       if [[ -n "$repository_name" && -n "$normalized" ]]; then
-        tmux rename-window "${repository_name}@${normalized}"
+        local keyword=""
+        _claude_window_keyword_path "$normalized"
+        if [[ -r "$REPLY" ]]; then keyword=$(<"$REPLY"); fi
+        _claude_rename_window "${repository_name}@${normalized}" "$keyword"
       fi
     fi
+  fi
+}
+
+# Gives the window _claude_rename_window renamed its old name back, if the window still carries the name cc gave it.
+# A window renamed by hand during the session keeps that name.
+function _claude_restore_window_name() {
+  emulate -L zsh
+
+  if [[ -z "$_claude_renamed_window_id" ]]; then return 0; fi
+  local current_name
+  current_name=$(tmux display-message -p -t "$_claude_renamed_window_id" '#{window_name}' 2>/dev/null)
+  if [[ "$current_name" == "$_claude_renamed_window_new_name" ]]; then
+    tmux rename-window -t "$_claude_renamed_window_id" "$_claude_renamed_window_old_name" 2>/dev/null
   fi
 }

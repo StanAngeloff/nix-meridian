@@ -40,6 +40,11 @@ let
     echo "$name"
   '';
 
+  # Saves the keyword of a window name such as nix-meridian@feature-x[DOCS].
+  saveWindowKeyword = pkgs.writeShellScript "tmux-save-window-keyword" ''
+    exec ${pkgs.zsh}/bin/zsh -f -c 'source ${../claude-code/initialize.zsh} && _claude_save_window_keyword "$1"' tmux-save-window-keyword "$1"
+  '';
+
   popupNvim = import ../../../modules/lib/popup-nvim.nix { inherit pkgs; };
 
   scratchNote = pkgs.writeShellScript "tmux-scratch-note" ''
@@ -81,6 +86,7 @@ in
             "@dismissClaudeIdle@" = "${dismissClaudeIdle}";
             "@machineName@" = osConfig.networking.hostName;
             "@nameWindow@" = "${nameWindow}";
+            "@saveWindowKeyword@" = "${saveWindowKeyword}";
           };
         in
         builtins.replaceStrings (builtins.attrNames replacements) (builtins.attrValues replacements) (
