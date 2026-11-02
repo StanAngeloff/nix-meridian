@@ -58,6 +58,18 @@ def plain_at(columns):
     return render.ANSI_SEQUENCE.sub("", line_at(columns))
 
 
+# A plan with no five-hour window, such as Ultra: rate_limits carries the weekly window alone.
+WEEKLY_ONLY_PAYLOAD = dict(
+    PAYLOAD, rate_limits={"seven_day": {"used_percentage": 61.0}}
+)
+
+
+def weekly_only_line_at(columns):
+    return main.line_for(
+        WEEKLY_ONLY_PAYLOAD, "trunk", NOW, main.budget_from({"COLUMNS": str(columns)})
+    )
+
+
 class Invariants(unittest.TestCase):
     def test_never_overflows_unless_nothing_can_be_shortened(self):
         segments_built = built()
@@ -97,6 +109,11 @@ class Invariants(unittest.TestCase):
         self.assertIn("34%", plain)
         self.assertIn("5h", plain)
 
+    def test_without_a_five_hour_window_the_weekly_one_outlives_everything_else(self):
+        plain = render.ANSI_SEQUENCE.sub("", weekly_only_line_at(30))
+        self.assertIn("34%", plain)
+        self.assertIn("7d", plain)
+
 
 class GoldenLines(unittest.TestCase):
     EXPECTED = {
@@ -119,6 +136,25 @@ class GoldenLines(unittest.TestCase):
                 budget = main.budget_from({"COLUMNS": str(columns)})
                 self.assertLessEqual(
                     render.visible_width(self.EXPECTED[columns]), budget
+                )
+
+
+class WeeklyOnlyGoldenLines(unittest.TestCase):
+    EXPECTED = {
+        30: "✦ O4.6 │ 34% │ 7d61",
+        45: "✦ Opus 4.6 │ trunk │ ██---- 34% │ 7d:61%",
+        60: "✦ Opus 4.6 │ trunk │ 12m │ +5/-2 │ ██---- 34% │ 7d:61%",
+        80: "✦ Opus 4.6 (1m) │ trunk │ $1.23 │ 12m │ +5/-2 │ Σ150 │ ██---- 34% │ 7d:61%",
+        100: "✦ Opus 4.6 (1m) │ trunk │ $1.23 │ 12m │ +5/-2 │ 10↑ 20↓ 30◌ Σ150 │ ███------- 34% │ 7d:61%",
+        120: "✦ claude-opus-4-6 (1m) │ trunk │ $1.23 │ 12m │ +5/-2 │ 10↑ 20↓ 30◌ Σ150 │ ███------- 34% │ 7d:61%",
+    }
+
+    def test_renders_the_recorded_line_at_each_width(self):
+        for columns in WIDTHS:
+            with self.subTest(columns=columns):
+                self.assertEqual(
+                    render.ANSI_SEQUENCE.sub("", weekly_only_line_at(columns)),
+                    self.EXPECTED[columns],
                 )
 
 

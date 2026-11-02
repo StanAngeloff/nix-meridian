@@ -268,6 +268,18 @@ _profile_require_name() {
 	_profile_valid_name "$2" || _profile_die "invalid profile name: $2"
 }
 
+# The plan as Claude.ai names it, else the subscription type capitalised the way Claude Code labels it ("Claude Team").
+# The subscription type is what the account signed in with and lags a rename: a Max 20x plan that became Ultra reads "max".
+_profile_plan() {
+	local profile_path="$1" plan
+	plan="$(jq -r '.oauthAccount.planDisplayName // empty' "$profile_path/.claude.json" 2>/dev/null || true)"
+	if [[ -z "$plan" ]]; then
+		plan="$(jq -r '.claudeAiOauth.subscriptionType // empty | (.[:1] | ascii_upcase) + .[1:]' \
+			"$profile_path/credentials/.credentials.json" 2>/dev/null || true)"
+	fi
+	printf '%s' "${plan:-unknown}"
+}
+
 _profile_label() {
 	local profile_path="$profiles_path/$1" email subscription organization
 	email="$(jq -r '.oauthAccount.emailAddress // "not logged in"' "$profile_path/.claude.json" 2>/dev/null || echo "not logged in")"
@@ -275,7 +287,7 @@ _profile_label() {
 	organization="$(jq -r --arg personal_suffix "'s Organization" \
 		'.oauthAccount | select(.organizationName != .emailAddress + $personal_suffix) | .organizationName // empty' \
 		"$profile_path/.claude.json" 2>/dev/null || true)"
-	subscription="$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$profile_path/credentials/.credentials.json" 2>/dev/null || echo unknown)"
+	subscription="$(_profile_plan "$profile_path")"
 	if [[ -n "$organization" ]]; then
 		printf '%s (%s, %s)' "$email" "$subscription" "$organization"
 	else

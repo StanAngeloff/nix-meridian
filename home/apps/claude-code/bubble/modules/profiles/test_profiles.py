@@ -481,9 +481,9 @@ class List(HomeTestCase):
             line for line in lines if "someone@personal.example" in line
         )
         work_line = next(line for line in lines if "someone@work.example" in line)
-        self.assertIn("(max)", personal_line)
+        self.assertIn("(Max)", personal_line)
         self.assertIn("2 sessions", personal_line)
-        self.assertIn("(team, Example Org)", work_line)
+        self.assertIn("(Team, Example Org)", work_line)
         self.assertIn("1 session", work_line)
         self.assertTrue(work_line.lstrip().startswith("* "), work_line)
         self.assertNotIn("* ", personal_line)
@@ -493,6 +493,23 @@ class List(HomeTestCase):
         result = self.home.run("list", machine=PERSONAL_SESSIONS)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("'s Organization", result.stderr)
+
+    def test_names_the_plan_as_claude_ai_does(self):
+        # A Max 20x subscription renamed Ultra still signs in as subscription type "max".
+        self.home.slot()
+        self.home.profile(
+            "personal",
+            PERSONAL_TOKENS,
+            dict(PERSONAL_ACCOUNT, planDisplayName="Ultra"),
+        )
+        result = self.home.run("list", machine=PERSONAL_SESSIONS)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        personal_line = next(
+            line
+            for line in result.stderr.splitlines()
+            if "someone@personal.example" in line
+        )
+        self.assertIn("(Ultra)", personal_line)
 
     def test_says_so_when_systemd_cannot_be_asked(self):
         self.home.slot()

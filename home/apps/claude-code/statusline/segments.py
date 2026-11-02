@@ -323,11 +323,16 @@ def _five_hour(payload, now_epoch):
 
 
 def _seven_day(payload):
-    window = (payload.get("rate_limits") or {}).get("seven_day") or {}
+    rate_limits = payload.get("rate_limits") or {}
+    window = rate_limits.get("seven_day") or {}
     used = window.get("used_percentage")
     if used is None:
         return None
     percent = percent_of(used)
+    # On a plan without a five-hour window (Ultra) the weekly one is the only limit left to watch,
+    # so it takes over the five-hour window's penalties.
+    sole_limit = (rate_limits.get("five_hour") or {}).get("used_percentage") is None
+    compact_penalty, drop_penalty = (6, 60) if sole_limit else (3, 20)
     return fit.Segment(
         "seven_day",
         "rate",
@@ -337,7 +342,9 @@ def _seven_day(payload):
                 + palette.paint(f"{percent}%", palette.PASTEL_TEAL),
                 0,
             ),
-            fit.Form(palette.paint(f"7d{percent}", palette.PASTEL_TEAL), 3),
-            fit.Form(fit.DROP, 20),
+            fit.Form(
+                palette.paint(f"7d{percent}", palette.PASTEL_TEAL), compact_penalty
+            ),
+            fit.Form(fit.DROP, drop_penalty),
         ),
     )

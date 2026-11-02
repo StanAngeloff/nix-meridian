@@ -101,7 +101,13 @@ profiles_before_run() {
 	organization="$(jq -r --arg personal_suffix "'s Organization" \
 		'.oauthAccount | select(.organizationName != .emailAddress + $personal_suffix) | .organizationName // empty' \
 		"$profile_path/.claude.json" 2>/dev/null || true)"
-	subscription="$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$profile_path/credentials/.credentials.json" 2>/dev/null || echo unknown)"
+	# Names the plan as _profile_plan in profiles.sh does: Claude.ai's name for it, else the capitalised subscription type.
+	subscription="$(jq -r '.oauthAccount.planDisplayName // empty' "$profile_path/.claude.json" 2>/dev/null || true)"
+	if [[ -z "$subscription" ]]; then
+		subscription="$(jq -r '.claudeAiOauth.subscriptionType // empty | (.[:1] | ascii_upcase) + .[1:]' \
+			"$profile_path/credentials/.credentials.json" 2>/dev/null || true)"
+	fi
+	subscription="${subscription:-unknown}"
 	label="$(echo "$profiles_name" | tr '[:lower:]' '[:upper:]')"
 
 	# A banner rather than a message, so it skips the launcher's prefix: it answers "who am I about to spend tokens as", and it is the last thing on screen before Claude Code's own interface takes over. Bold carries the profile name alone; the account details after it stay plain, like every other message body. bubble_off is empty exactly when the shared policy decided against colour, so this reuses that decision rather than testing the terminal again.

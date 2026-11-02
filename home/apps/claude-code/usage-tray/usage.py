@@ -99,7 +99,7 @@ _PROFILE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
 
 # Between one profile's figures and the next in the panel label.
 PROFILE_SEPARATOR = " · "
-# A window the payload did not report, in a label that shows both windows side by side.
+# A window no source has reported yet, as opposed to one the plan does not have, which is left out instead.
 MISSING_WINDOW = "–"
 
 
@@ -119,13 +119,17 @@ class Credits:
 
 @dataclass(frozen=True)
 class Snapshot:
-    """What the usage endpoint returned. The only source for the scoped window and the credits."""
+    """What the usage endpoint returned. The only source for the scoped window and the credits.
+
+    Also the only source that can say a plan has no five-hour window at all; see _five_hour_absent.
+    """
 
     five_hour: Limit | None
     seven_day: Limit | None
     scoped: tuple[Limit, ...]
     credits: Credits | None
     fetched_at: datetime
+    five_hour_absent: bool = False
 
 
 @dataclass(frozen=True)
@@ -145,6 +149,9 @@ class View:
 
     Provenance is kept because it decides whether a failing endpoint should grey the panel: if the
     windows came from the status line, a 429 says nothing about whether they are right.
+
+    A five_hour of None means one of two things, which the panel words differently:
+    the plan has no five-hour window (five_hour_absent), or no source has reported one yet.
     """
 
     five_hour: Limit | None
@@ -154,6 +161,7 @@ class View:
     windows_at: datetime | None
     windows_from_activity: bool
     details_at: datetime | None
+    five_hour_absent: bool = False
 
     @property
     def has_data(self):
@@ -211,6 +219,25 @@ def _parse_scoped(payload):
             )
         )
     return tuple(scoped)
+
+
+def _five_hour_absent(payload):
+    """Whether the reply says the plan has no five-hour window, rather than merely reporting no figure for it.
+
+    The endpoint names a plan's meters twice, as top-level keys and as limits[] rows.
+    A plan without a session window (Ultra, observed 2026-11-02) has neither a five_hour object nor a `session` row,
+    while it still carries the weekly window. An idle session window on other plans still arrives as an object at zero.
+    A failed request yields no reply at all, so only an answer can say this.
+    A cached answer counts too, because the meters a plan has outlive any one reading of them.
+    """
+    if not isinstance(payload.get("seven_day"), dict):
+        return False
+    if isinstance(payload.get("five_hour"), dict):
+        return False
+    return not any(
+        isinstance(entry, dict) and entry.get("kind") == "session"
+        for entry in payload.get("limits") or []
+    )
 
 
 def _parse_credits(payload):
@@ -286,9 +313,26 @@ def parse_profile(payload, name):
     return Profile(
         name=name,
         email=email,
-        subscription=claude.get("subscriptionType") or None,
+        subscription=_plan_name(
+            oauth.get("planDisplayName"), claude.get("subscriptionType")
+        ),
         organization=organization,
     )
+
+
+def _plan_name(display_name, subscription_type):
+    """The plan as Claude.ai names it, else the subscription type capitalised the way Claude Code labels it.
+
+    The subscription type is what the account signed in with, and it lags a rename:
+    a Max 20x plan that became Ultra still reads "max".
+    Claude Code records the current name from the account's profile as planDisplayName and prefers it for its own label.
+    Its fallback reads "Claude Max", "Claude Team" and so on, which is what the capitalisation matches.
+    """
+    if display_name:
+        return display_name
+    if subscription_type:
+        return subscription_type[:1].upper() + subscription_type[1:]
+    return None
 
 
 def slot_profile_payload(config, credentials):
@@ -312,6 +356,10 @@ def compose(snapshot, activity, now):
     The scoped window and the credits only ever come from the endpoint — the status line has no
     equivalent — so a ping must never displace them, however fresh it is. `windows_at` describes the
     reading that supplied the windows, which is what the age and staleness rules then work from.
+
+    Whether the plan has a five-hour window at all is the endpoint's to say,
+    because the status line drops any window the last response headers did not carry.
+    A five-hour figure from either source settles it the other way.
     """
     five_hour = snapshot.five_hour if snapshot else None
     seven_day = snapshot.seven_day if snapshot else None
@@ -335,6 +383,9 @@ def compose(snapshot, activity, now):
         windows_at=windows_at,
         windows_from_activity=windows_from_activity,
         details_at=snapshot.fetched_at if snapshot else None,
+        five_hour_absent=five_hour is None
+        and snapshot is not None
+        and snapshot.five_hour_absent,
     )
 
 
@@ -397,6 +448,8 @@ def panel_label(view, stale, signed_out=False):
     windows = []
     if view.five_hour is not None:
         windows.append(("5h:", f"{view.five_hour.percent}%"))
+    elif not view.five_hour_absent:
+        windows.append(("5h:", MISSING_WINDOW))
     if view.seven_day is not None:
         windows.append(("7d:", f"{view.seven_day.percent}%"))
 
@@ -467,14 +520,19 @@ def label_tags(names):
 
 
 def _panel_label_part(tag, panel):
-    """One profile's figures in a label that shows several: `<tag> <5h>/<7d>`, greyed when stale."""
+    """One profile's figures in a label that shows several: `<tag> <5h>%/<7d>%`, greyed when stale.
+
+    A plan without a five-hour window shows its weekly figure alone, `<tag> <7d>%`.
+    """
     view = panel.view
     if not view.has_data:
         text = SIGNED_OUT_LABEL if panel.signed_out else LOADING_LABEL
         return _span(f"{tag} {text}", STALE_COLOUR)
+    limits = (
+        (view.seven_day,) if view.five_hour_absent else (view.five_hour, view.seven_day)
+    )
     values = [
-        str(limit.percent) if limit is not None else MISSING_WINDOW
-        for limit in (view.five_hour, view.seven_day)
+        f"{limit.percent}%" if limit is not None else MISSING_WINDOW for limit in limits
     ]
     if panel.stale:
         return _span(f"{tag} {'/'.join(values)}", STALE_COLOUR)
@@ -484,7 +542,7 @@ def _panel_label_part(tag, panel):
 def profiles_panel_label(panels):
     """The panel text for every shown profile, as Pango markup.
 
-    One profile reads exactly as panel_label words it. Two or more read `P 12/30 · C 40/62`: each
+    One profile reads exactly as panel_label words it. Two or more read `P 12%/30% · C 40%/62%`: each
     profile's tag, then its 5-hour and 7-day percentages. Each profile is greyed on its own when its
     figures are stale, so one account's outage does not dim another's live numbers.
     """
@@ -522,12 +580,16 @@ def format_reset(resets_at, now):
 
     Relative for the session window, because what matters there is how long is left. Absolute for
     the weekly ones, because "resets in 19h55m" is harder to act on than a weekday and a time.
+
+    Absolute times are local. Both feeds report them in UTC, and astimezone() applies the local zone's rules
+    at the reset itself rather than now, so a reset across a daylight saving change still reads right.
+    That reads the zone, not the clock.
     """
     if resets_at is None:
         return ""
     remaining = resets_at - now
     if remaining >= RELATIVE_RESET_WITHIN:
-        return f"resets {resets_at:%a %H:%M}"
+        return f"resets {resets_at.astimezone():%a %H:%M}"
     minutes = max(0, int(remaining.total_seconds() // 60))
     hours, minutes = divmod(minutes, 60)
     return f"resets in {hours}h{minutes:02d}m" if hours else f"resets in {minutes}m"
@@ -610,7 +672,9 @@ def menu_rows(view, stale, now, signed_out=False, reason=None):
     Strings rather than widgets because DBusMenu only carries labels, and markup only because the
     appindicator extension is patched to render our menu through set_markup; see
     home/gnome-shell/extensions/appindicator.nix. Rows whose data the account does not have are
-    left out entirely: a Fable row reading 0% would claim an allowance that is not there.
+    left out entirely: a Fable row reading 0% would claim an allowance that is not there. So is the
+    5-hour row of a plan without that window. One not reported yet gets a muted row instead, which
+    explains the dash in the panel.
 
     Every string here is derived from `now`, so this has to be rebuilt on a clock of its own and not
     only when a poll lands. Rebuilding it solely on poll completion froze the age at whatever it was
@@ -621,6 +685,10 @@ def menu_rows(view, stale, now, signed_out=False, reason=None):
         return [_row([(text, None)], stale=True)]
 
     rows = []
+    if view.five_hour is None and not view.five_hour_absent:
+        rows.append(
+            _row([(f"{'5-hour':<10} ", None), ("not reported yet", None)], stale=True)
+        )
     for limit in (view.five_hour, view.seven_day, *view.scoped):
         if limit is None:
             continue
@@ -808,4 +876,5 @@ def parse_snapshot(payload, now):
         scoped=_parse_scoped(payload),
         credits=_parse_credits(payload),
         fetched_at=now,
+        five_hour_absent=_five_hour_absent(payload),
     )

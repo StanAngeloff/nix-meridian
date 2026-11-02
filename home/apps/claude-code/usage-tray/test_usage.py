@@ -1,9 +1,32 @@
 import json
+import os
 import re
+import time
 import unittest
 from datetime import datetime
 
 import usage
+
+_ORIGINAL_ZONE = os.environ.get("TZ")
+# Eastern European time with its daylight saving rules, spelled out so no zone database is needed.
+EASTERN_EUROPEAN_ZONE = "EET-2EEST,M3.5.0/3,M10.5.0/4"
+
+
+def _use_zone(zone):
+    if zone is None:
+        os.environ.pop("TZ", None)
+    else:
+        os.environ["TZ"] = zone
+    time.tzset()
+
+
+def setUpModule():
+    # Weekly resets are worded in the local zone, and every recorded wall time below is UTC, wherever the tests run.
+    _use_zone("UTC")
+
+
+def tearDownModule():
+    _use_zone(_ORIGINAL_ZONE)
 
 
 def _at(text):
@@ -27,6 +50,27 @@ def _view(payload=None, activity=None, now=NOW):
     """A merged view, which is what panel_label and menu_rows take."""
     snapshot = usage.parse_snapshot(payload, now=now) if payload is not None else None
     return usage.compose(snapshot, activity, now=now)
+
+
+# The shape the endpoint answered with for an Ultra plan on 2026-11-02:
+# the weekly windows as usual, and no session meter in either place the endpoint names one.
+ULTRA_PAYLOAD = {
+    "five_hour": None,
+    "seven_day": {"utilization": 62.0, "resets_at": "2026-07-31T07:00:00+00:00"},
+    "limits": [
+        {"kind": "weekly_all", "group": "weekly", "percent": 62, "resets_at": None},
+        {
+            "kind": "weekly_scoped",
+            "group": "weekly",
+            "percent": 42,
+            "resets_at": None,
+            "scope": {"model": {"display_name": "Fable"}},
+        },
+    ],
+}
+
+# The status line of an Ultra session: its rate_limits carry no five_hour at all.
+ULTRA_ACTIVITY = {"seven_day": {"used_percentage": 61.0}}
 
 
 class ParseSnapshot(unittest.TestCase):
@@ -84,6 +128,42 @@ class ParseSnapshot(unittest.TestCase):
         snapshot = usage.parse_snapshot(payload, now=NOW)
 
         self.assertEqual(snapshot.scoped, ())
+
+
+class FiveHourAbsence(unittest.TestCase):
+    """Whether a reply says the plan has no five-hour window, as opposed to not reporting one."""
+
+    def test_a_plan_without_a_session_meter_has_no_five_hour_window(self):
+        snapshot = usage.parse_snapshot(ULTRA_PAYLOAD, now=NOW)
+
+        self.assertIsNone(snapshot.five_hour)
+        self.assertTrue(snapshot.five_hour_absent)
+
+    def test_an_idle_session_window_is_still_a_window(self):
+        # A Team plan between sessions: nothing used and no reset time, but the meter is there.
+        payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": None},
+            "seven_day": {"utilization": 23.0, "resets_at": None},
+            "limits": [
+                {"kind": "session", "group": "session", "percent": 0},
+                {"kind": "weekly_all", "group": "weekly", "percent": 23},
+            ],
+        }
+
+        self.assertFalse(usage.parse_snapshot(payload, now=NOW).five_hour_absent)
+
+    def test_a_session_row_alone_still_means_the_plan_has_the_window(self):
+        payload = dict(
+            ULTRA_PAYLOAD,
+            limits=[{"kind": "session", "group": "session", "percent": 5}],
+        )
+
+        self.assertFalse(usage.parse_snapshot(payload, now=NOW).five_hour_absent)
+
+    def test_a_reply_without_the_weekly_window_says_nothing_about_the_plan(self):
+        payload = {"five_hour": None, "seven_day": None, "limits": []}
+
+        self.assertFalse(usage.parse_snapshot(payload, now=NOW).five_hour_absent)
 
 
 class ParseCredits(unittest.TestCase):
@@ -285,8 +365,28 @@ class ParseProfile(unittest.TestCase):
 
         self.assertEqual(profile.name, "acme")
         self.assertEqual(profile.email, "stan@example.com")
-        self.assertEqual(profile.subscription, "team")
+        self.assertEqual(profile.subscription, "Team")
         self.assertEqual(profile.organization, "Acme")
+
+    def test_names_the_plan_as_claude_ai_does(self):
+        # A Max 20x subscription renamed Ultra still signs in as subscription type "max".
+        payload = {
+            "oauthAccount": {
+                "emailAddress": "someone@personal.example",
+                "planDisplayName": "Ultra",
+            },
+            "claudeAiOauth": {"subscriptionType": "max"},
+        }
+
+        self.assertEqual(usage.parse_profile(payload, "personal").subscription, "Ultra")
+
+    def test_capitalises_the_subscription_type_of_a_plan_with_no_name(self):
+        payload = {
+            "oauthAccount": {"planDisplayName": None},
+            "claudeAiOauth": {"subscriptionType": "pro"},
+        }
+
+        self.assertEqual(usage.parse_profile(payload, "personal").subscription, "Pro")
 
     def test_is_nothing_when_the_payload_is_none(self):
         self.assertIsNone(usage.parse_profile(None, "x"))
@@ -340,8 +440,16 @@ class SlotProfilePayload(unittest.TestCase):
         profile = usage.parse_profile(payload, "work")
 
         self.assertEqual(profile.email, "someone@work.example")
-        self.assertEqual(profile.subscription, "team")
+        self.assertEqual(profile.subscription, "Team")
         self.assertEqual(profile.organization, "Example Org")
+
+    def test_takes_the_plan_name_from_the_account(self):
+        payload = usage.slot_profile_payload(
+            {"oauthAccount": {"planDisplayName": "Ultra"}},
+            {"claudeAiOauth": {"subscriptionType": "max"}},
+        )
+
+        self.assertEqual(usage.parse_profile(payload, "personal").subscription, "Ultra")
 
     def test_never_carries_a_token(self):
         payload = usage.slot_profile_payload(
@@ -521,6 +629,39 @@ class ComposingSources(unittest.TestCase):
         self.assertIsNone(view.five_hour)
         self.assertIsNone(view.windows_at)
         self.assertFalse(view.has_data)
+
+    def test_the_endpoint_says_the_plan_has_no_five_hour_window(self):
+        activity = usage.parse_activity(ULTRA_ACTIVITY, observed_at=NOW)
+        snapshot = usage.parse_snapshot(
+            ULTRA_PAYLOAD, now=_at("2026-07-30T10:30:00+00:00")
+        )
+
+        view = usage.compose(snapshot, activity, now=NOW)
+
+        self.assertTrue(view.five_hour_absent)
+        self.assertEqual(view.seven_day.percent, 61)
+
+    def test_the_status_line_alone_cannot_say_a_window_is_absent(self):
+        # Its rate_limits carry a window only when the last response headers did, so a missing one is not news.
+        activity = usage.parse_activity(ULTRA_ACTIVITY, observed_at=NOW)
+
+        view = usage.compose(None, activity, now=NOW)
+
+        self.assertIsNone(view.five_hour)
+        self.assertFalse(view.five_hour_absent)
+
+    def test_a_reported_five_hour_figure_outweighs_an_older_absence(self):
+        activity = usage.parse_activity(
+            {"five_hour": {"used_percentage": 19.0}}, observed_at=NOW
+        )
+        snapshot = usage.parse_snapshot(
+            ULTRA_PAYLOAD, now=_at("2026-07-30T10:30:00+00:00")
+        )
+
+        view = usage.compose(snapshot, activity, now=NOW)
+
+        self.assertEqual(view.five_hour.percent, 19)
+        self.assertFalse(view.five_hour_absent)
 
 
 class Cadence(unittest.TestCase):
@@ -766,6 +907,18 @@ class PanelLabel(unittest.TestCase):
 
         self.assertNotEqual(loading, stale)
 
+    def test_leaves_out_a_five_hour_window_the_plan_does_not_have(self):
+        label = usage.panel_label(_view(ULTRA_PAYLOAD), stale=False)
+
+        self.assertEqual(_text(label), "7d:62%")
+
+    def test_marks_a_five_hour_window_that_has_not_been_reported_yet(self):
+        activity = usage.parse_activity(ULTRA_ACTIVITY, observed_at=NOW)
+
+        label = usage.panel_label(_view(activity=activity), stale=False)
+
+        self.assertEqual(_text(label), "5h:– 7d:61%")
+
 
 class ResetWording(unittest.TestCase):
     def test_uses_a_relative_time_within_the_next_day(self):
@@ -790,6 +943,31 @@ class ResetWording(unittest.TestCase):
 
     def test_says_nothing_when_there_is_no_reset_time(self):
         self.assertEqual(usage.format_reset(None, now=NOW), "")
+
+
+class LocalResetWording(unittest.TestCase):
+    """The endpoint and the status line both report resets in UTC; the dropdown is read on a local clock."""
+
+    def setUp(self):
+        _use_zone(EASTERN_EUROPEAN_ZONE)
+        self.addCleanup(_use_zone, "UTC")
+
+    def test_words_a_weekly_reset_in_the_local_zone(self):
+        self.assertEqual(
+            usage.format_reset(
+                _at("2026-11-03T12:00:00+00:00"), now=_at("2026-11-02T07:46:00+00:00")
+            ),
+            "resets Tue 14:00",
+        )
+
+    def test_takes_the_offset_in_force_at_the_reset_rather_than_now(self):
+        # Summer time ends between now (UTC+3) and the reset (UTC+2).
+        self.assertEqual(
+            usage.format_reset(
+                _at("2026-10-26T12:00:00+00:00"), now=_at("2026-10-24T09:00:00+00:00")
+            ),
+            "resets Mon 14:00",
+        )
 
 
 class Bar(unittest.TestCase):
@@ -995,6 +1173,26 @@ class MenuRows(unittest.TestCase):
             ["Loading"],
         )
 
+    def test_leaves_out_the_five_hour_row_when_the_plan_has_no_such_window(self):
+        rows = usage.menu_rows(_view(ULTRA_PAYLOAD), stale=False, now=NOW)
+
+        self.assertEqual(
+            [_text(row) for row in rows],
+            [
+                "7-day      ▓▓▓▓▓▓░░░░   62%   resets Fri 07:00",
+                "Fable      ▓▓▓▓░░░░░░   42%",
+            ],
+        )
+
+    def test_says_the_five_hour_window_has_not_been_reported_yet(self):
+        activity = usage.parse_activity(ULTRA_ACTIVITY, observed_at=NOW)
+
+        rows = usage.menu_rows(_view(activity=activity), stale=False, now=NOW)
+
+        self.assertEqual(_text(rows[0]), "5-hour     not reported yet")
+        self.assertIn(usage.MENU_STALE_COLOUR, rows[0])
+        self.assertEqual(_text(rows[1]), "7-day      ▓▓▓▓▓▓░░░░   61%")
+
 
 class SignedOut(unittest.TestCase):
     def test_the_panel_says_so_when_there_are_no_credentials_and_no_history(self):
@@ -1110,14 +1308,14 @@ class ProfilesPanelLabel(unittest.TestCase):
         label = usage.profiles_panel_label(
             [_panel("personal", WINDOWS), _panel("work", WINDOWS)]
         )
-        self.assertEqual(_text(label), "P 12/30 · W 12/30")
+        self.assertEqual(_text(label), "P 12%/30% · W 12%/30%")
         self.assertEqual(
             label,
             "\u200b"
             '<span foreground="#377880">'
-            'P <span foreground="#56b6c2">12</span>/<span foreground="#56b6c2">30</span>'
+            'P <span foreground="#56b6c2">12%</span>/<span foreground="#56b6c2">30%</span>'
             " · "
-            'W <span foreground="#56b6c2">12</span>/<span foreground="#56b6c2">30</span>'
+            'W <span foreground="#56b6c2">12%</span>/<span foreground="#56b6c2">30%</span>'
             "</span>",
         )
 
@@ -1125,8 +1323,32 @@ class ProfilesPanelLabel(unittest.TestCase):
         label = usage.profiles_panel_label(
             [_panel("personal", WINDOWS), _panel("work", WINDOWS, stale=True)]
         )
-        self.assertIn('<span foreground="#646464">W 12/30</span>', label)
-        self.assertIn('P <span foreground="#56b6c2">12</span>', label)
+        self.assertIn('<span foreground="#646464">W 12%/30%</span>', label)
+        self.assertIn('P <span foreground="#56b6c2">12%</span>', label)
+
+    def test_a_plan_without_a_five_hour_window_shows_its_weekly_figure_alone(self):
+        label = usage.profiles_panel_label(
+            [_panel("personal", ULTRA_PAYLOAD), _panel("work", WINDOWS)]
+        )
+
+        self.assertEqual(_text(label), "P 62% · W 12%/30%")
+        self.assertIn('P <span foreground="#56b6c2">62%</span>', label)
+
+    def test_greys_the_weekly_figure_alone_when_it_is_stale(self):
+        label = usage.profiles_panel_label(
+            [_panel("personal", ULTRA_PAYLOAD, stale=True), _panel("work", WINDOWS)]
+        )
+
+        self.assertIn('<span foreground="#646464">P 62%</span>', label)
+
+    def test_keeps_the_dash_for_a_five_hour_window_not_reported_yet(self):
+        activity = usage.parse_activity(ULTRA_ACTIVITY, observed_at=NOW)
+
+        label = usage.profiles_panel_label(
+            [_panel("personal", activity=activity), _panel("work", WINDOWS)]
+        )
+
+        self.assertEqual(_text(label), "P –/61% · W 12%/30%")
 
     def test_marks_a_missing_window_and_a_profile_still_loading_or_signed_out(self):
         five_hour_only = {
@@ -1140,7 +1362,7 @@ class ProfilesPanelLabel(unittest.TestCase):
                 _panel("club", signed_out=True),
             ]
         )
-        self.assertEqual(_text(label), "P 5/– · W … · C ?")
+        self.assertEqual(_text(label), "P 5%/– · W … · C ?")
 
     def test_no_profile_reads_as_loading(self):
         self.assertEqual(
