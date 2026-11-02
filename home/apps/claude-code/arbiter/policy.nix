@@ -19,6 +19,9 @@
 # - Project .env and .npmrc files hold local development settings, never these credentials, so their secret rules are off.
 # - The deny paths add credential stores the built-in rules miss; those already cover SSH keys, ~/.aws, gh, kube, docker and
 #   gcloud configuration, .netrc and the coding agents' own credentials.
+# - Claude Code's built-in rule knows only ~/.claude/.credentials.json, not the per-account copies of ../bubble/modules/profiles.
+#   A session sees only its own profile, bound at profiles/active, so that one entry covers them; a `*` in a deny path is
+#   taken literally, so no entry can name every profile.
 #
 # Learn more at https://github.com/kenryu42/cc-safety-net (`cc-safety-net rule doc` prints the rulebook reference).
 let
@@ -48,6 +51,8 @@ let
     "gcloud projects delete example" = "custom.gcloud/block-gcloud-projects-delete";
     "strace -f git reset --hard" = "git.reset-hard";
     "cat ~/.gnupg/pubring.kbx" = "secret.deny-path";
+    "head -c 200 ~/.claude/profiles/active/credentials/.credentials.json" = "secret.deny-path";
+    "cp /dev/null ~/.claude/profiles/active/credentials/.credentials.json" = "secret.deny-path";
     "cat .env.development.local" = "none";
     "cat .npmrc" = "none";
     "git stash -u" = "custom.arbiter/git-stash-untracked";

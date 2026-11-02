@@ -25,6 +25,7 @@
       "~/.gnupg",
       "~/.password-store",
       "~/.config/rclone/rclone.conf",
+      "~/.claude/profiles/active/credentials",
       "/proc/self/environ",
       "/proc/thread-self/environ",
       "/proc/1/environ"
