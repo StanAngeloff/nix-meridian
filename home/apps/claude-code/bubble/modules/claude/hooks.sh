@@ -5,7 +5,7 @@ claude_prepare() {
 	# Stray project directories land here, notably worktree slugs: EnterWorktree moves the session's transcript into one.
 	# On disk rather than in the scratch directory under /tmp, which lives in memory, so a crash leaves them for manual recovery.
 	# No bubble mounts the state directory, so sessions still cannot read one another's transcripts.
-	local projects_state_path="${XDG_STATE_HOME:-$home_path/.local/state}/claude-bubble/projects"
+	local projects_state_path="${XDG_STATE_HOME:-$home_path/.local/state}/claude-cc/projects"
 	mkdir -p "$projects_state_path"
 	# No -p: an identifier reissued after a crash wiped /tmp must not adopt that session's leftovers.
 	mkdir "$projects_state_path/$bubble_id"

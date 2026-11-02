@@ -5,7 +5,7 @@
 #   cc jobs open <job>               open the latest run's output, the file its notification opens
 #   cc jobs resume <job> [run]       reopen a run's session interactively, the latest run unless one is named
 #
-# A run keeps its files in $XDG_STATE_HOME/claude-jobs/<job>/<run>/: run.json for the latest attempt, result.md linked to
+# A run keeps its files in $XDG_STATE_HOME/claude-cc/jobs/<job>/<run>/: run.json for the latest attempt, result.md linked to
 # that attempt's final message, and attempt-<n>/ with each attempt's events.jsonl, result.md and stderr.log.
 # The run's name is its stamp, computed once and shared by the directory, the session names, the output file and the
 # notifications.
@@ -13,7 +13,7 @@
 # subcommand, so naming claude-cc's store path here would make each package depend on the other.
 
 icon=@icon@
-state_root="${XDG_STATE_HOME:-$HOME/.local/state}/claude-jobs"
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/claude-cc/jobs"
 # Resolved before execute changes into the job's directory, where a relative $0 would point elsewhere.
 self=$(realpath "$0")
 
@@ -358,7 +358,7 @@ Commands:
   open <job>            Open the latest run's output, the file its notification opens
   resume <job> [<run>]  Reopen a run's session interactively, the latest run unless <run> names one
 
-The jobs are nix-meridian.claude.jobs. Each run keeps its files in ~/.local/state/claude-jobs/<job>/<run>/.
+The jobs are nix-meridian.claude.jobs. Each run keeps its files in ~/.local/state/claude-cc/jobs/<job>/<run>/.
 USAGE
 	exit 1
 }
