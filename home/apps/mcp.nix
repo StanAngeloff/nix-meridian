@@ -94,20 +94,12 @@ in
     mcporter = {
       baseUrl = "https://mcp.shortcut.com/mcp";
     };
-    # noun-verb tool names, so globs anchor on the verb suffix
+    # verb_noun tool names (create_story, update_epic, delete_iteration), so globs anchor on the verb prefix
     claude = {
       ask = [
-        "mcp__shortcut__*-create"
-        "mcp__shortcut__*-create-*"
-        "mcp__shortcut__*-update"
-        "mcp__shortcut__*-update-*"
-        "mcp__shortcut__*-delete"
-        "mcp__shortcut__*-add-*"
-        "mcp__shortcut__*-remove-*"
-        "mcp__shortcut__*-set-*"
-        "mcp__shortcut__*-assign-*"
-        "mcp__shortcut__*-unassign-*"
-        "mcp__shortcut__*-upload-*"
+        "mcp__shortcut__create_*"
+        "mcp__shortcut__update_*"
+        "mcp__shortcut__delete_*"
       ];
     };
   };
