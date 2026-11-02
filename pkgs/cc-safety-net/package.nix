@@ -8,12 +8,12 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "cc-safety-net";
-  version = "2.6.0";
+  version = "2.7.2";
 
   # The published npm package, which ships dist/ already bundled: the bundle imports only Node builtins and its own files.
   src = fetchzip {
     url = "https://registry.npmjs.org/cc-safety-net/-/cc-safety-net-${finalAttrs.version}.tgz";
-    hash = "sha256-SNapVZKJ26ujirppoBVzVEXulF6Y20oLIAObsRxhbKA=";
+    hash = "sha256-yowkJNAR8NqQ8lvvn7aPh5S/zO2Ig/vBaOEZfThMfBI=";
   };
 
   # The npm package has no lockfile, so package-lock.json next to this file pins its dependency tree, which is empty.
@@ -27,7 +27,7 @@ buildNpmPackage (finalAttrs: {
   '';
 
   forceEmptyCache = true;
-  npmDepsHash = "sha256-7OMD1mn75zHM+Dv/4lsts42+UaYDXIig5Ld61nFMcYk=";
+  npmDepsHash = "sha256-XUSlbn2LQGOuv4iiIh+4LKBADmPE5odkJWcccWv0mfg=";
   # With no dependencies npm creates no node_modules, which the install phase copies.
   preInstall = "mkdir node_modules/";
 
