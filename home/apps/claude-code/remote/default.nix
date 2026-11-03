@@ -8,6 +8,7 @@ let
       pkgs.findutils
       pkgs.gnugrep
       pkgs.gawk
+      (import ../../../../modules/lib/tmux-default-session.nix { inherit pkgs; })
     ];
     # hub.sh gets store paths rather than command names, because tmux runs a new window's command in the tmux server's
     # environment rather than the hub's.

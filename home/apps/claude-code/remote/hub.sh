@@ -132,6 +132,8 @@ ensure_remote_session() {
 	tmux kill-session -t phone 2>/dev/null || true
 
 	if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+		# new-session -t fails unless the default session exists.
+		tmux-default-session
 		tmux new-session -d -t default -s "$SESSION"
 	fi
 
