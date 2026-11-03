@@ -40,6 +40,7 @@ in
   dconf.settings."org/gnome/shell/extensions/tiling-assistant" = {
     enable-advanced-experimental-features = true;
     import-layout-examples = false;
+    restore-window = [ ]; # default <Super>Down would shadow the minimize binding in keybindings.nix
     search-popup-layout = [ "<Super>KP_5" ];
     tile-maximize = [ "<Super>Up" ];
   };
