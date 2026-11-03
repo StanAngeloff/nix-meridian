@@ -12,6 +12,7 @@
     ./input.nix
     ./keyring.nix
     ./libimobiledevice.nix
+    ./memory.nix
     ./networking.nix
     ./nix.nix
     ./podman.nix
