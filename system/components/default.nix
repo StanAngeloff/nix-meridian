@@ -22,6 +22,5 @@
     ./smartcard.nix
     ./tailscale.nix
     ./udev.nix
-    ./upgrades.nix
   ];
 }
