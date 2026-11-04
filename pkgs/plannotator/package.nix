@@ -32,7 +32,7 @@ let
   # A changed file fails its fetch, so changing what Claude is told stays a deliberate act.
   # Update them only after reading the upstream diff, which update.sh shows before it asks.
   skillSha256 = {
-    plannotator-review = "7d99acb415d6e1f188e7a52f350b3149765479decd7cb2df2682723ff60b43c4";
+    plannotator-review = "cd4631c42e8cf75ea80b829501bd78a2cf0a7e333e3d97500e6ac2cea8cbc8a5";
     plannotator-annotate = "d69c5b012cbeefcedd05970f5f55b5fba5b83d54d9c2a24fd8a3e1286f323b69";
     plannotator-last = "1a979daa6b39e86706b9e644ab7bd847f53373ecdfd6ec1d06d3d228727dd54d";
   };
@@ -114,6 +114,13 @@ let
   # PLANNOTATOR_SHARE: share links carry the plan or diff to share.plannotator.ai; short links upload it.
   # PLANNOTATOR_AUTO_UPDATE: the opt-in self-updater (0.27.23 on) downloads and runs plannotator.ai/install.sh,
   #   which writes ~/.local/bin and agent integrations; set here, it beats config.json and locks the toggle in Settings.
+  # PLANNOTATOR_UPDATE_CHECK: every review asks GitHub for a newer release, which the namespace never lets through,
+  #   so the review page would report the check failing.
+  # DO_NOT_TRACK: upstream's opt-out of its daily ping, which tells ping.plannotator.ai the version, the tool used
+  #   (plan, review, annotate or last) and how many weeks Plannotator has been in use; the namespace stops it too.
+  # PLANNOTATOR_AI: disabled takes the AI chat (Ask AI) off every page and the agent reviews off the review page:
+  #   the servers refuse /api/ai/ and /api/agents/, and the pages hide both.
+  #   The annotate page's agent terminal has no such switch; it needs a runtime in vendor/, below.
   # PLANNOTATOR_JINA: annotating a URL would fetch it through r.jina.ai.
   # PLANNOTATOR_GIT_REMOTE_CHECK: upstream's documented opt-out. The namespace has no route to a remote,
   #   so reviews compare against local refs instead of waiting on a `git ls-remote` that cannot succeed.
@@ -131,6 +138,9 @@ let
     "--set" "PLANNOTATOR_REMOTE" "0"
     "--set" "PLANNOTATOR_SHARE" "disabled"
     "--set" "PLANNOTATOR_AUTO_UPDATE" "0"
+    "--set" "PLANNOTATOR_UPDATE_CHECK" "0"
+    "--set" "DO_NOT_TRACK" "1"
+    "--set" "PLANNOTATOR_AI" "disabled"
     "--set-default" "PLANNOTATOR_JINA" "0"
     "--set-default" "PLANNOTATOR_GIT_REMOTE_CHECK" "0"
     "--set-default" "PLANNOTATOR_BROWSER" (lib.getExe reviewWindow)
@@ -156,13 +166,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "plannotator";
-  version = "0.28.7";
+  version = "0.28.48";
 
   # Upstream's release build (`bun build --compile`): a Bun runtime with the server and the review UI embedded.
   # update.sh verifies its SLSA provenance against upstream's release workflow before writing a bump.
   src = fetchurl {
     url = "https://github.com/backnotprop/plannotator/releases/download/v${finalAttrs.version}/plannotator-linux-x64";
-    hash = "sha256-0sMfvyDT5Q5SgM801dRiTpRB4GoDVriK7XPCmb1Dw3w=";
+    hash = "sha256-+gpB6OCgaa+E39CBygaJtChC5V4qckiAMBQPKaVaHbA=";
   };
 
   nativeBuildInputs = [
@@ -175,23 +185,13 @@ stdenv.mkDerivation (finalAttrs: {
   dontUnpack = true;
   dontConfigure = true;
 
-  # The release embeds its server as 60 MB of JavaScript source, both pages in it as string literals,
-  # which Bun parses on every start: about 480 ms before Plannotator does anything.
-  # The same JavaScript, taken out (extract-bundle.js) and compiled again with bytecode by nixpkgs' Bun, starts in half that;
-  # the binary grows from 154 to 350 MB.
-  # The pages also go, split, to the review window, which shows them itself (review-window/main.js).
+  # The review window shows the plan and review pages itself (review-window/main.js), from copies of the files
+  # the release embeds for them, which extract-bundle.js takes out of the binary's .bun section.
   buildPhase = ''
     runHook preBuild
 
-    # The JavaScript is bundled for upstream's Bun, whose version the runtime part of the binary names first.
-    mapfile -t upstream_bun_versions < <(grep --text --only-matching 'Bun v[0-9]*\.[0-9]*\.[0-9]*' $src)
-    if [[ "''${upstream_bun_versions[0]:-}" != "Bun v${lib.versions.majorMinor bun.version}."* ]]; then
-      echo "plannotator ${finalAttrs.version} runs on ''${upstream_bun_versions[0]:-an unknown Bun}, nixpkgs has Bun ${bun.version}" >&2
-      exit 1
-    fi
     $OBJCOPY --output-target=binary --only-section=.bun $src bun-section
-    bun ${./extract-bundle.js} bun-section extracted
-    HOME="$TMPDIR" bun build --compile --bytecode --format=esm --target=bun extracted/plannotator.js --outfile plannotator
+    bun ${./extract-bundle.js} bun-section pages
 
     runHook postBuild
   '';
@@ -218,8 +218,9 @@ stdenv.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    install -Dm755 plannotator $out/libexec/plannotator/plannotator
-    install -Dm444 -t $out/share/plannotator/pages extracted/pages/*
+    install -Dm755 $src $out/libexec/plannotator/plannotator
+    mkdir -p $out/share/plannotator
+    cp -r pages $out/share/plannotator/pages
     # The wrapper sets the environment above, then runs the binary through isolate, then prelaunch.
     makeWrapper ${lib.getExe isolate} $out/bin/plannotator \
       --add-flags "${lib.getExe prelaunch} $out/libexec/plannotator/plannotator" \

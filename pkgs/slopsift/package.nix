@@ -17,12 +17,12 @@ let
 in
 buildNpmPackage (finalAttrs: {
   pname = "slopsift";
-  version = "0.11.0";
+  version = "0.12.0";
 
   # The published npm package, which ships dist/cli.js already compiled and the ONNX model it runs.
   src = fetchzip {
     url = "https://registry.npmjs.org/slopsift/-/slopsift-${finalAttrs.version}.tgz";
-    hash = "sha256-UglXnVcop5YWI3THjIibS4ZxKkBqR0qtVm7zEs7oyfY=";
+    hash = "sha256-UtbvXIgOXvNf6zXW4MOGeNABiaWS+FrfvBA7iq76kT0=";
   };
 
   # The npm package has no lockfile, so package-lock.json next to this file pins its dependency tree.
@@ -33,7 +33,7 @@ buildNpmPackage (finalAttrs: {
     cp ${./package-lock.json} package-lock.json
   '';
 
-  npmDepsHash = "sha256-bEX0ruYFwMY8H3NdiS6eiXhYTX3VaBJchDJlnGQ+KhA=";
+  npmDepsHash = "sha256-JXWxEy1pePV1Yoap4k1I7XjwadLIZRynUqfMgJu4+F4=";
 
   nodejs = nodejs_24;
 

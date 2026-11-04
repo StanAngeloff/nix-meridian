@@ -4,8 +4,8 @@
 // but outside the namespace WebRTC over TCP (TURN) and WebTransport still reach any port on the review host,
 // unseen by the request filter.
 // The page lives at an origin of the window's own, the same for every review, which the window serves itself:
-// the page from the package's copy (../extract-bundle.js) when it knows which one, every other request by passing it to
-// the server. So the page can load before the server is up (../prelaunch.sh), and is never 17 to 24 MB of HTML to parse.
+// the page and the files it loads from the package's copy (../extract-bundle.js) when it knows which page,
+// every other request by passing it to the server. So the page can load before the server is up (../prelaunch.sh).
 // package.json's desktopName gives the window the Wayland app_id "plannotator",
 // which GNOME matches to plannotator.desktop for its name and icon.
 // The window has no GTK frame: a title strip of its own carries the page's title and moves the window,
@@ -15,7 +15,7 @@
 // PLANNOTATOR_WINDOW_PROFILE: the data directory (cookies, which hold Plannotator's settings, and the zoom level).
 // PLANNOTATOR_WINDOW_HANDOFF: without a URL argument, the directory where the URL arrives later, in a file named url.
 // PLANNOTATOR_WINDOW_PAGE and PLANNOTATOR_WINDOW_PAGES: the page to show (plan or review) and the directory of the
-// package's split pages; unset, the page is the server's own.
+// package's page copies; unset, the page is the server's own.
 // PLANNOTATOR_WINDOW_BROWSER: the program a clicked link's URL goes to; unset or failing, the URL is copied instead.
 // PLANNOTATOR_WINDOW_LOG: a file that gets one line per decision, read by tests/plannotator.
 // PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE and PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY: the page's spell-checking
@@ -75,14 +75,12 @@ if (!profilePath || (reviewUrlArgument === null ? !handoffPath : !argumentReview
 const reviewOrigin = "http://localhost:19432";
 const pageName = process.env.PLANNOTATOR_WINDOW_PAGE;
 const pagesPath = process.env.PLANNOTATOR_WINDOW_PAGES;
-const pageFiles =
+// Every path the window serves from the package's copy of its page, with the file and its content type.
+const pageFiles = new Map(
   pageName && pagesPath
-    ? {
-        "/": { file: `${pageName}.html`, type: "text/html; charset=utf-8" },
-        [`/__review-window.${pageName}.js`]: { file: `${pageName}.js`, type: "text/javascript; charset=utf-8" },
-        [`/__review-window.${pageName}.css`]: { file: `${pageName}.css`, type: "text/css; charset=utf-8" },
-      }
-    : {};
+    ? Object.entries(JSON.parse(fs.readFileSync(path.join(pagesPath, `${pageName}.json`), "utf8")))
+    : [],
+);
 const windowLogFile = process.env.PLANNOTATOR_WINDOW_LOG;
 const spellcheckLanguage = process.env.PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE;
 const spellcheckDictionaryFile = process.env.PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY;
@@ -267,14 +265,15 @@ app.whenReady().then(() => {
     logDecision(allowed ? "allow" : "cancel", details.resourceType, details.url);
     callback({ cancel: !allowed });
   });
-  // Every http request of the session comes here, and only the page's origin is served: its page from the package's copy,
-  // when the window knows which, everything else from the server. Nothing ever listens on the page's origin.
+  // Every http request of the session comes here, and only the page's origin is served: its page and the page's files
+  // from the package's copy, when the window knows which page, everything else from the server.
+  // Nothing ever listens on the page's origin.
   protocol.handle("http", async (request) => {
     const url = new URL(request.url);
     if (url.origin !== reviewOrigin) {
       return new Response(null, { status: 404 });
     }
-    const pageFile = request.method === "GET" ? pageFiles[url.pathname] : undefined;
+    const pageFile = request.method === "GET" ? pageFiles.get(url.pathname) : undefined;
     if (pageFile) {
       logDecision("page", url.pathname);
       return new Response(await fs.promises.readFile(path.join(pagesPath, pageFile.file)), {

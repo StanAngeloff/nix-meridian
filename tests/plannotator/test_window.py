@@ -20,10 +20,15 @@ import subprocess
 import threading
 import uuid
 
-from harness import TESTS_PATH, Session, electron_main_process_ids, finish, wait_for
-
-# The page's origin in the window (review-window/main.js), the same for every review; nothing listens on it.
-PAGE_ORIGIN = "http://localhost:19432"
+from harness import (
+    PAGE_ORIGIN,
+    TESTS_PATH,
+    Session,
+    electron_main_process_ids,
+    finish,
+    page_script_path,
+    wait_for,
+)
 
 SECOND_LAYER_PAGE = """<!doctype html><title>second layer</title>
 <a id="trusted" href="https://example.com/trusted" style="position:absolute;left:10px;top:10px;font-size:40px">trusted</a>
@@ -116,7 +121,7 @@ class StunListener:
 
 
 def test_inside_the_namespace_the_window_reaches_only_its_server(
-    tmp_path, environment, start_session, beacon
+    tmp_path, environment, package_path, start_session, beacon
 ):
     opened_file = tmp_path / "opened"
     # The browser command fails, so the window also falls back to copying the link.
@@ -144,7 +149,9 @@ def test_inside_the_namespace_the_window_reaches_only_its_server(
     log = session.window_log()
     assert f"allow mainFrame {PAGE_ORIGIN}/" in log, log
     # The page came from the package; its data came from the server, through the window.
-    assert "page /" in log and "page /__review-window.plan.js" in log, log
+    assert (
+        "page /" in log and f"page {page_script_path(package_path, 'plan')}" in log
+    ), log
     assert f"handoff http://localhost:{session.port}/" in log, log
     session.wait_for_window_log(
         lambda line: line.startswith("allow ")
@@ -177,15 +184,16 @@ def test_inside_the_namespace_the_window_reaches_only_its_server(
 
 
 def test_the_early_window_runs_its_page_before_the_server_hands_over(
-    tmp_path, environment, start_session
+    tmp_path, environment, package_path, start_session
 ):
     # The browser command waits until the page's script has been served, which needs nothing from the server.
+    script_line = f"page {page_script_path(package_path, 'plan')}"
     (tmp_path / "probe.md").write_text("# Probe\n")
     session = start_session(
         ["annotate", "probe.md"],
         {
             **environment,
-            "PLANNOTATOR_TEST_HANDOFF_AFTER": "page /__review-window.plan.js",
+            "PLANNOTATOR_TEST_HANDOFF_AFTER": script_line,
         },
         tmp_path,
         window=True,
@@ -197,7 +205,7 @@ def test_the_early_window_runs_its_page_before_the_server_hands_over(
     )
     assert handoff_line == f"handoff http://localhost:{session.port}/"
     log = session.window_log()
-    assert log.index("page /__review-window.plan.js") < log.index(handoff_line), log
+    assert log.index(script_line) < log.index(handoff_line), log
 
     status, _ = session.request_json("/api/exit", "POST", {})
     assert status == 200

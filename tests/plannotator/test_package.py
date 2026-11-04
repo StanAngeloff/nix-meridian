@@ -139,6 +139,63 @@ def test_stays_on_loopback_with_sharing_off_whatever_the_caller_asks(
     assert "Probe feedback from the test." in stdout
 
 
+def test_checks_for_no_update_and_sends_no_ping_whatever_the_caller_asks(
+    tmp_path, environment, data_path, start_session
+):
+    # Each writes its state before it reaches out: update-state.json for the release check, ping.json for the daily ping.
+    (data_path / "config.json").write_text(json.dumps({"updateCheck": True}))
+    hostile_environment = {
+        **environment,
+        "PLANNOTATOR_UPDATE_CHECK": "1",
+        "DO_NOT_TRACK": "0",
+    }
+    (tmp_path / "probe.md").write_text("# Probe\n")
+    session = start_session(["annotate", "probe.md"], hostile_environment, tmp_path)
+
+    status, plan = session.request_json("/api/plan")
+    assert status == 200
+    assert "updateAvailable" not in plan and "updateCheckFailing" not in plan, plan
+
+    status, _ = session.request_json("/api/exit", "POST", {})
+    assert status == 200
+    session.process.communicate(timeout=60)
+    assert not (data_path / "update-state.json").exists()
+    assert not (data_path / "ping.json").exists()
+
+
+@pytest.mark.parametrize("page_name", ["plan", "review"])
+def test_ai_features_stay_off_whatever_the_caller_asks(
+    tmp_path, environment, start_session, page_name
+):
+    # The pages show Ask AI and agent reviews only when their server says AI is available.
+    hostile_environment = {**environment, "PLANNOTATOR_AI": "enabled"}
+    if page_name == "review":
+        repository_path = tmp_path / "repository"
+        make_repository(repository_path, environment)
+        session = start_session(["review"], hostile_environment, repository_path)
+        refused_paths = ["/api/ai/session", "/api/agents/jobs"]
+        status, capabilities = session.request_json("/api/agents/capabilities")
+        assert status == 200
+        assert capabilities["available"] is False, capabilities
+    else:
+        (tmp_path / "probe.md").write_text("# Probe\n")
+        session = start_session(["annotate", "probe.md"], hostile_environment, tmp_path)
+        refused_paths = ["/api/ai/session"]
+
+    status, capabilities = session.request_json("/api/ai/capabilities")
+    assert status == 200
+    assert capabilities == {"available": False, "providers": []}, capabilities
+    for refused_path in refused_paths:
+        status, answer = session.request_json(
+            refused_path, "POST", {}, {"Origin": session.base_url}
+        )
+        assert status == 503, (refused_path, answer)
+
+    status, _ = session.request_json("/api/exit", "POST", {})
+    assert status == 200
+    session.process.communicate(timeout=60)
+
+
 def test_semantic_diff_runs_the_pinned_sem(tmp_path, environment, start_session):
     repository_path = tmp_path / "repository"
     make_repository(repository_path, environment)
@@ -204,31 +261,20 @@ def test_call_flow_cannot_install_from_the_review_ui(
     session.process.communicate(timeout=60)
 
 
-def page_copy(package_path, page_name):
-    """The package's split copy of a page (extract-bundle.js), put back together the way the server serves it."""
+def page_files(package_path, page_name):
+    """The package's copy of a page (extract-bundle.js): every path the review window serves from it, with its file."""
     pages_path = package_path / "share" / "plannotator" / "pages"
-    script = (pages_path / f"{page_name}.js").read_text()
-    stylesheet = (pages_path / f"{page_name}.css").read_text()
-    return (
-        (pages_path / f"{page_name}.html")
-        .read_text()
-        .replace(
-            f'<script type="module" crossorigin src="/__review-window.{page_name}.js"></script>',
-            f'<script type="module" crossorigin>{script}</script>',
-        )
-        .replace(
-            f'<link rel="stylesheet" crossorigin href="/__review-window.{page_name}.css">',
-            f'<style rel="stylesheet" crossorigin>{stylesheet}</style>',
-        )
-        .encode()
-    )
+    manifest = json.loads((pages_path / f"{page_name}.json").read_text())
+    return {
+        page_path: pages_path / entry["file"] for page_path, entry in manifest.items()
+    }
 
 
 @pytest.mark.parametrize("page_name", ["plan", "review"])
 def test_the_review_windows_page_copies_are_the_servers_pages(
     tmp_path, environment, package_path, start_session, page_name
 ):
-    # The window shows the copy instead of the server's page; a bump that splits the wrong literal fails here.
+    # The window shows the copy instead of the server's page; a bump that unpacks the wrong file fails here.
     if page_name == "review":
         repository_path = tmp_path / "repository"
         make_repository(repository_path, environment)
@@ -237,9 +283,11 @@ def test_the_review_windows_page_copies_are_the_servers_pages(
         (tmp_path / "probe.md").write_text("# Probe\n")
         session = start_session(["annotate", "probe.md"], environment, tmp_path)
 
-    status, page = session.request_bytes("/")
-    assert status == 200
-    assert page == page_copy(package_path, page_name)
+    # The page's shell and every file it loads, byte for byte.
+    for page_path, page_file in page_files(package_path, page_name).items():
+        status, body = session.request_bytes(page_path)
+        assert status == 200, page_path
+        assert body == page_file.read_bytes(), page_path
 
     status, _ = session.request_json("/api/exit", "POST", {})
     assert status == 200

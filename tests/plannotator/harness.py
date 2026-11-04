@@ -27,11 +27,25 @@ import pytest
 TESTS_PATH = pathlib.Path(__file__).resolve().parent
 ADVERTISED_URL_PATTERN = re.compile(r"http://localhost:(\d+)/?")
 WAYLAND_SOCKET_NAME = "wayland-plannotator-test"
-# The review page asks GitHub for the latest release on every load, so its cancellation in the window log means the page ran.
-# If a release drops the check, wait for another request the page makes on load instead.
-UPDATE_CHECK_URL = (
-    "https://api.github.com/repos/backnotprop/plannotator/releases/latest"
+# The page's origin in the window (review-window/main.js), the same for every review; nothing listens on it.
+PAGE_ORIGIN = "http://localhost:19432"
+# The page asks for its data as soon as its script runs (/api/plan on the plan page, /api/diff on the review page),
+# so the window letting that request through means the page ran.
+# If a release renames them, wait for another request the page makes on load instead.
+PAGE_DATA_REQUEST_PATTERN = re.compile(
+    rf"allow \w+ {re.escape(PAGE_ORIGIN)}/api/(plan|diff)"
 )
+
+
+def page_script_path(package_path, page_name):
+    """The path of the module script that the package's copy of a page loads (extract-bundle.js), such as /assets/index-Bgov0NlP.js."""
+    shell = (
+        package_path / "share" / "plannotator" / "pages" / page_name / "index.html"
+    ).read_text()
+    [script_path] = re.findall(
+        r'<script type="module" crossorigin src="([^"]*)"></script>', shell
+    )
+    return script_path
 
 
 def wait_for(condition, timeout, description):
@@ -234,8 +248,7 @@ class Session:
 
     def wait_until_the_page_ran(self):
         self.wait_for_window_log(
-            lambda line: line.startswith("cancel ")
-            and line.endswith(" " + UPDATE_CHECK_URL),
+            PAGE_DATA_REQUEST_PATTERN.fullmatch,
             "the review page to run in the window",
         )
 
