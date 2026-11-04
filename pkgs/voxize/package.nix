@@ -11,8 +11,8 @@
   libsecret,
   pipewire,
   portaudio,
+  wl-clipboard,
   # Typography
-  source-serif,
   ibm-plex,
 }:
 let
@@ -25,7 +25,6 @@ let
     portaudio
   ];
   runtimeFonts = [
-    source-serif
     ibm-plex
   ];
   runtimeDeps = runtimeLibs ++ runtimeFonts;
@@ -33,19 +32,20 @@ let
     openai
     pygobject3
     sounddevice
+    textual
     websockets
   ];
 in
 python.pkgs.buildPythonApplication rec {
   pname = "voxize";
-  version = "0.2.1";
+  version = "0.3.1";
   name = pname;
 
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
     rev = "v${version}";
-    hash = "sha256-Fu/+jPEHBIwkq7Mjw7Qs6Rvx7VjkQ8Ru8YML18ua1jo=";
+    hash = "sha256-KFdfJqW4Eb5pcZBGnChbexL33QfWJ5+x76e7PnNzGm8=";
   };
 
   buildInputs = runtimeDeps;
@@ -59,8 +59,9 @@ python.pkgs.buildPythonApplication rec {
 
   propagatedBuildInputs = pythonDeps;
 
-  # Voxize spawns subprocesses via sys.executable -m voxize.meeting, which bypasses the Nix
-  # Python wrapper's site.addsitedir calls. Export PYTHONPATH so subprocesses inherit it.
+  # Every entry point spawns `sys.executable -m voxize.backend` (and the meeting recorder `-m voxize.meeting`),
+  # which bypasses the Nix Python wrapper's site.addsitedir calls. Export PYTHONPATH so subprocesses inherit it.
+  # wl-copy is looked up on PATH: voxize-tui copies through it, and the window hands it a pending clipboard write on close.
   dontWrapGApps = true;
   preFixup =
     let
@@ -72,11 +73,12 @@ python.pkgs.buildPythonApplication rec {
         --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
         --set ALSA_PLUGIN_DIR ${pipewire}/lib/alsa-lib
         --prefix PYTHONPATH : "$out/${python.sitePackages}:${pyPath}"
+        --prefix PATH : ${lib.makeBinPath [ wl-clipboard ]}
       )
     '';
 
   meta = with lib; {
-    description = "Voice-to-text tool for Linux (Wayland/GNOME)";
+    description = "Voice-to-text for Linux (Wayland/GNOME): desktop overlay and terminal client";
     homepage = "http://flemma.dev/voxize";
     license = licenses.agpl3Only;
     platforms = platforms.linux;

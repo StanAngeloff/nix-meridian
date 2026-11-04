@@ -15,7 +15,7 @@ let
     {
       name = "voxize";
       binding = "<Super>s";
-      command = lib.getExe pkgs.voxize;
+      command = lib.getExe (pkgs.callPackage ../apps/voxize/launch/package.nix { });
     }
     rec {
       name = "unipicker";
