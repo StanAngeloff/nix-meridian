@@ -38,14 +38,14 @@ let
 in
 python.pkgs.buildPythonApplication rec {
   pname = "voxize";
-  version = "0.3.2";
+  version = "0.3.3";
   name = pname;
 
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
     rev = "v${version}";
-    hash = "sha256-WkX04sOi5Eq1STSJh1bIgYg4fiz3zortaeCbveBFIko=";
+    hash = "sha256-KDgJEVMIummv+7VMvj9ylwU6OlO5sLM7oWCgeMEyICU=";
   };
 
   buildInputs = runtimeDeps;
