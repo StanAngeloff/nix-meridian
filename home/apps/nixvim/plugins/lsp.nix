@@ -84,10 +84,8 @@
             enable = true;
             package = null;
           };
-          ts_ls = {
+          tsgo = {
             enable = true;
-            # NOTE: I used to enable denols conditionally based on the presence of a deno.json,
-            #       but I rarely work on Deno-only projects these days – it's not worth the complexity.
           };
           typos_lsp = {
             enable = true;
@@ -104,5 +102,19 @@
         };
       };
     };
+
+    # NOTE: Neovim doesn't offer file watching to language servers on Linux, and tsgo then turns its own watching off,
+    #       so it misses files changed on disk (a git checkout, generated code) until it restarts.
+    #       This is a separate vim.lsp.config call because Neovim deep-merges it into the server's config,
+    #       whereas capabilities set through plugins.lsp would replace the shared ones, blink-cmp's included.
+    #       See https://github.com/nix-community/nixvim/blob/4836e77b1798cd42e2de28593bec4c1788da08f5/modules/lsp/servers/default.nix#L185
+    extraConfigLua = # lua
+      ''
+        vim.lsp.config('tsgo', {
+          capabilities = { workspace = { didChangeWatchedFiles = { dynamicRegistration = true } } },
+        })
+
+        vim.api.nvim_set_hl(0, "LspInlayHint", { fg = "#4f4f4f" })
+      '';
   };
 }
