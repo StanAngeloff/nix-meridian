@@ -34,15 +34,13 @@ descends_from() {
 
 # One axis of the floating pane, printed as "size offset", in window coordinates of its content.
 # The border is drawn one cell outside the content, so a pane fits the whole card only with two cells to spare; a smaller pane is
-# covered exactly, its border landing on the neighbouring borders or off-screen. new-pane refuses a size of the full window.
+# covered exactly, its border landing on the neighbouring borders or off-screen.
 fit_axis() {
-	local cap="$1" pane_size="$2" pane_offset="$3" window_size="$4"
+	local cap="$1" pane_size="$2" pane_offset="$3"
 	if ((pane_size >= cap + 2)); then
 		echo "$cap $((pane_offset + (pane_size - cap) / 2))"
-	elif ((pane_size < window_size)); then
-		echo "$pane_size $pane_offset"
 	else
-		echo "$((window_size - 1)) $pane_offset"
+		echo "$pane_size $pane_offset"
 	fi
 }
 
@@ -65,10 +63,9 @@ launch() {
 	done < <(tmux list-clients -F '#{client_flags} #{client_pid} #{pane_id}')
 	((match_count == 1)) || fall_back "found $match_count focused tmux clients in the focused window" || return
 
-	local window_id="" pane_left pane_top pane_width pane_height window_width window_height pane_path
-	read -r window_id pane_left pane_top pane_width pane_height window_width window_height pane_path < <(
-		tmux display-message -p -t "$target_pane_id" \
-			'#{window_id} #{pane_left} #{pane_top} #{pane_width} #{pane_height} #{window_width} #{window_height} #{pane_current_path}'
+	local window_id="" pane_left pane_top pane_width pane_height pane_path
+	read -r window_id pane_left pane_top pane_width pane_height pane_path < <(
+		tmux display-message -p -t "$target_pane_id" '#{window_id} #{pane_left} #{pane_top} #{pane_width} #{pane_height} #{pane_current_path}'
 	)
 	[[ -n "$window_id" ]] || fall_back "cannot read pane $target_pane_id" || return
 
@@ -80,8 +77,8 @@ launch() {
 	fi
 
 	local width x height y
-	read -r width x < <(fit_axis "$card_width" "$pane_width" "$pane_left" "$window_width")
-	read -r height y < <(fit_axis "$card_height" "$pane_height" "$pane_top" "$window_height")
+	read -r width x < <(fit_axis "$card_width" "$pane_width" "$pane_left")
+	read -r height y < <(fit_axis "$card_height" "$pane_height" "$pane_top")
 	# voxize-tui reads WHISPER.txt from the directory it starts in.
 	local directory_arguments=()
 	if [[ -n "$pane_path" ]]; then
@@ -89,8 +86,9 @@ launch() {
 	fi
 	local voxize_tui_path new_pane_id
 	voxize_tui_path=$(command -v voxize-tui) || fall_back "voxize-tui is not on PATH" || return
+	# new-pane takes the box with its border (tmux 3.8), one cell beyond the content on every side.
 	new_pane_id=$(
-		tmux new-pane -t "$target_pane_id" -x "$width" -y "$height" -X "$x" -Y "$y" "${directory_arguments[@]}" \
+		tmux new-pane -t "$target_pane_id" -x "$((width + 2))" -y "$((height + 2))" -X "$((x - 1))" -Y "$((y - 1))" "${directory_arguments[@]}" \
 			-e "VOXIZE_TUI_BACKGROUND=$tui_background" -P -F '#{pane_id}' "$voxize_tui_path"
 	) || fall_back "tmux new-pane failed" || return
 	# A missing tag only costs the second press its focus-the-open-one shortcut, so it never opens the window as well.

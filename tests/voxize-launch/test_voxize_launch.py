@@ -261,11 +261,11 @@ def test_narrow_pane_is_covered_across_and_centred_down(rig):
     assert card["path"] == "/tmp"
 
 
-def test_pane_filling_the_window_is_capped_one_short(rig):
+def test_pane_filling_the_window_is_covered_exactly(rig):
     rig.start(80, 20)
     rig.launch()
     [card] = rig.floating_panes()
-    assert (card["left"], card["top"], card["width"], card["height"]) == (0, 0, 79, 19)
+    assert (card["left"], card["top"], card["width"], card["height"]) == (0, 0, 80, 20)
 
 
 def test_second_press_focuses_the_open_card(rig):

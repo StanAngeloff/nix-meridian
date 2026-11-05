@@ -26,6 +26,7 @@ final: prev: {
   tesseract5 = final.callPackage ./tesseract/overlay.nix { tesseract = prev.tesseract5; };
   tesseract = final.tesseract5;
   tig = final.callPackage ./tig/overlay.nix { tig = prev.tig; };
+  tmux = nixpkgs-unstable.tmux;
   voxize = final.callPackage ./voxize/package.nix { };
   xsel = final.callPackage ./xsel/overlay.nix { xsel = prev.xsel; };
   # nixfmt: on, as: statements

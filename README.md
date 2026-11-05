@@ -29,7 +29,7 @@ The source tree is the source of truth. Rather than maintaining a parallel inven
 - In `eog`, a Swappy plugin adds an "annotate" action so you can mark up an image you're already viewing. `home/apps/eog/`
 - `less` is replaced by `ov` everywhere, including `git`'s pager. An `ov-less.yaml` keeps the less-style keybinds. `home/apps/ov/`
 - `git diff` and `git show` use `tig` as the pager (with a perl ANSI stripper in front). `home/apps/tig/`
-- In tmux, `prefix C-g` toggles a `tig status` popup; once it's open, `Alt+z` toggles its size between 90% and 100% (outside the popup it falls back to `resize-pane -Z`). `home/apps/tmux/abilities/tmux.tig.conf`
+- In tmux, `prefix C-g` opens `tig status` in a floating pane, one per window; pressing it again shades tig to a strip in the top-right corner and back, and `Alt+z` zooms it to the whole window. `prefix G` (tig's directory picker) and `prefix C-n` (the pane's scratch note) open as floating panes too. `home/apps/tmux/abilities/tmux.tig.conf`, `home/apps/tmux/floats/`
 - In tmux copy-mode, `d` on a `/nix/store/...` path runs `nix-diff /run/current-system <path> | ov` in a popup. `home/apps/tmux/abilities/tmux.nix-diff.conf`
 - `nsx <pkg> -- <cmd>` is `npx` for nixpkgs — fetches `<pkg>` from the chosen channel and runs `<cmd>`. `home/apps/nsx/`
 - `preview <file.md>` renders Markdown in Brave via headless nvim + the (revived) `markdown-preview.nvim`. The browser tab survives nvim's exit. `home/apps/nixvim/plugins/markdown-preview-nvim/`

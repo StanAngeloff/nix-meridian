@@ -58,6 +58,34 @@ let
       rm -f "$note"
     fi
   '';
+
+  # The floating pane scripts behind prefix C-g, G and C-n, sharing floats/popup-box.sh.
+  # Floating panes move and resize from tmux 3.8 on, which is why tmux comes from nixpkgs-unstable (pkgs/overlays.nix).
+  floatScript =
+    name: file: runtimeInputs:
+    pkgs.writeShellApplication {
+      inherit name runtimeInputs;
+      text =
+        builtins.replaceStrings
+          [ "@popupBox@" "@scratchNote@" ]
+          [ "${./floats/popup-box.sh}" "${scratchNote}" ]
+          (builtins.readFile file);
+    };
+  tigFloat = floatScript "tmux-tig-float" ./floats/tig-float.sh [
+    pkgs.coreutils
+    pkgs.tmux
+  ];
+  tigPath = floatScript "tmux-tig-path" ./floats/tig-path.sh [
+    pkgs.coreutils
+    pkgs.findutils
+    pkgs.fzf
+    pkgs.gnugrep
+    pkgs.tmux
+  ];
+  scratchNoteFloat = floatScript "tmux-scratch-note-float" ./floats/scratch-note-float.sh [
+    pkgs.coreutils
+    pkgs.tmux
+  ];
 in
 {
   programs.tmux = {
@@ -93,9 +121,13 @@ in
           builtins.readFile ./tmux.conf
         )
       }
-      ${builtins.readFile ./abilities/tmux.tig.conf}
+      ${builtins.replaceStrings
+        [ "@tigFloat@" "@tigPath@" ]
+        [ (pkgs.lib.getExe tigFloat) (pkgs.lib.getExe tigPath) ]
+        (builtins.readFile ./abilities/tmux.tig.conf)
+      }
       ${builtins.readFile ./abilities/tmux.nix-diff.conf}
-      ${builtins.replaceStrings [ "@scratchNote@" ] [ "${scratchNote}" ] (
+      ${builtins.replaceStrings [ "@scratchNoteFloat@" ] [ (pkgs.lib.getExe scratchNoteFloat) ] (
         builtins.readFile ./abilities/tmux.scratch-note.conf
       )}
     '';
