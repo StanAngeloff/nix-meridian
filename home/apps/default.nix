@@ -40,6 +40,7 @@ in
     ./tmux
     ./unicode-tussle
     ./voxize
+    ./yt-dlp
     ./zoxide
     ./zsh
 
@@ -79,7 +80,6 @@ in
     bun
     clipboard2markdown
     dconf2nix
-    deno
     envchain
     ffmpeg
     (lib.hiPrio file-rename)
@@ -101,7 +101,6 @@ in
     wineWow64Packages.stable
     wl-clipboard
     yq-go
-    yt-dlp
 
     # AI era tools
     mcporter

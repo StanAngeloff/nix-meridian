@@ -13,7 +13,6 @@
         bbenoist.nix
         bierner.markdown-mermaid
         dbaeumer.vscode-eslint
-        denoland.vscode-deno
         esbenp.prettier-vscode
         github.copilot
         github.copilot-chat
