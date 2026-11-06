@@ -47,12 +47,10 @@ let
 
   popupNvim = import ../../../modules/lib/popup-nvim.nix { inherit pkgs; };
 
+  # Edits the note file $1, named by floats/scratch-note-float.sh, and removes it when left empty.
   scratchNote = pkgs.writeShellScript "tmux-scratch-note" ''
-    pane_id="$1"
-    pane_pid="$2"
-    notes_path="$HOME/.cache/tmux-scratch-notes"
-    mkdir -p "$notes_path"
-    note="$notes_path/$pane_id-$pane_pid.md"
+    note="$1"
+    mkdir -p "$(dirname "$note")"
     ${popupNvim}/bin/popup-nvim "$note"
     if [ -f "$note" ] && ! grep -q '[^[:space:]]' "$note"; then
       rm -f "$note"

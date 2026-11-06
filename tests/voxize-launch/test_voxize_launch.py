@@ -239,6 +239,20 @@ def test_wide_and_tall_pane_gets_a_centred_card_in_its_directory(rig):
     assert not rig.gui_opened()
 
 
+def test_card_is_titled_voxize_and_its_directory(rig):
+    rig.start(200, 50)
+    rig.launch()
+    [card] = rig.floating_panes()
+    title = rig.inner(
+        "display-message",
+        "-p",
+        "-t",
+        card["id"],
+        "#{@float-title-bold}|#{@float-title-rest}",
+    )
+    assert title.strip() == "voxize|/etc"
+
+
 def test_card_asks_voxize_for_the_amber_background(rig):
     rig.start(200, 50)
     rig.launch()

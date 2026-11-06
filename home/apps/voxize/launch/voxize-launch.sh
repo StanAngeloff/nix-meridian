@@ -93,6 +93,9 @@ launch() {
 	) || fall_back "tmux new-pane failed" || return
 	# A missing tag only costs the second press its focus-the-open-one shortcut, so it never opens the window as well.
 	tmux set-option -p -t "$new_pane_id" @voxize 1 || true
+	# The border title, drawn by pane-border-format in home/apps/tmux/tmux.conf; voxize-tui sets none, so the hostname would show.
+	tmux set-option -p -t "$new_pane_id" @float-title-bold voxize \; \
+		set-option -p -t "$new_pane_id" @float-title-rest "${pane_path/#"$HOME"/\~}" || true
 }
 
 launch || exec voxize
