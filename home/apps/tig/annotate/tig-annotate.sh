@@ -97,12 +97,14 @@ print(best_row)
 
 	# -T is a tmux format, so "#" in a file name is doubled to stay literal. A command given as separate arguments
 	# runs without a shell, so quotes in the note path stay literal too.
+	# popup_x and popup_y count from the tig pane, but a popup is placed on the whole terminal, so tmux adds where the pane starts:
+	# popup_pane_left, and popup_pane_bottom less the pane's height for its top row (a floating pane, a split, a status line on top).
 	tmux display-popup -EE \
 		-c "$tmux_client" \
 		-t "$tmux_target" \
 		-T " ${popup_title//\#/##} " \
-		-x "$popup_x" \
-		-y "$popup_y" \
+		-x "#{e|+:#{popup_pane_left},$popup_x}" \
+		-y "#{e|+:#{e|-:#{popup_pane_bottom},#{pane_height}},$popup_y}" \
 		-w "$popup_w" -h "$popup_height" \
 		-b heavy \
 		-s 'bg=#081018' \

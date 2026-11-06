@@ -141,6 +141,8 @@ home/apps/tig/annotate/probe.sh "$tig_path/bin/tig"
 - **tmux popup options are formats**: `display-popup` expands `-T` and `-d`, so `#(...)` in a file or directory name runs a command. Double every `#` with `${var//\#/##}`: zsh reads an unescaped `#` right after `//` as a start anchor, and the escaped form works the same in bash and zsh.
 - **Popup commands**: a command given as one string runs through tmux's `default-shell -c`, where a `'` in a path breaks out. Given as separate arguments, tmux runs it without a shell.
 - **Popups start in the session's start directory**, not the caller's, and tig passes a relative `.git` at the top level. `cl` passes `-d` with its own working directory.
+- **Popup positions are terminal coordinates**: `-x` and `-y` place the popup on the whole terminal, while the note's position is worked out inside the tig pane.
+  `add` lets tmux add the pane's start (`popup_pane_left`; `popup_pane_bottom` less `pane_height`), so the note opens beside its line in a floating pane, a split, or under a status line on top.
 - **fzf actions**: fzf ends an action such as `reload(...)` at `)+` or `),` however the text is quoted, then runs it through `$SHELL -c`, so a value substituted into the action text can run commands. `cl` passes the git directory to its reload through the environment (`TIG_ANNOTATE_GIT_DIR`) and keeps the action text constant.
 - **`diff` exit code**: `diff -ruN` returns 1 when files differ (not an error). Chain patch generation with `|| true`, not `&&`.
 - **Nix flake visibility**: new patch files need `git add --intent-to-add` before `nix build` can see them.
