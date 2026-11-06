@@ -1,7 +1,7 @@
 # Each session runs in its own transient systemd user scope, and cleanup stops that scope,
 # so nothing the session started outlives it.
 # The bubble shares the host PID namespace (host `ps` must work), so a process that detaches (setsid, a double fork)
-# is otherwise reparented to the user manager and lives on, keeping the bubble's mount namespace and tmpfs home in memory.
+# is otherwise reparented to the user manager and lives on, holding its memory and the bubble's mount namespace.
 # Every descendant inherits the cgroup, and nothing inside the bubble can leave it (/sys is read-only, the user bus is masked),
 # which makes the scope the one handle on the whole session.
 # lifetime_unit_name is global: it crosses from the before-run hook to the cleanup hook.

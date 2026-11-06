@@ -36,7 +36,7 @@ LOOKUP_FAILED = object()
 
 
 def cache_directory_from(environment):
-    """Where the answers live. Inside the bubble ~/.cache is a tmpfs of the session's own."""
+    """Where the answers live. Inside the bubble ~/.cache is the session's own, deleted when it ends."""
     base = environment.get("XDG_CACHE_HOME") or Path.home() / ".cache"
     return Path(base) / "claude-code-statusline"
 

@@ -30,7 +30,7 @@ let
     tools = {
       mcporter = {
         # Off inside the Claude Code bubble: discovery runs at every nvim start and mcporter spawns a detached daemon.
-        # The bubble has no PID namespace, so that daemon outlives the session and pins its tmpfs home (package caches) in memory.
+        # The bubble has no PID namespace, so that daemon outlives nvim and lingers until the session ends.
         enabled.__raw = "vim.env.CLAUDE_BUBBLE == nil";
         path = lib.getExe pkgs.mcporter;
       };

@@ -3,7 +3,7 @@
 # Slot markers are replaced wherever they appear, comments included — never mention one outside its slot.
 # Hooks share the script's globals: the facts below, bwrap_args, and their own cross-phase variables.
 #
-# Boundary: host read-only, synthetic tmpfs $HOME with only the project and ~/.claude writable, secrets excluded by allowlist, network + PID namespaces shared (loopback dev services and `ps` must work).
+# Boundary: host read-only, synthetic $HOME with only the project and ~/.claude writable, secrets excluded by allowlist, network + PID namespaces shared (loopback dev services and `ps` must work).
 # Inner Bash sandbox is turned off via the alias's --settings.
 
 set -euo pipefail

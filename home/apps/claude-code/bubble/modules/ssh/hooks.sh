@@ -27,7 +27,7 @@ ssh_mount() {
 	done
 	# config.d drop-ins (real user-owned files, e.g. the bastion host block).
 	bwrap_args+=(--ro-bind-try "$home_path/.ssh/config.d" "$home_path/.ssh/config.d")
-	# User config: a user-owned copy in place of the nix-store symlink (see ssh_prepare). Bound directly — $HOME is a fresh tmpfs, so there is no symlink here to overlay.
+	# User config: a user-owned copy in place of the nix-store symlink (see ssh_prepare). Bound directly — $HOME is a fresh directory, so there is no symlink here to overlay.
 	if [[ -n "$ssh_user_config_path" ]]; then
 		bwrap_args+=(--ro-bind "$ssh_user_config_path" "$home_path/.ssh/config")
 	fi
