@@ -3,7 +3,7 @@ claude_prepare() {
 	project_slug="${project_path//[^a-zA-Z0-9]/-}"
 	mkdir -p "$home_path/.claude/projects/$project_slug"
 	# Stray project directories land here, notably worktree slugs: EnterWorktree moves the session's transcript into one.
-	# On disk rather than in the scratch directory under /tmp, which lives in memory, so a crash leaves them for manual recovery.
+	# On disk rather than in the scratch directory under /tmp, which every boot empties, so a crash leaves them for manual recovery.
 	# No bubble mounts the state directory, so sessions still cannot read one another's transcripts.
 	local projects_state_path="${XDG_STATE_HOME:-$home_path/.local/state}/claude-cc/projects"
 	mkdir -p "$projects_state_path"

@@ -9,11 +9,11 @@ let
 in
 {
   boot.tmp = {
-    useZram = true;
-    zramSettings = {
-      zram-size = "min(ram / 2, 8192)";
-      compression-algorithm = "lzo-rle";
-    };
+    # /tmp is on disk rather than in RAM: most of what lands in /tmp is build-tool caches, gigabytes of them between reboots,
+    # while browsers keep their caches in ~/.cache.
+    #
+    # Emptied at every boot.
+    cleanOnBoot = true;
   };
 
   services.locate.enable = true;
