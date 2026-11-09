@@ -26,9 +26,14 @@ let
   #
   # The `-X` rules match the flag whole rather than one rule per write method. Catching `-X GET` too costs a handful of prompts.
   # Enumerating POST/PUT/PATCH/DELETE instead would let an unexpected spelling through unasked.
-  # Each flag needs both forms, because the `*` in "gh api * -f*" cannot match the empty gap in "gh api -f body=x".
+  # Each flag needs both forms, because the `*` in "gh api * --field*" cannot match the empty gap in "gh api --field body=x".
   #
-  # GraphQL carries its document in `-f query=`, so reads and mutations are one shape here. Both ask.
+  # The short field flags `-f` and `-F` have no rule here. GraphQL carries its document in `-f query=`,
+  # so a glob cannot tell a query from a mutation.
+  # Bubbled sessions run claude-arbiter (./claude-code/arbiter/claude-arbiter.sh) on every tool call,
+  # which asks on both flags unless the call is a literal GraphQL query. A session outside the bubble gets no prompt on them.
+  # `--field` and `--raw-field` have rules, because claude-arbiter's engine matches them only as whole tokens
+  # and misses `--field=body=x`.
   ghApiAsk =
     lib.concatMap
       (flag: [
@@ -38,8 +43,6 @@ let
       [
         "-X"
         "--method"
-        "-f"
-        "-F"
         "--field"
         "--raw-field"
         "--input"
