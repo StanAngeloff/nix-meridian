@@ -4,9 +4,13 @@
   fetchFromGitHub,
   jq,
   cc-safety-net,
+  # Rules of the arbiter-writes rulebook to leave out, for the second look's rerun; see ./claude-arbiter.sh.
+  droppedRules ? [ ],
 }:
 # The engine's configuration directory, handed to it as CC_SAFETY_NET_HOME: ./cc-safety-net in the engine's own layout, plus the
 # official rulebooks rule.json names without a local copy. It lands in the store, so no session can loosen it.
+# With droppedRules it is the same configuration without those arbiter-writes rules, and every sample that expected one of them
+# expects no stop instead, which proves the rest of the configuration still loads.
 #
 # JSON takes no comments, so the reasons behind policy.json are here; each rule carries its own reason.
 # - The standard level stops only what it recognises. Strict would also deny every command it cannot fully verify, and that
@@ -60,13 +64,32 @@ let
     "git stash show --include-untracked" = "none";
     "rm -rf /tmp/scratch" = "none";
   };
+  # A sample whose rule was dropped must come back with no stop.
+  expectedAnswer =
+    expected:
+    if lib.elem expected (map (name: "custom.arbiter-writes/${name}") droppedRules) then
+      "none"
+    else
+      expected;
+  derivationName =
+    "cc-safety-net-policy"
+    + lib.optionalString (droppedRules != [ ]) "-without-${lib.concatStringsSep "-" droppedRules}";
 in
-runCommand "cc-safety-net-policy" { nativeBuildInputs = [ jq ]; } ''
+runCommand derivationName { nativeBuildInputs = [ jq ]; } ''
   cp -R ${./cc-safety-net} $out
   chmod -R u+w $out
   ${lib.concatMapStrings (name: ''
     install -Dm644 ${officialRulebooks}/.cc-safety-net/rules/${name}/rulebook.json $out/rules/${name}/rulebook.json
   '') officialRulebookNames}
+  ${lib.optionalString (droppedRules != [ ]) ''
+    # Every dropped name must name a rule, so a renamed rule cannot leave the rerun stopping on it.
+    jq --argjson dropped ${lib.escapeShellArg (builtins.toJSON droppedRules)} '
+      ($dropped - [.rules[].name]) as $missing
+      | if $missing != [] then error("arbiter-writes has no rules \($missing)") else . end
+      | .rules |= map(select(.name as $name | $dropped | index($name) | not))
+    ' $out/rules/arbiter-writes/rulebook.json >rulebook.json
+    cp rulebook.json $out/rules/arbiter-writes/rulebook.json
+  ''}
   # Read-only, as in use: the engine would otherwise write its compile cache into CC_SAFETY_NET_HOME.
   chmod -R a-w $out
 
@@ -77,8 +100,8 @@ runCommand "cc-safety-net-policy" { nativeBuildInputs = [ jq ]; } ''
           '{hook_event_name: "PreToolUse", permission_mode: "default", cwd: $cwd, tool_name: "Bash", tool_input: {command: $command}}' |
         HOME=$PWD/home CC_SAFETY_NET_HOME=$out CC_SAFETY_NET_NO_UPDATE_CHECK=1 ${lib.getExe cc-safety-net} hook --coding-cli |
         jq -r '.hookSpecificOutput.permissionDecisionReason | (capture("Rule: (?<id>[^\n]+)") | .id) // "a stop without a rule"')
-      if [[ "''${answered:-none}" != ${lib.escapeShellArg expected} ]]; then
-        echo "cc-safety-net answered ''${answered:-none}, expected ${expected}:" ${lib.escapeShellArg command} >&2
+      if [[ "''${answered:-none}" != ${lib.escapeShellArg (expectedAnswer expected)} ]]; then
+        echo "cc-safety-net answered ''${answered:-none}, expected ${expectedAnswer expected}:" ${lib.escapeShellArg command} >&2
         exit 1
       fi
     '') samples
