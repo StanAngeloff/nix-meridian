@@ -89,13 +89,25 @@ class Profile:
     organization: str | None
 
 
-# The bubble files each session's scope under claude-profile-<name>.slice (bubble/modules/profiles/hooks.sh),
-# the name escaped by systemd-escape, which writes a dash as \x2d.
+# The bubble files each session's scope under claude-profile-<slug>.slice (bubble/modules/profiles/hooks.sh),
+# the slug escaped by systemd-escape, which writes a dash as \x2d.
 PROFILE_SLICE_PREFIX = "claude-profile-"
 SLICE_SUFFIX = ".slice"
 _ESCAPED_BYTE = re.compile(r"\\x([0-9a-fA-F]{2})")
-# What `cc profiles` accepts as a name (bubble/modules/profiles/profiles.sh); "active" belongs to the link.
-_PROFILE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
+# The slug of a name `cc profiles` accepts (_profile_slug in bubble/modules/profiles/profiles.sh): parts of letters, digits
+# and "_" with single dashes between them, joined by "--" where the name has "/". "active" belongs to the link.
+_PROFILE_SLUG = re.compile(r"[A-Za-z0-9_]+(?:--?[A-Za-z0-9_]+)*")
+
+
+def profile_slug(name):
+    """The spelling of a profile's name in its directory and its slice: personal/2 is personal--2."""
+    return name.replace("/", "--")
+
+
+def slug_name(slug):
+    """The profile name a slug spells: personal--2 is personal/2."""
+    return slug.replace("--", "/")
+
 
 # Between one profile's figures and the next in the panel label.
 PROFILE_SEPARATOR = " · "
@@ -477,9 +489,9 @@ class ProfilePanel:
 
 
 def profile_from_slice(slice_name):
-    """The profile a session's slice names, or None for a slice that names none.
+    """The name of the profile a session's slice names, or None for a slice that names none.
 
-    Every bubbled session with a profile runs under claude-profile-<name>.slice; a session outside
+    Every bubbled session with a profile runs under claude-profile-<slug>.slice; a session outside
     the bubble, or one from before profiles had directories, has some other slice.
     """
     if not slice_name.startswith(PROFILE_SLICE_PREFIX) or not slice_name.endswith(
@@ -487,10 +499,10 @@ def profile_from_slice(slice_name):
     ):
         return None
     escaped = slice_name[len(PROFILE_SLICE_PREFIX) : -len(SLICE_SUFFIX)]
-    name = _ESCAPED_BYTE.sub(lambda match: chr(int(match.group(1), 16)), escaped)
-    if name == "active" or not _PROFILE_NAME.fullmatch(name):
+    slug = _ESCAPED_BYTE.sub(lambda match: chr(int(match.group(1), 16)), escaped)
+    if slug == "active" or not _PROFILE_SLUG.fullmatch(slug):
         return None
-    return name
+    return slug_name(slug)
 
 
 def shown_profiles(default_name, live_names):
@@ -502,11 +514,8 @@ def shown_profiles(default_name, live_names):
     return ((default_name,) if default_name else ()) + tuple(others)
 
 
-def label_tags(names):
-    """A short tag per profile for the panel label: its first letter, longer only where two would read alike.
-
-    `work` and `personal` read W and P; `personal` and `pro` read PE and PR.
-    """
+def _grown_tags(names):
+    """Each name's first letter, grown only as far as it takes to read unlike every other name's."""
     tags = {}
     for name in names:
         width = 1
@@ -516,6 +525,25 @@ def label_tags(names):
         ):
             width += 1
         tags[name] = name[:width].upper()
+    return tags
+
+
+def label_tags(names):
+    """A short tag per profile for the panel label: one initial per part of its name, longer only where two would read alike.
+
+    `work` and `personal` read W and P; `personal` and `personal/2` read P and P2; `personal` and `pro` read PE
+    and PR. The tags that read alike grow among themselves; should a grown one then read like another tag, every
+    tag grows across all the names instead.
+    """
+    initials = {
+        name: "".join(part[:1] for part in name.split("/")).upper() for name in names
+    }
+    tags = {}
+    for name in names:
+        alike = [other for other in names if initials[other] == initials[name]]
+        tags[name] = _grown_tags(alike)[name] if len(alike) > 1 else initials[name]
+    if len(set(tags.values())) < len(tags):
+        return _grown_tags(names)
     return tags
 
 

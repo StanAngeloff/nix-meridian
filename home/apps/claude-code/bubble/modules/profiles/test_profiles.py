@@ -423,6 +423,20 @@ _profile_session_profiles() { printf 'personal\\npersonal\\nwork\\n'; }
 NO_USER_MANAGER = QUIET_MACHINE + """
 _profile_session_profiles() { return 1; }
 """
+# A quiet machine whose user manager runs one session of personal/2, so the command's own reading of the slices runs:
+# the launcher files the session under the slice the profile's slug names, escaped by systemd-escape.
+SLASHED_SESSION = r"""
+_profile_claude_process_ids() { :; }
+_profile_process_is_bubbled() { return 0; }
+systemctl() {
+	case "$*" in
+	"--user show-environment") ;;
+	"--user list-units"*) echo "claude-bubble-1.scope loaded active running" ;;
+	"--user show --property=Slice --value claude-bubble-1.scope") echo 'claude-profile-personal\x2d\x2d2.slice' ;;
+	*) return 1 ;;
+	esac
+}
+"""
 
 
 class Select(HomeTestCase):
@@ -469,6 +483,19 @@ class Select(HomeTestCase):
         result = self.home.run("select", "personal")
         self.assertEqual(result.returncode, 1)
         self.assertIn("cc profiles migrate", result.stderr)
+
+    def test_links_a_name_with_a_slash_by_its_slug(self):
+        self.home.slot()
+        self.home.profile("personal--2", PRO_TOKENS, PERSONAL_ACCOUNT)
+        for typed_name in ("personal/2", "personal--2"):
+            with self.subTest(typed_name=typed_name):
+                result = self.home.run("select", typed_name)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    os.readlink(self.home.profiles / "active"), "personal--2"
+                )
+                self.assertIn("default profile: personal/2", result.stderr)
+        self.assertEqual(self.home.run("check").returncode, 0)
 
 
 class List(HomeTestCase):
@@ -517,6 +544,16 @@ class List(HomeTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("sessions unknown", result.stderr)
 
+    def test_shows_a_slug_directory_by_its_name_with_the_sessions_its_slice_names(self):
+        self.home.slot()
+        self.home.profile("personal--2", PRO_TOKENS, PERSONAL_ACCOUNT)
+        result = self.home.run("list", machine=SLASHED_SESSION)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        line = next(line for line in result.stderr.splitlines() if "(Pro)" in line)
+        self.assertIn("personal/2", line)
+        self.assertNotIn("personal--2", line)
+        self.assertIn("1 session", line)
+
 
 class Which(HomeTestCase):
     def test_names_the_default_on_the_host(self):
@@ -534,6 +571,13 @@ class Which(HomeTestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "personal someone@personal.example\n")
+
+    def test_names_a_default_linked_by_its_slug(self):
+        self.home.slot(default="personal--2")
+        self.home.profile("personal--2", PRO_TOKENS, PERSONAL_ACCOUNT)
+        result = self.home.run("which")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "personal/2 someone@personal.example\n")
 
 
 class Remove(HomeTestCase):
@@ -564,14 +608,70 @@ class Remove(HomeTestCase):
         self.assertIn("cannot ask systemd", result.stderr)
         self.assertTrue((self.home.profiles / "personal").exists())
 
+    def test_removes_the_slug_directory_of_a_name_with_a_slash(self):
+        self.home.slot()
+        self.home.profile("personal--2", PRO_TOKENS)
+        result = self.home.run("remove", "personal/2")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.home.profiles / "personal--2").exists())
+        self.assertTrue((self.home.profiles / "personal").exists())
+
+    def test_refuses_a_name_with_a_slash_whose_slice_has_a_session(self):
+        self.home.slot()
+        self.home.profile("personal--2", PRO_TOKENS)
+        result = self.home.run("remove", "personal/2", machine=SLASHED_SESSION)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("running sessions", result.stderr)
+        self.assertTrue((self.home.profiles / "personal--2").exists())
+
+
+class Spell(HomeTestCase):
+    """The name in both spellings, which the launcher asks for before every session (hooks.sh)."""
+
+    def test_gives_the_name_and_its_slug_from_either_spelling(self):
+        for typed_name, line in (
+            ("work", "work work\n"),
+            ("side-project", "side-project side-project\n"),
+            ("personal/2", "personal/2 personal--2\n"),
+            ("personal--2", "personal/2 personal--2\n"),
+            ("a_b/c-d/e", "a_b/c-d/e a_b--c-d--e\n"),
+        ):
+            with self.subTest(typed_name=typed_name):
+                result = self.home.run("spell", typed_name)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, line)
+
+    def test_refuses_a_name_whose_slug_would_not_read_back(self):
+        # Each of these would either nest a directory or spell its slug like another name's.
+        for typed_name in (
+            "",
+            "active",
+            "/a",
+            "a/",
+            "a//b",
+            "a-",
+            "a-/b",
+            "a/-b",
+            "a---b",
+            "-a",
+            "a.b",
+            "a b",
+        ):
+            with self.subTest(typed_name=typed_name):
+                result = self.home.run("spell", typed_name)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+
 
 def logging_in_bubble(subscription_type):
-    """Stands in for claude-bubble: records how it was called, then logs in by writing tokens where the bubble binds them."""
+    """Stands in for claude-bubble: records how it was called, then logs in by writing tokens where the bubble binds them,
+    the directory the profile's slug names."""
     return f"""#!/bin/sh
 printf '%s\\n' "$*" >"$HOME/bubble-arguments"
 printf '%s\\n' "$BROWSER" >"$HOME/bubble-browser"
+slug=$(printf '%s' "$2" | sed 's|/|--|g')
 printf '{{"claudeAiOauth":{{"accessToken":"fake-new-access","refreshToken":"fake-new-refresh","subscriptionType":"{subscription_type}"}}}}' \\
-  >"$HOME/.claude/profiles/$2/credentials/.credentials.json"
+  >"$HOME/.claude/profiles/$slug/credentials/.credentials.json"
 """
 
 
@@ -645,6 +745,38 @@ class Add(HomeTestCase):
         self.assertIn("already exists", result.stderr)
         self.assertFalse((self.home.path / "bubble-arguments").exists())
 
+    def test_keeps_a_name_with_a_slash_in_its_slug_directory(self):
+        self.home.slot()
+        result = self.home.run(
+            "add",
+            "personal/2",
+            environment=self.install_bubble(logging_in_bubble("max")),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            (self.home.path / "bubble-arguments").read_text(),
+            "--profile personal/2 auth login\n",
+        )
+        self.assertTrue(
+            (
+                self.home.profiles / "personal--2" / "credentials" / ".credentials.json"
+            ).is_file()
+        )
+        self.assertFalse((self.home.profiles / "personal" / "2").exists())
+        self.assertIn("added: personal/2", result.stderr)
+        self.assertIn("cc -P personal/2", result.stderr)
+
+    def test_refuses_an_existing_profile_typed_in_its_slug_spelling(self):
+        self.home.slot()
+        self.home.profile("personal--2", PRO_TOKENS)
+        result = self.home.run(
+            "add",
+            "personal--2",
+            environment=self.install_bubble(logging_in_bubble("max")),
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("profile 'personal/2' already exists", result.stderr)
+
 
 # Anthropic's client metadata document as served on 2026-10-20; every profile's document is spliced from the live one.
 UPSTREAM_CLIENT_METADATA = {
@@ -686,6 +818,19 @@ class ClientUrl(HomeTestCase):
         result = self.home.run("client-url", "active")
         self.assertEqual(result.returncode, 1)
         self.assertIn("invalid profile name", result.stderr)
+
+    def test_names_the_document_after_the_slug_of_a_name_with_a_slash(self):
+        for typed_name in ("personal/2", "personal--2"):
+            with self.subTest(typed_name=typed_name):
+                result = self.home.run(
+                    "client-url",
+                    typed_name,
+                    environment={"CLAUDE_PROFILES_OAUTH_CLIENTS_BASE_URL": BASE_URL},
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    result.stdout.strip(), BASE_URL + "/oauth/personal--2.json"
+                )
 
 
 class Publish(HomeTestCase):
@@ -788,6 +933,17 @@ class Publish(HomeTestCase):
             self.published_document("second")["client_name"], "Claude Code (second)"
         )
         self.assertIn(document_path("second"), result.stderr)
+
+    def test_a_name_with_a_slash_publishes_under_its_slug_and_shows_its_name(self):
+        self.home.profile("personal--2", PRO_TOKENS)
+        result = self.publish()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(document_path("personal--2"), self.published_files())
+        document = self.published_document("personal--2")
+        self.assertEqual(
+            document["client_id"], BASE_URL + "/" + document_path("personal--2")
+        )
+        self.assertEqual(document["client_name"], "Claude Code (personal/2)")
 
     def test_an_unreachable_origin_is_a_note_not_a_failure(self):
         self.git(

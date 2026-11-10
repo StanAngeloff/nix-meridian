@@ -1,7 +1,7 @@
 set -euo pipefail
 
-# Account profiles. Each profile is a directory, profiles/<name>/, holding one account's credentials/.credentials.json
-# and its .claude.json. The shared ~/.claude/.claude.json links profiles/active/.claude.json, and profiles/active links
+# Account profiles. Each profile is a directory, profiles/<slug>/ (see _profile_slug), holding one account's
+# credentials/.credentials.json and its .claude.json. The shared ~/.claude/.claude.json links profiles/active/.claude.json, and profiles/active links
 # the default profile on the host and is the session's own profile inside a bubble (see hooks.sh beside this file).
 # Sessions of one profile share its directory, which is what lets Claude Code's refresh lock coordinate their refreshes.
 # Everything else in ~/.claude is shared, the server caches included: see _profile_is_organization.
@@ -59,9 +59,29 @@ _profile_die() {
 	exit 1
 }
 
-# Names become directory names and a systemd slice name; "active" belongs to the link.
+# A name is one or more parts joined by "/" (personal, side-project, personal/2), each part letters, digits and "_" with
+# single dashes between them. Every identifier that cannot hold a slash uses the name's slug, which spells each "/" as
+# "--": the profile's directory and so the target of profiles/active, its systemd slice, and its OAuth client document.
+# No part holds "--" or ends in "-", so a slug reads back as exactly one name. "active" belongs to the link.
+_profile_slug() {
+	printf '%s\n' "${1//\//--}"
+}
+
+# The name a slug spells. A name typed in its slug's spelling (personal--2) comes back as the name itself (personal/2).
+_profile_slug_name() {
+	printf '%s\n' "${1//--//}"
+}
+
+# Takes a name in either spelling.
 _profile_valid_name() {
-	[[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_-]*$ && "$1" != active ]]
+	local name
+	name="$(_profile_slug_name "$1")"
+	[[ "$name" =~ ^[A-Za-z0-9_]+([-/][A-Za-z0-9_]+)*$ && "$name" != active ]]
+}
+
+# A profile's directory, by name.
+_profile_path() {
+	printf '%s/%s\n' "$profiles_path" "$(_profile_slug "$1")"
 }
 
 # slot when profiles/active links a profile directory, v2 when it links a <name>.json token file (the layout that ran
@@ -81,11 +101,13 @@ _profile_layout() {
 _profile_default_name() {
 	local target
 	target="$(readlink "$active_link" 2>/dev/null || true)"
-	echo "${target%.json}"
+	_profile_slug_name "${target%.json}"
 }
 
 _profile_exists() {
-	_profile_valid_name "$1" && [[ ! -L "$profiles_path/$1" && -d "$profiles_path/$1/credentials" ]]
+	local profile_path
+	profile_path="$(_profile_path "$1")"
+	_profile_valid_name "$1" && [[ ! -L "$profile_path" && -d "$profile_path/credentials" ]]
 }
 
 # Every profile directory, by name; the active link and the hidden backup are not profiles.
@@ -94,7 +116,7 @@ _profile_names() {
 	for directory in "$profiles_path"/*/; do
 		directory="${directory%/}"
 		if [[ ! -L "$directory" && -d "$directory/credentials" ]]; then
-			basename "$directory"
+			_profile_slug_name "$(basename "$directory")"
 		fi
 	done
 }
@@ -114,7 +136,7 @@ _profile_is_organization() {
 		| if type == "object" and ((.accessToken // "") != "" or (.refreshToken // "") != "")
 		  then .subscriptionType == null or .subscriptionType == "team" or .subscriptionType == "enterprise"
 		  else false end' \
-		"$profiles_path/$1/credentials/.credentials.json" >/dev/null 2>&1
+		"$(_profile_path "$1")/credentials/.credentials.json" >/dev/null 2>&1
 }
 
 # The profiles whose stored login is an organization account, one name per line.
@@ -142,8 +164,8 @@ _profile_cmd_check() {
 	fi
 
 	default_name="$(_profile_default_name)"
-	if ! _profile_exists "$default_name" || [[ ! -f "$profiles_path/$default_name/.claude.json" ]]; then
-		problems+=("$active_link links '$default_name', which is not a profile with credentials/ and .claude.json")
+	if ! _profile_exists "$default_name" || [[ ! -f "$(_profile_path "$default_name")/.claude.json" ]]; then
+		problems+=("$active_link links '$(_profile_slug "$default_name")', which is not a profile with credentials/ and .claude.json")
 	fi
 	target="$(readlink "$shared_config_file" 2>/dev/null || true)"
 	if [[ "$target" != profiles/active/.claude.json ]]; then
@@ -215,7 +237,7 @@ _profile_session_profiles() {
 		slice_name="$(systemctl --user show --property=Slice --value "$unit_name" 2>/dev/null || true)"
 		if [[ "$slice_name" == claude-profile-*.slice ]]; then
 			slice_name="${slice_name#claude-profile-}"
-			systemd-escape --unescape -- "${slice_name%.slice}"
+			_profile_slug_name "$(systemd-escape --unescape -- "${slice_name%.slice}")"
 		fi
 	done < <(systemctl --user list-units --type=scope --state=active --plain --no-legend 'claude-bubble-*.scope' 2>/dev/null || true)
 }
@@ -281,7 +303,8 @@ _profile_plan() {
 }
 
 _profile_label() {
-	local profile_path="$profiles_path/$1" email subscription organization
+	local profile_path email subscription organization
+	profile_path="$(_profile_path "$1")"
 	email="$(jq -r '.oauthAccount.emailAddress // "not logged in"' "$profile_path/.claude.json" 2>/dev/null || echo "not logged in")"
 	# Claude.ai names a personal account's own organization after its email; that name repeats the email, so it is left out.
 	organization="$(jq -r --arg personal_suffix "'s Organization" \
@@ -324,7 +347,8 @@ _profile_backup() {
 
 # The account logged in now becomes the profile named for it: its live tokens are the freshest copy there is.
 _profile_seed_from_live() {
-	local profile_path="$profiles_path/$1"
+	local profile_path
+	profile_path="$(_profile_path "$1")"
 	(umask 077 && mkdir -p "$profile_path/credentials")
 	if [[ ! -f "$profile_path/credentials/.credentials.json" ]]; then
 		if [[ ! -f "$shared_credentials_file" || -L "$shared_credentials_file" ]]; then
@@ -344,12 +368,12 @@ _profile_seed_from_live() {
 # and a .claude.json seeded from the default profile's copy, with its own account.
 _profile_seed_v2_others() {
 	local default_name="$1" token_file name profile_path mcp_json account_json
-	mcp_json="$(jq -c '.mcpOAuth // null' "$profiles_path/$default_name/credentials/.credentials.json")"
+	mcp_json="$(jq -c '.mcpOAuth // null' "$(_profile_path "$default_name")/credentials/.credentials.json")"
 	for token_file in "$profiles_path"/*.json; do
 		if [[ ! -f "$token_file" ]]; then
 			continue
 		fi
-		name="$(basename "$token_file" .json)"
+		name="$(_profile_slug_name "$(basename "$token_file" .json)")"
 		if [[ "$name" == "$default_name" ]] || ! _profile_valid_name "$name"; then
 			continue
 		fi
@@ -357,7 +381,7 @@ _profile_seed_v2_others() {
 			bubble_warn "skipping profile '$name': $token_file holds no tokens (it stays in the backup)"
 			continue
 		fi
-		profile_path="$profiles_path/$name"
+		profile_path="$(_profile_path "$name")"
 		(umask 077 && mkdir -p "$profile_path/credentials")
 		if [[ ! -f "$profile_path/credentials/.credentials.json" ]]; then
 			# shellcheck disable=SC2016 # A jq program: $mcp is its variable.
@@ -366,7 +390,7 @@ _profile_seed_v2_others() {
 		fi
 		if [[ ! -f "$profile_path/.claude.json" ]]; then
 			account_json="$(jq -c '.oauthAccount // null' "$token_file")"
-			_profile_seed_config "$profiles_path/$default_name/.claude.json" "$profile_path/.claude.json" "$account_json"
+			_profile_seed_config "$(_profile_path "$default_name")/.claude.json" "$profile_path/.claude.json" "$account_json"
 		fi
 	done
 }
@@ -374,11 +398,12 @@ _profile_seed_v2_others() {
 # Run only by the migration that copied the live files into the default profile: from here on .claude.json is a link,
 # and the tokens live in the profiles. The server caches stay where they are, shared (see _profile_is_organization).
 _profile_retire_live_files() {
-	local default_name="$1"
-	if [[ -f "$shared_config_file" && ! -L "$shared_config_file" && -f "$profiles_path/$default_name/.claude.json" ]]; then
+	local default_path
+	default_path="$(_profile_path "$1")"
+	if [[ -f "$shared_config_file" && ! -L "$shared_config_file" && -f "$default_path/.claude.json" ]]; then
 		_profile_link profiles/active/.claude.json "$shared_config_file"
 	fi
-	if [[ -f "$shared_credentials_file" && -f "$profiles_path/$default_name/credentials/.credentials.json" ]]; then
+	if [[ -f "$shared_credentials_file" && -f "$default_path/credentials/.credentials.json" ]]; then
 		rm -f -- "${shared_credentials_file:?}"
 	fi
 	rm -f -- "${profiles_path:?}"/*.json
@@ -403,6 +428,7 @@ _profile_cmd_migrate() {
 				"usage: cc profiles migrate <name>"
 		fi
 		_profile_valid_name "$default_name" || _profile_die "invalid profile name: $default_name"
+		default_name="$(_profile_slug_name "$default_name")"
 	else
 		default_name="$(_profile_default_name)"
 	fi
@@ -422,7 +448,7 @@ _profile_cmd_migrate() {
 	_profile_retire_live_files "$default_name"
 	_profile_link_shared_root
 	# Last, so an interrupted migration still reads as the older layout and running it again finishes the job.
-	_profile_link "$default_name" "$active_link"
+	_profile_link "$(_profile_slug "$default_name")" "$active_link"
 	_profile_cmd_check
 	printf '%smigrated:%s one directory per profile under %s; the default is %s\n' \
 		"$bubble_family_on" "$bubble_off" "$profiles_path" "$default_name" >&2
@@ -471,10 +497,11 @@ _profile_cmd_select() {
 	local name="${1:-}"
 	_profile_refuse_inside_bubble select
 	_profile_require_name select "$name"
+	name="$(_profile_slug_name "$name")"
 	_profile_require_slot
 	_profile_exists "$name" || _profile_die "profile '$name' does not exist" "see: cc profiles list"
 	_profile_refuse_while_unbubbled_claude_runs
-	_profile_link "$name" "$active_link"
+	_profile_link "$(_profile_slug "$name")" "$active_link"
 	printf '%sdefault profile:%s %s  %s\n' "$bubble_family_on" "$bubble_off" "$name" "$(_profile_label "$name")" >&2
 	bubble_info "running sessions keep their profile; new ones start on this one"
 }
@@ -483,6 +510,7 @@ _profile_cmd_remove() {
 	local name="${1:-}" session_profiles
 	_profile_refuse_inside_bubble remove
 	_profile_require_name remove "$name"
+	name="$(_profile_slug_name "$name")"
 	_profile_require_slot
 	_profile_exists "$name" || _profile_die "profile '$name' does not exist" "see: cc profiles list"
 	if [[ "$name" == "$(_profile_default_name)" ]]; then
@@ -493,7 +521,7 @@ _profile_cmd_remove() {
 	if grep -qx -- "$name" <<<"$session_profiles"; then
 		_profile_die "profile '$name' has running sessions" "close them first"
 	fi
-	rm -rf -- "${profiles_path:?}/${name:?}"
+	rm -rf -- "${profiles_path:?}/$(_profile_slug "${name:?}")"
 	printf '%sremoved:%s %s\n' "$bubble_family_on" "$bubble_off" "$name" >&2
 }
 
@@ -509,8 +537,9 @@ _profile_cmd_add() {
 	local name="${1:-}" profile_path default_name other_name
 	_profile_refuse_inside_bubble add
 	_profile_require_name add "$name"
+	name="$(_profile_slug_name "$name")"
 	_profile_require_slot
-	profile_path="$profiles_path/$name"
+	profile_path="$(_profile_path "$name")"
 	if [[ -e "$profile_path" || -L "$profile_path" ]]; then
 		_profile_die "profile '$name' already exists"
 	fi
@@ -519,7 +548,7 @@ _profile_cmd_add() {
 	abandoned_profile_path="$profile_path"
 	trap _profile_abandon EXIT
 	(umask 077 && mkdir -p "$profile_path/credentials")
-	_profile_seed_config "$profiles_path/$default_name/.claude.json" "$profile_path/.claude.json" null
+	_profile_seed_config "$(_profile_path "$default_name")/.claude.json" "$profile_path/.claude.json" null
 
 	bubble_info "logging in to profile '$name' in a session bubble" "finish the login in your browser"
 	# The login runs as a session on the new profile, so its tokens and its account land there and nowhere else.
@@ -542,9 +571,10 @@ _profile_cmd_add() {
 	bubble_info "start a session on it with: cc -P $name" "or make it the default: cc profiles select $name"
 }
 
-# The document's path on the Pages branch, which is public: the profile name is in the document's client_name anyway.
+# The document's path on the Pages branch, named by the profile's slug. The branch is public, and the profile name is in
+# the document's client_name anyway.
 _profile_client_document_path() {
-	printf 'oauth/%s.json' "$1"
+	printf 'oauth/%s.json' "$(_profile_slug "$1")"
 }
 
 # The client id a session of the profile presents, or nothing when no base URL is configured.
@@ -658,6 +688,14 @@ _profile_cmd_publish() {
 		"$count" "${oauth_clients_base_url%/}" "${commit:0:7}" >&2
 }
 
+# The launcher's question (hooks.sh): a name typed in either spelling, as the name and as its slug, on one line.
+_profile_cmd_spell() {
+	local name="${1:-}"
+	_profile_require_name spell "$name"
+	name="$(_profile_slug_name "$name")"
+	echo "$name $(_profile_slug "$name")"
+}
+
 _profile_cmd_verify() {
 	exec "$verify_command"
 }
@@ -677,8 +715,11 @@ Commands:
   verify            Prove what the layout relies on against the installed Claude Code
   publish [<repository>] Publish every profile's OAuth client document to origin's Pages branch
   client-url <name> Print the profile's OAuth client id, the document's URL
+  spell <name>      Print the name and its slug, the spelling its directory and identifiers use
 
 Start one session on another profile with: cc -P <name> (or --profile <name>)
+A name may have parts joined by "/" (personal/2); its directory and identifiers spell each "/" as "--" (personal--2),
+and either spelling is accepted wherever a name is.
 USAGE
 	exit 1
 }
@@ -699,6 +740,7 @@ _profile_main() {
 	verify) _profile_cmd_verify ;;
 	publish) _profile_cmd_publish "$@" ;;
 	client-url) _profile_cmd_client_url "$@" ;;
+	spell) _profile_cmd_spell "$@" ;;
 	*) _profile_usage ;;
 	esac
 }

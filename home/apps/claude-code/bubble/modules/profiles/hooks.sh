@@ -2,23 +2,28 @@
 # credentials/ and .claude.json (profiles.sh beside this file). The session's own profile is bound at profiles/active,
 # which the shared ~/.claude/.claude.json links into, and Claude Code finds its credentials there through
 # CLAUDE_SECURESTORAGE_CONFIG_DIR. Every other profile stays hidden under a tmpfs.
-# profiles_path, profiles_name and profiles_is_nested cross from prepare to the later phases;
-# lifetime_slice_name crosses to the lifetime module's before-run hook.
+# profiles_path, profiles_name, profiles_slug and profiles_is_nested cross from prepare to the later phases;
+# lifetime_slice_name crosses to the lifetime module's before-run hook. The name is what the user types and reads
+# (personal/2); the slug spells it for the directory and the slice (personal--2), see _profile_slug in profiles.sh.
 
 profiles_prepare() {
 	profiles_path="$home_path/.claude/profiles"
 	profiles_name=""
+	profiles_slug=""
 	profiles_is_nested=""
-	local target variable_name
+	local target variable_name spellings
 
 	if [[ -n "${CLAUDE_BUBBLE:-}" && -n "${CLAUDE_BUBBLE_PROFILE:-}" ]]; then
 		# A session started inside another runs on its parent's profile: the parent's slot is already bound here,
 		# and the variables naming it pass through the environment.
 		# Both variables are required, so that a stray CLAUDE_BUBBLE_PROFILE outside a bubble cannot skip the mask and the check.
 		profiles_is_nested=1
-		if [[ -n "$bubble_profile_name" && "$bubble_profile_name" != "$CLAUDE_BUBBLE_PROFILE" ]]; then
-			bubble_error "a session inside another keeps its profile ($CLAUDE_BUBBLE_PROFILE)"
-			exit 1
+		if [[ -n "$bubble_profile_name" ]]; then
+			spellings="$("@profilesHandler@" spell "$bubble_profile_name" 2>/dev/null || true)"
+			if [[ "${spellings%% *}" != "$CLAUDE_BUBBLE_PROFILE" ]]; then
+				bubble_error "a session inside another keeps its profile ($CLAUDE_BUBBLE_PROFILE)"
+				exit 1
+			fi
 		fi
 	else
 		target="$(readlink "$profiles_path/active" 2>/dev/null || true)"
@@ -33,10 +38,11 @@ profiles_prepare() {
 			fi
 			return 0
 		fi
-		profiles_name="${bubble_profile_name:-$target}"
-		if [[ ! "$profiles_name" =~ ^[A-Za-z0-9_][A-Za-z0-9_-]*$ || "$profiles_name" == active ||
-			-L "$profiles_path/$profiles_name" || ! -d "$profiles_path/$profiles_name/credentials" ]]; then
-			bubble_error "no profile named '$profiles_name'" "see: cc profiles list"
+		# The link names the default by its slug; -P takes either spelling.
+		if ! spellings="$("@profilesHandler@" spell "${bubble_profile_name:-$target}" 2>/dev/null)" ||
+			! read -r profiles_name profiles_slug <<<"$spellings" ||
+			[[ -L "$profiles_path/$profiles_slug" || ! -d "$profiles_path/$profiles_slug/credentials" ]]; then
+			bubble_error "no profile named '${bubble_profile_name:-$target}'" "see: cc profiles list"
 			exit 1
 		fi
 	fi
@@ -60,7 +66,7 @@ profiles_prepare() {
 		exit 1
 	fi
 	# Files the session's scope under its profile, which is how `cc profiles list` and `remove` see running sessions.
-	lifetime_slice_name="claude-profile-$(systemd-escape -- "$profiles_name").slice"
+	lifetime_slice_name="claude-profile-$(systemd-escape -- "$profiles_slug").slice"
 }
 
 profiles_mount() {
@@ -70,8 +76,8 @@ profiles_mount() {
 	fi
 	# Every profile's tokens stay hidden; only this session's profile is bound back, at profiles/active.
 	bwrap_args+=(--tmpfs "$profiles_path")
-	if [[ -n "$profiles_name" ]]; then
-		bwrap_args+=(--bind "$profiles_path/$profiles_name" "$profiles_path/active")
+	if [[ -n "$profiles_slug" ]]; then
+		bwrap_args+=(--bind "$profiles_path/$profiles_slug" "$profiles_path/active")
 	fi
 }
 
@@ -95,7 +101,7 @@ profiles_before_run() {
 	if [[ -z "$profiles_name" ]]; then
 		return 0
 	fi
-	local profile_path="$profiles_path/$profiles_name" email subscription organization label
+	local profile_path="$profiles_path/$profiles_slug" email subscription organization label
 	email="$(jq -r '.oauthAccount.emailAddress // "not logged in"' "$profile_path/.claude.json" 2>/dev/null || echo "not logged in")"
 	# Leaves out the organization named after a personal account, as _profile_label in profiles.sh does.
 	organization="$(jq -r --arg personal_suffix "'s Organization" \

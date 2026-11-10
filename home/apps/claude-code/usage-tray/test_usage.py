@@ -1254,16 +1254,37 @@ class ProfileFromSlice(unittest.TestCase):
             "side-project",
         )
 
+    def test_reads_a_slug_back_as_the_name_with_a_slash(self):
+        self.assertEqual(
+            usage.profile_from_slice(r"claude-profile-personal\x2d\x2d2.slice"),
+            "personal/2",
+        )
+
     def test_ignores_slices_that_name_no_profile(self):
         for slice_name in (
             "app.slice",
             "claude-profile.slice",
             "claude-profile-.slice",
             "claude-profile-active.slice",
+            # A slash or a dash that a slug never holds there: the slice names no profile.
             r"claude-profile-a\x2fb.slice",
+            r"claude-profile-a\x2d.slice",
+            r"claude-profile-a\x2d\x2d\x2db.slice",
         ):
             with self.subTest(slice_name=slice_name):
                 self.assertIsNone(usage.profile_from_slice(slice_name))
+
+
+class ProfileSlug(unittest.TestCase):
+    def test_spells_each_slash_as_two_dashes_and_back(self):
+        for name, slug in (
+            ("personal", "personal"),
+            ("side-project", "side-project"),
+            ("personal/2", "personal--2"),
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(usage.profile_slug(name), slug)
+                self.assertEqual(usage.slug_name(slug), name)
 
 
 class ShownProfiles(unittest.TestCase):
@@ -1294,6 +1315,25 @@ class LabelTags(unittest.TestCase):
 
     def test_stops_at_the_whole_name(self):
         self.assertEqual(usage.label_tags(["ab", "abc"]), {"ab": "AB", "abc": "ABC"})
+
+    def test_takes_one_initial_per_part_of_a_name(self):
+        self.assertEqual(
+            usage.label_tags(["personal", "personal/2", "work"]),
+            {"personal": "P", "personal/2": "P2", "work": "W"},
+        )
+
+    def test_grows_only_the_tags_that_read_alike_beside_a_name_with_parts(self):
+        self.assertEqual(
+            usage.label_tags(["personal", "pro", "personal/2"]),
+            {"personal": "PE", "pro": "PR", "personal/2": "P2"},
+        )
+
+    def test_grows_every_tag_when_a_grown_one_reads_like_another(self):
+        # x2 and x3 would grow to X2 and X3, and x/2 reads X2 by its initials.
+        self.assertEqual(
+            usage.label_tags(["x2", "x3", "x/2"]),
+            {"x2": "X2", "x3": "X3", "x/2": "X/"},
+        )
 
 
 class ProfilesPanelLabel(unittest.TestCase):

@@ -87,14 +87,15 @@ def is_profile_layout():
 
 
 def default_profile_name():
-    """The default profile's name, which profiles/active links, or None."""
+    """The default profile's name, from the slug profiles/active links, or None."""
     try:
         target = os.readlink(
             os.path.join(default_profiles_path(), PROFILES_ACTIVE_LINK)
         )
     except OSError:
         return None
-    return os.path.splitext(target)[0] if target.endswith(".json") else target or None
+    slug = os.path.splitext(target)[0] if target.endswith(".json") else target
+    return usage.slug_name(slug) if slug else None
 
 
 def profile_feed_paths(name):
@@ -102,18 +103,19 @@ def profile_feed_paths(name):
 
     Every bubbled session writes its status line figures into its own profile's directory: inside the
     bubble profiles/active is bound to that directory (bubble/modules/profiles/hooks.sh), so the host
-    sees them at profiles/<name>/usage-activity. That file is under the config directory, not the runtime
+    sees them at profiles/<slug>/usage-activity. That file is under the config directory, not the runtime
     directory, because the bubble masks the runtime directory; see publish_rate_limits in statusline/main.py.
     The cache is the profile's own too, so a restart shows each account's last figures under its own name.
     """
-    profile_path = os.path.join(default_profiles_path(), name)
+    slug = usage.profile_slug(name)
+    profile_path = os.path.join(default_profiles_path(), slug)
     return FeedPaths(
         key=("profile", name),
         name=name,
         credentials_path=os.path.join(profile_path, "credentials", ".credentials.json"),
         activity_path=os.path.join(profile_path, "usage-activity"),
         state_path=os.path.join(
-            GLib.get_user_runtime_dir(), f"claude-usage-{name}.json"
+            GLib.get_user_runtime_dir(), f"claude-usage-{slug}.json"
         ),
     )
 
@@ -212,15 +214,16 @@ def read_profile(profiles_path):
         return payload, name
     if not target:
         return None, None
-    payload = read_named_profile(profiles_path, target)
+    name = usage.slug_name(target)
+    payload = read_named_profile(profiles_path, name)
     if payload is None:
         return None, None
-    return payload, target
+    return payload, name
 
 
 def read_named_profile(profiles_path, name):
     """Read one profile directory's identity payload, in the shape usage.parse_profile reads, or None."""
-    profile_path = os.path.join(profiles_path, name)
+    profile_path = os.path.join(profiles_path, usage.profile_slug(name))
     config = _read_json(os.path.join(profile_path, ".claude.json"))
     if config is None:
         return None
