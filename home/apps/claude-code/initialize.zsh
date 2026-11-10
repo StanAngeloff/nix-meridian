@@ -1,7 +1,7 @@
 # Ordered (extended regex, model) pairs; the first regex matching the whole -m value wins.
 # A '.' in a regex stands for an optional separator: '-', '_', '.' or nothing.
 typeset -ga _claude_model_aliases=(
-  'fable'       'claude-fable-5-1'
+  'fable'       'claude-fable-5-2[1m]'
   'opus'        'claude-opus-5-5[1m]'
   'opus.4(.6)?' 'claude-opus-4-6[1m]'
   'sonnet'      'claude-sonnet-5'
