@@ -11,6 +11,7 @@ final: prev: {
   heidisql = final.qt6Packages.callPackage ./heidisql/package.nix { };
   ghostty = final.callPackage ./ghostty/overlay.nix { ghostty = nixpkgs-unstable.ghostty; };
   git-lines = final.callPackage ./git-lines/package.nix { };
+  gnome-shell = final.callPackage ./gnome-shell/overlay.nix { gnome-shell = prev.gnome-shell; };
   slopsift = final.callPackage ./slopsift/package.nix { };
   cc-safety-net = final.callPackage ./cc-safety-net/package.nix { };
   ataraxy-sem = final.callPackage ./ataraxy-sem/package.nix { };

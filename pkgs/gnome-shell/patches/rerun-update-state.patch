@@ -1,0 +1,40 @@
+diff --git i/js/ui/messageTray.js w/js/ui/messageTray.js
+index 7f39233..174b3e4 100644
+--- i/js/ui/messageTray.js
++++ w/js/ui/messageTray.js
+@@ -1059,13 +1059,17 @@ export const MessageTray = GObject.registerClass({
+         this.visible = !this._bannerBlocked && hasMonitor && this._banner != null;
+         if (this._bannerBlocked || !hasMonitor)
+             return;
+ 
+         // If our state changes caused _updateState to be called,
+-        // just exit now to prevent reentrancy issues.
+-        if (this._updatingState)
++        // don't re-enter, but run again once this run is done, so
++        // that the change (such as a banner that hid without an
++        // animation) is not lost.
++        if (this._updatingState) {
++            this._updateStateAgain = true;
+             return;
++        }
+ 
+         this._updatingState = true;
+ 
+         // Filter out acknowledged notifications.
+         let changed = false;
+@@ -1111,10 +1115,15 @@ export const MessageTray = GObject.registerClass({
+         this._updatingState = false;
+ 
+         // Clean transient variables that are used to communicate actions
+         // to updateState()
+         this._notificationExpired = false;
++
++        if (this._updateStateAgain) {
++            this._updateStateAgain = false;
++            this._updateState();
++        }
+     }
+ 
+     _onIdleMonitorBecameActive() {
+         this._userActiveWhileNotificationShown = true;
+         this._updateNotificationTimeout(2000);
