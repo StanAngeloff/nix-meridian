@@ -45,11 +45,11 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "infonotary-client-software";
-  version = "3.0.29";
+  version = "3.0.32";
 
   src = fetchurl {
     url = "https://repository.infonotary.com/install/linux/DEBS24/pool/non-free/i/infonotary-client-software/infonotary-client-software_${finalAttrs.version}_all.deb";
-    hash = "sha256-Um5ZhMiUPzqcS57OgfCzTloYqs0yh4QLRwMCwx8PWww=";
+    hash = "sha256-P9TNY5hSp2jPbahIlGlzKiX5NZJP7hx3EtbN8bmI5fs=";
   };
 
   nativeBuildInputs = [

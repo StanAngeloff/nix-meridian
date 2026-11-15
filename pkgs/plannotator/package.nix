@@ -39,7 +39,7 @@ let
   skillNames = lib.attrNames skillSha256;
   # The review window's icon: upstream's mascot, which the review page also serves as its favicon.
   # Pinned like the skills; update.sh rewrites it on a bump.
-  iconSha256 = "4e99a26b076e421f654df83472c6186b62830d5db8fcd8e97d01947dffac28fd";
+  iconSha256 = "801d533f995fa75efd4d3521fabeb90e98427a444b61f125d91a471c26745333";
 
   # Under the file name Electron looks for in the profile (en-GB-10-1.bdic), which the window links it to.
   spellcheckDictionary =
@@ -166,13 +166,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "plannotator";
-  version = "0.28.48";
+  version = "0.28.65";
 
   # Upstream's release build (`bun build --compile`): a Bun runtime with the server and the review UI embedded.
   # update.sh verifies its SLSA provenance against upstream's release workflow before writing a bump.
   src = fetchurl {
     url = "https://github.com/backnotprop/plannotator/releases/download/v${finalAttrs.version}/plannotator-linux-x64";
-    hash = "sha256-+gpB6OCgaa+E39CBygaJtChC5V4qckiAMBQPKaVaHbA=";
+    hash = "sha256-nISe6+swk8sePtmz5GoVAQ1EnyHGmVJJoth192SV1AI=";
   };
 
   nativeBuildInputs = [
@@ -227,7 +227,7 @@ stdenv.mkDerivation (finalAttrs: {
       --set PLANNOTATOR_WINDOW_PAGES $out/share/plannotator/pages ${lib.escapeShellArgs wrapperArgs}
     # Beside the binary, where tests/plannotator runs the launcher the way Plannotator does.
     ln -s ${lib.getExe reviewWindow} $out/libexec/plannotator/review-window
-    install -Dm444 ${finalAttrs.passthru.icon} $out/share/icons/hicolor/256x256/apps/plannotator.png
+    install -Dm444 ${finalAttrs.passthru.icon} $out/share/icons/hicolor/512x512/apps/plannotator.png
   ''
   + lib.optionalString installSkills (
     lib.concatStrings (

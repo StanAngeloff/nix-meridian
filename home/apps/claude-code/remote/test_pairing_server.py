@@ -17,6 +17,9 @@ import pairing_server
 PHONE_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGl0IGlzIG5vdCBhIHJlYWwga2V5IGF0IGFsbCBvaw== stan-galaxy@termux"
 OTHER_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG90aGVyIGtleSB0aGF0IHN0YXlzIHB1dCBvaw== laptop"
 BOOTSTRAP_TEXT = "#!/bin/sh\necho bootstrap\n"
+# How long a test's client waits on the server: only a guard against a wedged server, so it is generous.
+# Registering a key fsyncs authorized_keys, and a large `make switch` writing to the same disk can stall that for seconds.
+CLIENT_TIMEOUT_SECONDS = 30
 
 
 class HandlerTest(unittest.TestCase):
@@ -51,7 +54,9 @@ class HandlerTest(unittest.TestCase):
             os.unlink(self.authorized_keys_file)
 
     def connection(self):
-        return http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        return http.client.HTTPConnection(
+            "127.0.0.1", self.port, timeout=CLIENT_TIMEOUT_SECONDS
+        )
 
     def read_authorized_keys(self):
         # newline="": the text exactly as sshd sees it, with no "\r" turned into a line break.
@@ -64,7 +69,13 @@ class HandlerTest(unittest.TestCase):
         response = connection.getresponse()
         return response.status, response.read()
 
-    def raw_post(self, content_length_header, body=b"", read_amount=200, wait=5):
+    def raw_post(
+        self,
+        content_length_header,
+        body=b"",
+        read_amount=200,
+        wait=CLIENT_TIMEOUT_SECONDS,
+    ):
         """A POST with headers we control byte-for-byte; http.client would compute a correct Content-Length itself.
         A content_length_header of None sends no Content-Length line at all."""
         content_length_line = (
@@ -192,7 +203,9 @@ class HandlerTest(unittest.TestCase):
         original_timeout = pairing_server.Handler.timeout
         pairing_server.Handler.timeout = 1
         try:
-            connection = socket.create_connection(("127.0.0.1", self.port), timeout=5)
+            connection = socket.create_connection(
+                ("127.0.0.1", self.port), timeout=CLIENT_TIMEOUT_SECONDS
+            )
             try:
                 # Promise 50 bytes, send 10, and never send the rest: the server's own socket timeout, not this
                 # test, has to be what ends it.

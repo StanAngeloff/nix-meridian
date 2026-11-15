@@ -312,10 +312,10 @@ def test_ships_the_review_windows_desktop_entry_and_icon(package_path):
         / "share"
         / "icons"
         / "hicolor"
-        / "256x256"
+        / "512x512"
         / "apps"
         / "plannotator.png"
     ).read_bytes()
-    # A PNG whose header chunk says 256 by 256, as the icon directory promises.
+    # A PNG whose header chunk says 512 by 512, as the icon directory promises.
     assert icon_bytes[:8] == b"\x89PNG\r\n\x1a\n"
-    assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
+    assert struct.unpack(">II", icon_bytes[16:24]) == (512, 512)
