@@ -15,7 +15,7 @@ final: prev: {
   slopsift = final.callPackage ./slopsift/package.nix { };
   cc-safety-net = final.callPackage ./cc-safety-net/package.nix { };
   ataraxy-sem = final.callPackage ./ataraxy-sem/package.nix { };
-  plannotator = final.callPackage ./plannotator/package.nix { electron = nixpkgs-unstable.electron; };
+  plannotator = final.callPackage ./plannotator/package.nix { inherit (nixpkgs-unstable) electron hunspellDictsChromium; };
   academic-forge = final.callPackage ./academic-forge/package.nix { };
   bootvine = final.callPackage ./bootvine/package.nix { };
   ponytail = final.callPackage ./ponytail/package.nix { };

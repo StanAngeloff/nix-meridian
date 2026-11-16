@@ -16,6 +16,8 @@
   electron,
   util-linux,
   ataraxy-sem,
+  # Also from nixpkgs-unstable (the overlay), built from the same Chromium as that Electron:
+  # Chromium accepts a dictionary only under its versioned file name (en-GB-10-2.bdic since Chromium 156).
   hunspellDictsChromium,
   # Also install the three Claude Code launcher skills and name them in passthru.claudeCodeSkills,
   # which home/apps/claude-code/skills/default.nix links into ~/.claude/skills/.
@@ -37,11 +39,11 @@ let
     plannotator-last = "1a979daa6b39e86706b9e644ab7bd847f53373ecdfd6ec1d06d3d228727dd54d";
   };
   skillNames = lib.attrNames skillSha256;
-  # The review window's icon: upstream's mascot, which the review page also serves as its favicon.
+  # The review window's icon: upstream's Face, the 256 px build of the Face tab icon the review page offers in its settings.
   # Pinned like the skills; update.sh rewrites it on a bump.
-  iconSha256 = "801d533f995fa75efd4d3521fabeb90e98427a444b61f125d91a471c26745333";
+  iconSha256 = "4e99a26b076e421f654df83472c6186b62830d5db8fcd8e97d01947dffac28fd";
 
-  # Under the file name Electron looks for in the profile (en-GB-10-1.bdic), which the window links it to.
+  # Under the file name Electron looks for in the profile (en-GB-10-2.bdic), which the window links it to.
   spellcheckDictionary =
     let
       dictionary =
@@ -227,7 +229,7 @@ stdenv.mkDerivation (finalAttrs: {
       --set PLANNOTATOR_WINDOW_PAGES $out/share/plannotator/pages ${lib.escapeShellArgs wrapperArgs}
     # Beside the binary, where tests/plannotator runs the launcher the way Plannotator does.
     ln -s ${lib.getExe reviewWindow} $out/libexec/plannotator/review-window
-    install -Dm444 ${finalAttrs.passthru.icon} $out/share/icons/hicolor/512x512/apps/plannotator.png
+    install -Dm444 ${finalAttrs.passthru.icon} $out/share/icons/hicolor/256x256/apps/plannotator.png
   ''
   + lib.optionalString installSkills (
     lib.concatStrings (
@@ -261,7 +263,7 @@ stdenv.mkDerivation (finalAttrs: {
     ) skillSha256;
     icon = fetchurl {
       name = "plannotator.png";
-      url = "https://raw.githubusercontent.com/backnotprop/plannotator/v${finalAttrs.version}/apps/marketing/public/favicon.png";
+      url = "https://raw.githubusercontent.com/backnotprop/plannotator/v${finalAttrs.version}/packages/inbox/assets/tab-icon/face-256.png";
       sha256 = iconSha256;
     };
     updateScript = ./update.sh;

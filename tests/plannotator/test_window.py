@@ -269,7 +269,7 @@ def test_the_review_page_is_spell_checked_without_a_download(
         line.startswith("test-spellcheck-dictionary-download-begin") for line in log
     ), log
     dictionary_files = list((data_path / "review-window" / "Dictionaries").iterdir())
-    assert [file.name for file in dictionary_files] == ["en-GB-10-1.bdic"]
+    assert [file.name for file in dictionary_files] == ["en-GB-10-2.bdic"]
     assert dictionary_files[0].resolve().is_relative_to("/nix/store")
 
     status, _ = session.request_json("/api/exit", "POST", {})

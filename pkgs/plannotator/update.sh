@@ -123,7 +123,7 @@ for skill_name in "${skill_names[@]}"; do
 done
 
 # An image, so there is no diff to show; the checksum written below pins exactly the file downloaded here.
-icon_path="apps/marketing/public/favicon.png"
+icon_path="packages/inbox/assets/tab-icon/face-256.png"
 if ! curl -sfL "$(raw_url "$new_version" "$icon_path")" -o "$work_path/icon.png"; then
 	echo "error: v$new_version has no $icon_path, the review window's icon; update package.nix by hand" >&2
 	exit 1

@@ -19,7 +19,7 @@
 // PLANNOTATOR_WINDOW_BROWSER: the program a clicked link's URL goes to; unset or failing, the URL is copied instead.
 // PLANNOTATOR_WINDOW_LOG: a file that gets one line per decision, read by tests/plannotator.
 // PLANNOTATOR_WINDOW_SPELLCHECK_LANGUAGE and PLANNOTATOR_WINDOW_SPELLCHECK_DICTIONARY: the page's spell-checking
-// language (en-GB) and its Chromium dictionary file (en-GB-10-1.bdic); unset, spell checking is off.
+// language (en-GB) and its Chromium dictionary file (en-GB-10-2.bdic); unset, spell checking is off.
 "use strict";
 
 const {
