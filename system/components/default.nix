@@ -3,6 +3,7 @@
     ./adb.nix
     ./audio.nix
     ./bluetooth.nix
+    ./bootvine.nix
     ./console.nix
     ./desktop.nix
     ./diagnostics.nix

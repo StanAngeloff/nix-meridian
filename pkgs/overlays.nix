@@ -17,6 +17,7 @@ final: prev: {
   ataraxy-sem = final.callPackage ./ataraxy-sem/package.nix { };
   plannotator = final.callPackage ./plannotator/package.nix { electron = nixpkgs-unstable.electron; };
   academic-forge = final.callPackage ./academic-forge/package.nix { };
+  bootvine = final.callPackage ./bootvine/package.nix { };
   ponytail = final.callPackage ./ponytail/package.nix { };
   cursor-plugins = final.callPackage ./cursor-plugins/package.nix { };
   mcp-server-trello = final.callPackage ./mcp-server-trello/package.nix { };
