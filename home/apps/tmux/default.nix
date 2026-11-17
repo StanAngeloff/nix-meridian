@@ -84,6 +84,31 @@ let
     pkgs.coreutils
     pkgs.tmux
   ];
+
+  # Runs the issue board script that issues-toggle.sh finds, behind prefix C-i and I.
+  # The board reads the store through git and parses its issues with yq, so both come along.
+  issuesBoard = pkgs.writeShellApplication {
+    name = "tmux-issues-board";
+    runtimeInputs = [
+      pkgs.git
+      pkgs.nodejs_24
+      pkgs.yq-go
+    ];
+    text = ''
+      exec node "$@"
+    '';
+  };
+  issuesToggle = pkgs.writeShellApplication {
+    name = "tmux-issues-toggle";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.git
+      pkgs.tmux
+    ];
+    text = builtins.replaceStrings [ "@issuesBoard@" ] [ (pkgs.lib.getExe issuesBoard) ] (
+      builtins.readFile ./issues-toggle.sh
+    );
+  };
 in
 {
   programs.tmux = {
@@ -127,6 +152,9 @@ in
       ${builtins.readFile ./abilities/tmux.nix-diff.conf}
       ${builtins.replaceStrings [ "@scratchNoteFloat@" ] [ (pkgs.lib.getExe scratchNoteFloat) ] (
         builtins.readFile ./abilities/tmux.scratch-note.conf
+      )}
+      ${builtins.replaceStrings [ "@issuesToggle@" ] [ (pkgs.lib.getExe issuesToggle) ] (
+        builtins.readFile ./abilities/tmux.issues.conf
       )}
     '';
   };
