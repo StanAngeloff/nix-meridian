@@ -54,7 +54,7 @@ let
     timeout = 5;
   };
 
-  # /away's deny; see away/claude-away.sh. 3660 seconds covers its longest timeout, 60 minutes.
+  # /away's deny; see mods/away/claude-away.sh. 3660 seconds covers its longest timeout, 60 minutes.
   awayHook = {
     type = "command";
     command = lib.getExe claude-away;

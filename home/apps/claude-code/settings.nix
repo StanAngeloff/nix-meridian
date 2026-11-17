@@ -1,7 +1,5 @@
 {
   claude-code-statusline,
-  claude-away,
-  claude-profile,
   baseModel,
 }:
 {
@@ -106,11 +104,23 @@ let
       pr = "";
     };
     env = {
-      # The away and profile mods, colon-separated. Set here rather than in the claude wrapper so the away mod comes with the hook
-      # it hands its timeout to (./notifications.nix): a session that skips user settings loads neither.
-      CLAUDE_CODE_PLUGIN_DIRS = "${claude-away.mod}:${claude-profile}";
+      # The mods ./mods lists, colon-separated. Set here rather than in the claude wrapper so the away mod comes with the hook
+      # it hands its timeout to (./notifications.nix): a session that skips user settings loads none of them.
+      CLAUDE_CODE_PLUGIN_DIRS = lib.concatMapStringsSep ":" toString config.claude-code.mods;
     };
+    # Declared in ./themes.nix. A pick made in /theme lasts until the next switch puts this back.
+    theme = "custom:meridian-dark";
     viewMode = "verbose";
+    # Wrap the prose of responses at 120 columns in a wider terminal; tables and code blocks keep the full width.
+    # Learn more at https://code.claude.com/docs/en/settings-reference#maxprosewidth
+    maxProseWidth = 120;
+    # "Cooked for 1m 6s · done 18:05" after each response. Already the default; set so a changed default can't hide it.
+    # Learn more at https://code.claude.com/docs/en/settings-reference#showturnduration
+    showTurnDuration = true;
+    # Stamp each message with its arrival time, to place it when scrolling back. Not in the settings reference, only in the bundled schema.
+    showMessageTimestamps = true;
+    # Learn more at https://code.claude.com/docs/en/settings-reference#timeformat
+    timeFormat = "24-hour";
     statusLine = {
       type = "command";
       command = lib.getExe claude-code-statusline;
@@ -127,6 +137,8 @@ let
       }
     ];
     promptSuggestionEnabled = false;
+    # No emoji suggestions after ":" in the prompt, and no replacing a typed :shortcode: with its emoji.
+    emojiCompletionEnabled = false;
     # Session recap, the one-line summary shown on return after being away; /config's "Session recap" toggle writes this undocumented key.
     awaySummaryEnabled = false;
     # Idle compaction summarizes a 200K+ token conversation left idle for about 54 minutes, before its one-hour prompt cache expires.

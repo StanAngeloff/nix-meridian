@@ -1,0 +1,8 @@
+{
+  "name": "glowup",
+  "version": "0.1.0",
+  "description": "How the conversation looks: bars beside your prompts and Claude's tool calls, and a closing line per turn naming the model",
+  "author": {
+    "name": "Stan Angeloff"
+  }
+}

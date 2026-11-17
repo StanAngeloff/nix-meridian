@@ -55,10 +55,8 @@ let
   };
   # The bubble's PreToolUse arbiter; see arbiter/claude-arbiter.sh.
   claude-arbiter = pkgs.callPackage ./arbiter/package.nix { };
-  # /away: a PermissionRequest hook (./notifications.nix) and the mod that drives it (./settings.nix); see away/package.nix.
-  claude-away = pkgs.callPackage ./away/package.nix { };
-  # /profile: the account profile a session runs as; see profile/mod/hooks/register.ts.
-  claude-profile = pkgs.callPackage ./profile/package.nix { };
+  # /away's PermissionRequest command hook (./notifications.nix); the away mod beside it is built with the others in ./mods.
+  claude-away = pkgs.callPackage ./mods/away/hook.nix { };
   # The Claude Code version the account-profile proofs last passed on; see bubble/modules/profiles/verified-version.nix.
   profilesVerifiedVersion = import ./bubble/modules/profiles/verified-version.nix;
   # High-precedence --settings layer for bubbled sessions: the inner Bash sandbox off, no bypass-mode dialog, the arbiter.
@@ -83,11 +81,11 @@ in
         ;
     })
     ./keybindings.nix
+    ./themes.nix
+    ./mods
     (import ./settings.nix {
       inherit
         claude-code-statusline
-        claude-away
-        claude-profile
         baseModel
         ;
     })
