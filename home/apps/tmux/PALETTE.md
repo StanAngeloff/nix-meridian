@@ -57,6 +57,8 @@ The desaturation does double duty: it keeps read distinct from unread on the foc
 
 Text: #000000 (black) on focused tabs, #9e9e9e (grey) on unfocused. Bar background: #080808. The focused tab background is always #00afff regardless of state.
 
+While the navigator (prefix Tab) is open, the focused tab background is #a6a6a6 instead, the grey of the same relative luminance as #00afff, so that the navigator's cyan row is the only cyan on screen.
+
 ## Dot rules
 
 - A dot means Claude Code is running in that window (any state).

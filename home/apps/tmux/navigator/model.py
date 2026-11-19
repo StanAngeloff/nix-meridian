@@ -1,0 +1,150 @@
+"""What the navigator shows: every window of every session, read from one `tmux list-panes -a`."""
+
+import re
+from dataclasses import dataclass, field
+
+# The window rollup order of claude-state.conf: blocked > working > unread > read.
+STATE_ORDER = ["blocked", "working", "unread", "read"]
+
+# claude-state.conf's per-pane verdicts, from @claude-pane-verdict.
+VERDICT_STATES = {"B": "blocked", "W": "working", "U": "unread", "R": "read"}
+
+# The navigator and its placeholders are recognised by the command tmux started them with, which is fixed when the
+# pane is created; a pane option set afterwards would leave a moment in which a new placeholder looks like any pane.
+# Both run from the tmux-navigator package (package.nix), so their start commands contain its bin directory.
+COLUMN_MARKER = "/bin/tmux-navigator"
+
+FIELD_SEPARATOR = "\x1f"
+FIELDS = [
+    "session_name",
+    "session_group",
+    "window_id",
+    "window_index",
+    "window_name",
+    "pane_id",
+    "pane_active",
+    "E:@claude-pane-verdict",
+    "pane_current_command",
+    "pane_current_path",
+    "pane_title",
+    "pane_start_command",
+    "pane_floating_flag",
+]
+PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
+
+
+@dataclass
+class Pane:
+    id: str
+    command: str  # #{pane_current_command}
+    path: str  # #{pane_current_path}, with ~ for the home directory
+    title: str = ""  # #{pane_title}; Claude Code writes its task there
+    state: str = ""  # blocked, working, unread or read while Claude Code runs here
+    active: bool = False
+
+    @property
+    def label(self) -> str:
+        if self.state:
+            return claude_task(self.title)
+        return f"{self.command}  {self.path}"
+
+
+@dataclass
+class Window:
+    id: str
+    index: int
+    name: str
+    panes: list[Pane] = field(default_factory=list)
+
+
+@dataclass
+class Session:
+    name: str
+    windows: list[Window]
+
+
+@dataclass
+class Snapshot:
+    sessions: list[Session]
+    pane_windows: dict[
+        str, str
+    ]  # pane ID → window ID, for every pane including the column
+    active_panes: set[str]  # the active pane of each window
+
+
+def claude_task(title: str) -> str:
+    """The task in a Claude Code title: "✳ Bump bootvine" when idle, a spinner frame instead of ✳ while working."""
+    # A Kitty graphics probe that tmux took for a title; claude-state.conf restores the real one.
+    if re.match(r"G[a-zA-Z]=", title):
+        return "Claude Code"
+    first = title[:1]
+    if first in "✳◐◑" or "⠀" <= first <= "⣿":
+        title = title[1:].lstrip()
+    return title or "Claude Code"
+
+
+def is_column(start_command: str) -> bool:
+    return COLUMN_MARKER in start_command
+
+
+def parse(text: str, home: str) -> Snapshot:
+    """Every window of every session, once per session group and under the group's name.
+
+    The sessions of a group share their windows: the phone hub's remote session is grouped with default.
+    The navigator, its placeholders and floating panes are left out, and so is a window with nothing else in it.
+    """
+    sessions: dict[str, Session] = {}
+    session_of_group: dict[str, str] = {}
+    pane_windows: dict[str, str] = {}
+    active_panes: set[str] = set()
+    for line in text.splitlines():
+        fields = line.split(FIELD_SEPARATOR)
+        if len(fields) != len(FIELDS):
+            continue
+        (
+            session_name,
+            group,
+            window_id,
+            window_index,
+            window_name,
+            pane_id,
+            active,
+            verdict,
+            command,
+            path,
+            title,
+            start_command,
+            floating,
+        ) = fields
+        pane_windows[pane_id] = window_id
+        if active == "1":
+            active_panes.add(pane_id)
+        group = group or session_name
+        if session_of_group.setdefault(group, session_name) != session_name:
+            continue
+        # Floating panes come and go over a window, like the prefix w switcher or the tig float, and are not listed.
+        if is_column(start_command) or floating == "1":
+            continue
+        session = sessions.setdefault(group, Session(group, []))
+        if not session.windows or session.windows[-1].id != window_id:
+            session.windows.append(Window(window_id, int(window_index), window_name))
+        if path == home or path.startswith(home + "/"):
+            path = "~" + path[len(home) :]
+        state = VERDICT_STATES.get(verdict, "")
+        pane = Pane(pane_id, command, path, title, state, active == "1")
+        session.windows[-1].panes.append(pane)
+    return Snapshot(
+        [session for session in sessions.values() if session.windows],
+        pane_windows,
+        active_panes,
+    )
+
+
+def window_order(sessions: list[Session]) -> list[str]:
+    return [window.id for session in sessions for window in session.windows]
+
+
+def session_of(sessions: list[Session], window_id: str) -> Session | None:
+    return next(
+        (s for s in sessions if any(w.id == window_id for w in s.windows)), None
+    )

@@ -109,6 +109,9 @@ let
       builtins.readFile ./issues-toggle.sh
     );
   };
+
+  # The sidebar of every window behind prefix Tab (abilities/tmux.navigator.conf); the design is in navigator/control.py.
+  navigator = pkgs.callPackage ./navigator/package.nix { };
 in
 {
   programs.tmux = {
@@ -155,6 +158,9 @@ in
       )}
       ${builtins.replaceStrings [ "@issuesToggle@" ] [ (pkgs.lib.getExe issuesToggle) ] (
         builtins.readFile ./abilities/tmux.issues.conf
+      )}
+      ${builtins.replaceStrings [ "@navigator@" ] [ (pkgs.lib.getExe navigator) ] (
+        builtins.readFile ./abilities/tmux.navigator.conf
       )}
     '';
   };
