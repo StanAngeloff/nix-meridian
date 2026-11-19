@@ -176,6 +176,12 @@ def parse(text: str, home: str) -> Snapshot:
     )
 
 
+def claude_pane(window: Window) -> Pane | None:
+    """The window's Claude Code pane: the active one when it runs Claude Code, else the first that does."""
+    claude = [pane for pane in window.panes if pane.state]
+    return next((pane for pane in claude if pane.active), claude[0] if claude else None)
+
+
 def reordered(
     sessions: list[Session], window_id: str, position: int, base_index: int
 ) -> list[Session]:

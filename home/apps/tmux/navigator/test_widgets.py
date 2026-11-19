@@ -42,27 +42,40 @@ class CpuMeterTest(unittest.TestCase):
 class TextTest(unittest.TestCase):
     def test_icons_values_and_swap_in_use(self):
         text = widgets.status_text(0.23, widgets.memory(MEMINFO))
-        self.assertIn(widgets.CPU_ICON + " #[fg=#9e9e9e]23% ", text)
+        self.assertIn(widgets.CPU_ICON + " #[fg=#9e9e9e] 23%", text)
         self.assertIn(widgets.MEMORY_ICON + " #[fg=#9e9e9e]12.7/31G", text)
         self.assertIn("+16.5G swap", text)
 
-    def test_the_figure_sits_next_to_its_icon_and_the_group_keeps_its_width(self):
+    def test_the_figure_is_right_aligned_and_the_widget_keeps_its_width(self):
         memory = widgets.Memory(used=2.0, total=31.0, swap=0.0)
         low, full = widgets.status_text(0.03, memory), widgets.status_text(1.0, memory)
-        self.assertIn(widgets.CPU_ICON + " #[fg=#9e9e9e]3%  ", low)
+        self.assertIn(widgets.CPU_ICON + " #[fg=#9e9e9e]  3%", low)
         self.assertEqual(
             low.index(widgets.MEMORY_ICON), full.index(widgets.MEMORY_ICON)
         )
 
+    def test_each_widget_sits_on_a_lighter_patch_and_the_profile_comes_first(self):
+        memory = widgets.Memory(used=2.0, total=31.0, swap=0.0)
+        text = widgets.status_text(0.1, memory, profile="personal/2")
+        patches = text.split("#[bg=default]")
+        self.assertEqual(text.count(f"#[bg={widgets.PATCH_BG}] "), 3)
+        self.assertIn(widgets.PROFILE_ICON + " #[fg=#9e9e9e]personal/2", patches[0])
+        self.assertIn(widgets.CPU_ICON, patches[1])
+        self.assertIn(widgets.MEMORY_ICON, patches[2])
+
+    def test_no_profile_no_profile_widget(self):
+        memory = widgets.Memory(used=2.0, total=31.0, swap=0.0)
+        self.assertNotIn(widgets.PROFILE_ICON, widgets.status_text(0.1, memory))
+
     def test_a_high_value_turns_white(self):
         text = widgets.status_text(0.9, widgets.memory(MEMINFO))
-        self.assertIn("#[fg=#ffffff]90% ", text)
+        self.assertIn("#[fg=#ffffff] 90%", text)
 
     def test_no_swap_in_use_is_left_out_and_no_cpu_figure_shows_a_dash(self):
         no_swap = widgets.Memory(used=2.0, total=31.0, swap=0.0)
         text = widgets.status_text(None, no_swap)
         self.assertNotIn("swap", text)
-        self.assertIn("-%  ", text)
+        self.assertIn("  -%", text)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ import widgets
 from tmux import WIDGETS, TmuxError, number_option, tmux
 
 POLL_SECONDS = 1.0
+PROFILE_VARIABLE = "CLAUDE_BUBBLE_PROFILE"
 
 
 def read_snapshot(home: str) -> model.Snapshot:
@@ -35,12 +36,23 @@ def read_snapshot(home: str) -> model.Snapshot:
     return snapshot
 
 
+def window_profile(snapshot: model.Snapshot, window_id: str) -> str:
+    """The Claude Code profile of the window's Claude Code pane, which the bubble sets in the session's environment
+    (home/apps/claude-code/bubble/modules/profiles/hooks.sh); nothing for a window without one.
+    """
+    window = next(
+        (w for s in snapshot.sessions for w in s.windows if w.id == window_id), None
+    )
+    pane = model.claude_pane(window) if window else None
+    return processes.environment_value(pane.pid, PROFILE_VARIABLE) if pane else ""
+
+
 def run() -> None:
     own_pane = os.environ["TMUX_PANE"]
     home = os.path.expanduser("~")
     cursor = keys.Cursor()
     cpu_meter = widgets.CpuMeter()
-    shown_widgets = ""
+    shown_widgets = shown_profile = ""
 
     # Signals only wake the loop; the wakeup descriptor turns them into something select can wait on.
     wake_read, wake_write = os.pipe()
@@ -61,14 +73,16 @@ def run() -> None:
             snapshot = read_snapshot(home)
         except TmuxError:
             return  # the server is gone
-        # The status bar's widgets: handed to tmux only when they change, and the first time drawn at once.
-        widget_text = widgets.read(cpu_meter)
+        # The status bar's widgets: handed to tmux only when they change, and drawn at once the first time and when the
+        # profile changes, as a window switch should not wait for the bar's own 5-second refresh.
+        open_window = snapshot.pane_windows.get(own_pane, "")
+        profile = window_profile(snapshot, open_window)
+        widget_text = widgets.read(cpu_meter, profile)
         if widget_text != shown_widgets:
             tmux("set", "-g", WIDGETS, widget_text)
-            if not shown_widgets:
+            if not shown_widgets or profile != shown_profile:
                 control.refresh_status()
-            shown_widgets = widget_text
-        open_window = snapshot.pane_windows.get(own_pane, "")
+            shown_widgets, shown_profile = widget_text, profile
         focused = own_pane in snapshot.active_panes
         # Away from the navigator, the cursor rests on the open window, where it starts when focus comes back.
         if not focused or cursor.window not in model.window_order(snapshot.sessions):

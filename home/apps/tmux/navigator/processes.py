@@ -30,6 +30,29 @@ def command_name(pid: str, root: str = "/proc") -> str:
         return ""
 
 
+def environment_value(pid: str, name: str, root: str = "/proc") -> str:
+    """The first value of the environment variable name found in the process or below it, else nothing.
+
+    Reads one variable out of each environment and keeps nothing else: an environment can hold tokens.
+    """
+    prefix = name.encode() + b"="
+    pending, seen = [pid], set()
+    while pending:
+        current = pending.pop()
+        if not current or current in seen:
+            continue
+        seen.add(current)
+        try:
+            with open(f"{root}/{current}/environ", "rb") as handle:
+                for variable in handle.read().split(b"\0"):
+                    if variable.startswith(prefix):
+                        return variable[len(prefix) :].decode(errors="replace")
+        except OSError:
+            pass  # gone meanwhile, or not ours to read
+        pending += children(current, root)
+    return ""
+
+
 def runs_tmux_client(pid: str, root: str = "/proc") -> bool:
     """Whether a tmux client runs anywhere below the process: a pane attached to a tmux of its own."""
     pending, seen = [pid], set()

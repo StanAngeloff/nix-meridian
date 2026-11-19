@@ -8,9 +8,12 @@ import time
 from collections import deque
 from dataclasses import dataclass
 
+PROFILE_ICON = "\uf007"  # nf-fa-user
 CPU_ICON = "\uf4bc"  # nf-oct-cpu
 MEMORY_ICON = "\uefc5"  # nf-fa-memory
 ICON_FG = "#6c6c6c"  # colour242
+# Each widget sits on a patch a shade lighter than the bar's tint (#0c0c0c), with a cell of margin inside it.
+PATCH_BG = "#161616"
 VALUE_FG = "#9e9e9e"  # colour247, the status bar's text
 # A value above HOT_FRACTION turns white, not the amber or red that mean working and blocked for the Claude Code dots.
 HOT_FG = "#ffffff"
@@ -77,28 +80,38 @@ def value(fraction: float, text: str) -> str:
     return f"#[fg={colour}]{text}"
 
 
-def status_text(cpu: float | None, used: Memory) -> str:
-    """The widgets in tmux style markup: the CPU icon and use, then the memory icon and use, and swap when in use."""
-    # The figure sits next to its icon and the spare cells come after it, up to the four of "100%", so the group keeps
-    # its width and nothing shifts as the value changes.
+def patch(content: str) -> str:
+    """A widget on its patch; bg=default returns to the bar's own colour after it."""
+    return f"#[bg={PATCH_BG}] {content} #[bg=default]"
+
+
+def status_text(cpu: float | None, used: Memory, profile: str = "") -> str:
+    """The widgets in tmux style markup: the Claude Code profile of the window on screen when it has one, the CPU
+    icon and use, then the memory icon and use, and swap when in use, each on its own patch.
+    """
+    # The figure is right-aligned in the four cells of "100%", so the widget keeps its width and the figure ends in the
+    # same column whatever the value; the widget's patch marks its edges.
     if cpu is None:
-        cpu_text = f"#[fg={VALUE_FG}]" + "-%".ljust(CPU_FIGURE_WIDTH)
+        cpu_text = f"#[fg={VALUE_FG}]" + "-%".rjust(CPU_FIGURE_WIDTH)
     else:
-        cpu_text = value(cpu, f"{cpu * 100:.0f}%".ljust(CPU_FIGURE_WIDTH))
+        cpu_text = value(cpu, f"{cpu * 100:.0f}%".rjust(CPU_FIGURE_WIDTH))
     memory_text = value(used.used / used.total, f"{used.used:4.1f}/{used.total:.0f}G")
     swap_text = (
         f"#[fg={ICON_FG}] +{used.swap:.1f}G swap" if used.swap >= SHOWN_SWAP_GIB else ""
     )
-    return (
-        f"#[fg={ICON_FG}]{CPU_ICON} {cpu_text}   "
-        f"#[fg={ICON_FG}]{MEMORY_ICON} {memory_text}{swap_text}"
-    )
+    widgets = [
+        f"#[fg={ICON_FG}]{CPU_ICON} {cpu_text}",
+        f"#[fg={ICON_FG}]{MEMORY_ICON} {memory_text}{swap_text}",
+    ]
+    if profile:
+        widgets.insert(0, f"#[fg={ICON_FG}]{PROFILE_ICON} #[fg={VALUE_FG}]{profile}")
+    return " ".join(patch(widget) for widget in widgets)
 
 
-def read(meter: CpuMeter, now: float | None = None) -> str:
+def read(meter: CpuMeter, profile: str = "", now: float | None = None) -> str:
     """Samples /proc once more and returns the widgets' text."""
     with open("/proc/stat") as handle:
         busy, total = cpu_times(handle.read())
     meter.add(time.monotonic() if now is None else now, busy, total)
     with open("/proc/meminfo") as handle:
-        return status_text(meter.fraction(), memory(handle.read()))
+        return status_text(meter.fraction(), memory(handle.read()), profile)

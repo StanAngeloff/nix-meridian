@@ -55,6 +55,20 @@ class WindowNameTest(unittest.TestCase):
             self.assertEqual(self.title_and_repository(name), (name, ""))
 
 
+class ClaudePaneTest(unittest.TestCase):
+    def test_the_active_claude_pane_else_the_first_else_none(self):
+        shell = model.Pane("%1", "zsh", "~", active=True)
+        first = model.Pane("%2", "claude", "~", "✳ a", "read")
+        second = model.Pane("%3", "claude", "~", "✳ b", "working", active=True)
+        self.assertIs(
+            model.claude_pane(model.Window("@1", 1, "w", [first, second])), second
+        )
+        self.assertIs(
+            model.claude_pane(model.Window("@1", 1, "w", [shell, first])), first
+        )
+        self.assertIsNone(model.claude_pane(model.Window("@1", 1, "w", [shell])))
+
+
 class ReorderedTest(unittest.TestCase):
     def test_moves_the_window_and_numbers_its_session_from_the_base(self):
         sessions = [
