@@ -99,6 +99,10 @@ if [ "${1:-}" = --apply ]; then
 	exit 0
 fi
 
+# Only an interactive session owns the pane. A headless one started inside it (`claude -p`, the Agent SDK) inherits TMUX_PANE or the bubble event channel, and its SessionEnd would clear the parent's light.
+# Claude Code turns an inherited "cli" into "sdk-cli" under -p, and the SDK sets "sdk-ts" or "sdk-py"; unset reads as "cli", as Claude Code itself reads it.
+[ "${CLAUDE_CODE_ENTRYPOINT:-cli}" = cli ] || exit 0
+
 action="$(get_action)"
 [ -n "$action" ] || exit 0
 
