@@ -128,6 +128,9 @@ def run() -> None:
                     control.leave(own_pane)
                 elif action and action.kind == "move":
                     control.move(action.window, action.neighbour, action.side)
+                    # Keys still to come in this read, a held Shift+Down say, move from where the window is now.
+                    snapshot = read_snapshot(home)
+                    sessions = snapshot.sessions
             except TmuxError:
                 pass  # the window went away meanwhile; the next frame shows what is left
 

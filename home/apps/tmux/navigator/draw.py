@@ -272,17 +272,24 @@ def draw_header(c: Canvas, y: int, session: Session) -> None:
     c.put(x + 1, y, "─" * (c.cols - x - 1), DIMMER)
 
 
+HINTS = [
+    [("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")],
+    [("⇧↑ ⇧↓", "reorder"), ("1-9", "jump")],
+]
+
+
 def draw_hints(c: Canvas, y: int) -> None:
     c.put(0, y, "─" * c.cols, DIMMER)
-    x = 1
-    for key, label in (("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")):
-        x = c.put(x, y + 1, key, TEXT, bold=True)
-        x = c.put(x, y + 1, f" {label}  ", DIM)
+    for row, hints in enumerate(HINTS, 1):
+        x = 1
+        for key, label in hints:
+            x = c.put(x, y + row, key, TEXT, bold=True)
+            x = c.put(x, y + row, f" {label}  ", DIM)
 
 
 def draw(sessions: list[Session], view: View, cols: int, rows: int) -> Canvas:
     c = Canvas(cols, rows)
-    footer_rows = 2 if view.focused and view.help else 0
+    footer_rows = 1 + len(HINTS) if view.focused and view.help else 0
     list_rows = rows - footer_rows
     lines = list_lines(c, view, sessions)
 

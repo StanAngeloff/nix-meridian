@@ -69,8 +69,28 @@ class ActionTest(unittest.TestCase):
         keys.handle_key(cursor, SESSIONS, "?", 0.0, {})
         self.assertFalse(cursor.help)
 
+    def test_shift_down_and_up_move_the_window_within_its_session(self):
+        cursor = keys.Cursor(window="@d1")
+        down = keys.handle_key(cursor, SESSIONS, "\x1b[1;2B", 0.0, {})
+        self.assertEqual(
+            down, Action("move", window="@d1", neighbour="@d2", side="after")
+        )
+        cursor = keys.Cursor(window="@d5")
+        up = keys.handle_key(cursor, SESSIONS, "\x1b[1;2A", 0.0, {})
+        self.assertEqual(
+            up, Action("move", window="@d5", neighbour="@d4", side="before")
+        )
+        self.assertEqual(cursor.window, "@d5")
+
+    def test_nothing_past_either_end_of_a_session(self):
+        first, last = keys.Cursor(window="@d1"), keys.Cursor(window="@d12")
+        self.assertIsNone(keys.handle_key(first, SESSIONS, "\x1b[1;2A", 0.0, {}))
+        self.assertIsNone(keys.handle_key(last, SESSIONS, "\x1b[1;2B", 0.0, {}))
+
     def test_split_keys_keeps_sequences_whole(self):
-        split = list(keys.split_keys("jj\x1b[A\x1b[I4\x1b[<0;12;3M\x1b[<0;12;3m\x1b"))
+        split = list(
+            keys.split_keys("jj\x1b[A\x1b[I4\x1b[<0;12;3M\x1b[<0;12;3m\x1b[1;2A\x1b")
+        )
         expected = [
             "j",
             "j",
@@ -79,6 +99,7 @@ class ActionTest(unittest.TestCase):
             "4",
             "\x1b[<0;12;3M",
             "\x1b[<0;12;3m",
+            "\x1b[1;2A",
             "\x1b",
         ]
         self.assertEqual(split, expected)

@@ -10,6 +10,9 @@ NUMBER_TIMEOUT = 0.8
 
 DOWN = ("j", "\x1b[B")
 UP = ("k", "\x1b[A")
+# Shift+Down and Shift+Up, as tmux passes them to a pane: they move the window under the cursor within its session.
+SHIFT_DOWN = "\x1b[1;2B"
+SHIFT_UP = "\x1b[1;2A"
 ENTER = ("\r", "\n")
 LEAVE = ("\t", "\x1b")  # Tab hands focus back to the pane; so does Esc
 HELP = "?"  # shows the key hints, and hides them again
@@ -17,6 +20,9 @@ HELP = "?"  # shows the key hints, and hides them again
 # A mouse event in SGR form (mode 1006), which the navigator asks tmux for: ESC [ < button ; column ; row, then M for
 # a press or m for a release. Column and row count from 1 at the pane's top left.
 MOUSE = re.compile(r"\x1b\[<(\d+);(\d+);(\d+)([Mm])")
+# A whole control sequence: ESC [, its parameters, and one final character. Arrows, Shift+arrows, focus events and
+# mouse events are all of this form; read one character at a time, ESC [1;2A would type a stray 2.
+CONTROL_SEQUENCE = re.compile(r"\x1b\[[0-9;<>?]*[@-~]")
 LEFT = 0
 LEFT_DRAG = 32  # the left button held while the mouse moves, which the navigator asks tmux for (mode 1002)
 WHEEL_UP = 64
@@ -57,16 +63,11 @@ class Cursor:
 
 
 def split_keys(data: str):
-    """Splits one read into keys: a mouse event is one, an arrow or a focus event is ESC [ and one character."""
+    """Splits one read into keys: a control sequence is one key, anything else one character."""
     i = 0
     while i < len(data):
-        mouse = MOUSE.match(data, i)
-        if mouse:
-            length = mouse.end() - i
-        elif data.startswith("\x1b[", i) and i + 2 < len(data):
-            length = 3
-        else:
-            length = 1
+        sequence = CONTROL_SEQUENCE.match(data, i)
+        length = sequence.end() - i if sequence else 1
         yield data[i : i + length]
         i += length
 
@@ -85,6 +86,8 @@ def handle_key(
     mouse = MOUSE.fullmatch(key)
     if mouse:
         return handle_mouse(cursor, sessions, mouse, targets)
+    if key in (SHIFT_DOWN, SHIFT_UP):
+        return shift(cursor, sessions, 1 if key == SHIFT_DOWN else -1)
     if key in DOWN or key in UP:
         move(cursor, sessions, 1 if key in DOWN else -1)
     elif key.isdigit():
@@ -127,6 +130,21 @@ def handle_mouse(cursor, sessions, mouse: re.Match, targets) -> Action | None:
             return Action("open", pane=drag.pane)
         return drop(sessions, drag)
     return None
+
+
+def shift(cursor: Cursor, sessions: list[Session], step: int) -> Action | None:
+    """Shift+Down or Shift+Up: the window under the cursor trades places with the next or previous one in its
+    session, as a drop there would; nothing at either end. The cursor stays on the window.
+    """
+    session = session_of(sessions, cursor.window)
+    if session is None:
+        return None
+    order = [w.id for w in session.windows]
+    neighbour = order.index(cursor.window) + step
+    if not 0 <= neighbour < len(order):
+        return None
+    side = "after" if step > 0 else "before"
+    return Action("move", window=cursor.window, neighbour=order[neighbour], side=side)
 
 
 def place(sessions: list[Session], window_id: str) -> int:

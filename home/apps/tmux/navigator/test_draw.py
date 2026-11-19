@@ -24,6 +24,11 @@ SESSIONS = [
 ]
 
 
+def footer(canvas) -> str:
+    """The text of the last rows, where the key hints go."""
+    return " ".join(canvas.text(y) for y in range(canvas.rows - 3, canvas.rows))
+
+
 def render(
     cursor="@1", focused=False, rows=14, cols=30, sessions=None, dragging="", help=False
 ):
@@ -127,22 +132,24 @@ class TargetTest(unittest.TestCase):
 class FocusTest(unittest.TestCase):
     def test_unfocused_shows_no_cursor_and_no_hints(self):
         canvas = render(cursor="@2")
-        self.assertNotIn("move", canvas.text(13))
+        self.assertNotIn("move", footer(canvas))
         self.assertEqual(canvas.cells[3][0][0], " ")
 
     def test_focused_marks_the_cursor_window_but_shows_no_hints_until_asked(self):
         canvas = render(cursor="@2", focused=True)
-        self.assertNotIn("move", canvas.text(13))
+        self.assertNotIn("move", footer(canvas))
         self.assertEqual(
             canvas.cells[3][0][:3], ("▌", draw.FOCUSED_TAB_BG, draw.CURSOR_BG)
         )
 
     def test_hints_show_when_asked_for_and_fit_the_column(self):
         canvas = render(cursor="@2", focused=True, help=True, cols=36)
-        self.assertIn("move", canvas.text(13))
-        self.assertIn("? hide", canvas.text(13))
+        self.assertIn("move", footer(canvas))
+        self.assertIn("? hide", footer(canvas))
+        self.assertIn("reorder", footer(canvas))
+        self.assertTrue(all(len(canvas.text(y).rstrip()) <= 36 for y in range(14)))
         unfocused = render(cursor="@2", focused=False, help=True)
-        self.assertNotIn("move", unfocused.text(13))
+        self.assertNotIn("move", footer(unfocused))
 
     def test_the_cursor_on_the_open_window_has_a_white_bar(self):
         canvas = render(cursor="@1", focused=True)
