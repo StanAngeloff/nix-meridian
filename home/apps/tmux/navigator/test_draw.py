@@ -1,7 +1,9 @@
+import re
 import unittest
 
 import draw
 import model
+import test_links
 from model import Pane, Session, Window
 
 SESSIONS = [
@@ -30,12 +32,19 @@ def footer(canvas) -> str:
 
 
 def render(
-    cursor="@1", focused=False, rows=14, cols=30, sessions=None, dragging="", help=False
+    cursor="@1",
+    focused=False,
+    rows=14,
+    cols=30,
+    sessions=None,
+    dragging="",
+    help=False,
+    rules=(),
 ):
     view = draw.View(
         open_window="@1", cursor=cursor, focused=focused, dragging=dragging, help=help
     )
-    return draw.draw(sessions or SESSIONS, view, cols, rows)
+    return draw.draw(sessions or SESSIONS, view, cols, rows, rules)
 
 
 class TreeTest(unittest.TestCase):
@@ -112,6 +121,37 @@ class NameTest(unittest.TestCase):
         self.assertTrue(line.endswith(draw.ELLIPSIS) or "webapp" in line)
         narrow = self.frame(long_title, 20).text(1).rstrip()
         self.assertNotIn(draw.REPOSITORY_ICON, narrow)
+
+
+class LinkTest(unittest.TestCase):
+    def frame(self, title, cols=36):
+        task = Pane("%7", "claude", "~", "✳ sc-123/finish", "read")
+        sessions = [Session("default", [Window("@7", 7, title, [task])])]
+        return render(sessions=sessions, cols=cols, rules=test_links.RULES)
+
+    def test_an_issue_in_a_pane_task_opens_its_story(self):
+        canvas = self.frame("task")
+        x = draw.CONTENT_X + 5
+        self.assertEqual(canvas.text(2)[x : x + 7], "sc-123/")
+        urls = [cell[4] for cell in canvas.cells[2][x : x + 7]]
+        self.assertEqual(urls, [test_links.STORY + "123"] * 6 + [""])
+        # SGR changes may fall anywhere; what matters is where the link starts and ends around the text.
+        ansi = re.sub(r"\x1b\[[0-9;]*m", "", canvas.to_ansi())
+        link = f"\x1b]8;;{test_links.STORY}123\x1b\\sc-123\x1b]8;;\x1b\\/finish"
+        self.assertIn(link, ansi)
+
+    def test_a_cut_title_still_opens_the_story_it_named_but_its_ellipsis_does_not(
+        self,
+    ):
+        canvas = self.frame("sc-12345 continuous integration", cols=12)
+        title = canvas.cells[1][draw.CONTENT_X : draw.CONTENT_X + 6]
+        self.assertEqual("".join(cell[0] for cell in title), "sc-12" + draw.ELLIPSIS)
+        urls = [cell[4] for cell in title]
+        self.assertEqual(urls, [test_links.STORY + "12345"] * 5 + [""])
+
+    def test_without_rules_nothing_links(self):
+        canvas = render()
+        self.assertNotIn("\x1b]8", canvas.to_ansi())
 
 
 class TargetTest(unittest.TestCase):

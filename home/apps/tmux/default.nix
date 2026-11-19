@@ -111,7 +111,9 @@ let
   };
 
   # The sidebar of every window behind prefix Tab (abilities/tmux.navigator.conf); the design is in navigator/control.py.
-  navigator = pkgs.callPackage ./navigator/package.nix { };
+  navigator = pkgs.callPackage ./navigator/package.nix {
+    links = import ../claude-code/footer-links.nix;
+  };
 in
 {
   programs.tmux = {

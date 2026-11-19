@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+import links
 from model import Pane, Session, Window
 
 # Colours, from home/apps/tmux/tmux.conf, PALETTE.md and the Ghostty palette.
@@ -100,23 +101,35 @@ class View:
 
 
 class Canvas:
-    """A grid of cells, each (character, foreground, background, bold), written out as ANSI."""
+    """A grid of cells, each (character, foreground, background, bold, link URL), written out as ANSI."""
 
-    def __init__(self, cols: int, rows: int):
+    def __init__(self, cols: int, rows: int, rules: list[links.Rule] = ()):
         self.cols, self.rows = cols, rows
-        blank = (" ", TERMINAL_FG, TERMINAL_BG, False)
+        self.rules = rules  # what put_fitted links (links.py)
+        blank = (" ", TERMINAL_FG, TERMINAL_BG, False, "")
         self.cells = [[blank] * cols for _ in range(rows)]
         # What a click on each row opens: (window ID, pane ID), the pane empty on a window's own row.
         self.targets: dict[int, tuple[str, str]] = {}
 
-    def put(self, x, y, text, fg, bg=TERMINAL_BG, bold=False) -> int:
-        """Writes text at (x, y), clipped to the canvas; returns the column after it."""
+    def put(self, x, y, text, fg, bg=TERMINAL_BG, bold=False, urls=()) -> int:
+        """Writes text at (x, y), clipped to the canvas; returns the column after it. urls are the links of the
+        first characters, as many as it has."""
         if 0 <= y < self.rows:
-            for character in text:
+            for i, character in enumerate(text):
                 if 0 <= x < self.cols:
-                    self.cells[y][x] = (character, fg, bg, bold)
+                    url = urls[i] if i < len(urls) else ""
+                    self.cells[y][x] = (character, fg, bg, bold, url)
                 x += 1
         return x
+
+    def put_fitted(self, x, y, text, width, fg, bg=TERMINAL_BG, bold=False) -> int:
+        """Writes text cut to width (fit), linked as the whole text is, so a cut issue still opens the one it named;
+        the ellipsis links nothing."""
+        shown = fit(text, width)
+        urls = links.urls(text, self.rules)[: len(shown)]
+        if shown != text:
+            urls = urls[:-1]
+        return self.put(x, y, shown, fg, bg, bold, urls)
 
     def fill(self, x, y, width, bg) -> None:
         self.put(x, y, " " * width, TERMINAL_FG, bg)
@@ -127,14 +140,20 @@ class Canvas:
     def to_ansi(self) -> str:
         out = []
         previous = None
+        link = ""
         for y, row in enumerate(self.cells):
             out.append(f"\x1b[{y + 1};1H")
-            for character, fg, bg, bold in row:
+            for character, fg, bg, bold, url in row:
+                if url != link:
+                    link = url
+                    out.append(hyperlink(url))
                 if (fg, bg, bold) != previous:
                     previous = (fg, bg, bold)
                     out.append("\x1b[0m" + ("\x1b[1m" if bold else ""))
                     out.append(sgr(fg, 38) + sgr(bg, 48))
                 out.append(character)
+        if link:
+            out.append(hyperlink(""))
         out.append("\x1b[0m")
         return "".join(out)
 
@@ -145,6 +164,11 @@ def sgr(colour: str, base: int) -> str:
         return f"\x1b[{base + 1}m"
     red, green, blue = (int(colour[i : i + 2], 16) for i in (1, 3, 5))
     return f"\x1b[{base};2;{red};{green};{blue}m"
+
+
+def hyperlink(url: str) -> str:
+    """Starts a link to url (OSC 8), which runs on through cursor moves and SGR resets; an empty url ends it."""
+    return f"\x1b]8;;{url}\x1b\\"
 
 
 def fit(text: str, width: int) -> str:
@@ -199,18 +223,23 @@ class RowPainter:
         width = self.c.cols - x - 1
         right_width = min(len(right), width - TITLE_MIN_WIDTH - 1) if right else 0
         if right_width >= len(REPOSITORY_ICON) + 4:
-            right = fit(right, right_width)
-            title_width = width - len(right) - 1
-            self.c.put(
-                self.c.cols - 1 - len(right), y, right, self.secondary_fg, self.bg
+            shown_width = len(fit(right, right_width))
+            title_width = width - shown_width - 1
+            self.c.put_fitted(
+                self.c.cols - 1 - shown_width,
+                y,
+                right,
+                right_width,
+                self.secondary_fg,
+                self.bg,
             )
         else:
             title_width = width
-        self.c.put(x, y, fit(text, title_width), fg, self.bg, bold)
+        self.c.put_fitted(x, y, text, title_width, fg, self.bg, bold)
 
     def secondary(self, x: int, y: int, text: str) -> None:
         width = self.c.cols - x - 1
-        self.c.put(x, y, fit(text, width), self.secondary_fg, self.bg)
+        self.c.put_fitted(x, y, text, width, self.secondary_fg, self.bg)
 
     def icon(self, x: int, y: int, pane: Pane) -> None:
         glyph, fg = icon(pane, self.on_cyan)
@@ -287,8 +316,14 @@ def draw_hints(c: Canvas, y: int) -> None:
             x = c.put(x, y + row, f" {label}  ", DIM)
 
 
-def draw(sessions: list[Session], view: View, cols: int, rows: int) -> Canvas:
-    c = Canvas(cols, rows)
+def draw(
+    sessions: list[Session],
+    view: View,
+    cols: int,
+    rows: int,
+    rules: list[links.Rule] = (),
+) -> Canvas:
+    c = Canvas(cols, rows, rules)
     footer_rows = 1 + len(HINTS) if view.focused and view.help else 0
     list_rows = rows - footer_rows
     lines = list_lines(c, view, sessions)

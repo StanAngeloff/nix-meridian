@@ -15,6 +15,7 @@ import tty
 import control
 import draw
 import keys
+import links
 import model
 import processes
 import widgets
@@ -52,6 +53,7 @@ def run() -> None:
     home = os.path.expanduser("~")
     cursor = keys.Cursor()
     cpu_meter = widgets.CpuMeter()
+    link_rules = links.load()
     shown_widgets = shown_profile = ""
 
     # Signals only wake the loop; the wakeup descriptor turns them into something select can wait on.
@@ -102,7 +104,7 @@ def run() -> None:
             dragging = drag.window
         size = os.get_terminal_size(0)
         view = draw.View(open_window, cursor.window, focused, dragging, cursor.help)
-        canvas = draw.draw(sessions, view, size.columns, size.lines)
+        canvas = draw.draw(sessions, view, size.columns, size.lines, link_rules)
         frame = canvas.to_ansi()
         if frame != previous_frame:
             os.write(1, frame.encode())

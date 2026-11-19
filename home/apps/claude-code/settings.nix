@@ -128,14 +128,7 @@ let
     };
     # Learn more at https://code.claude.com/docs/en/claude-directory#cleaned-up-automatically
     cleanupPeriodDays = 18250; # 50 years, effectively never
-    footerLinksRegexes = [
-      {
-        type = "regex";
-        pattern = "\\bsc-(?<id>\\d+)\\b";
-        url = "https://app.shortcut.com/story/{id}";
-        label = "sc-{id}";
-      }
-    ];
+    footerLinksRegexes = import ./footer-links.nix;
     promptSuggestionEnabled = false;
     # No emoji suggestions after ":" in the prompt, and no replacing a typed :shortcode: with its emoji.
     emojiCompletionEnabled = false;
