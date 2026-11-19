@@ -12,6 +12,7 @@ DOWN = ("j", "\x1b[B")
 UP = ("k", "\x1b[A")
 ENTER = ("\r", "\n")
 LEAVE = ("\t", "\x1b")  # Tab hands focus back to the pane; so does Esc
+HELP = "?"  # shows the key hints, and hides them again
 
 # A mouse event in SGR form (mode 1006), which the navigator asks tmux for: ESC [ < button ; column ; row, then M for
 # a press or m for a release. Column and row count from 1 at the pane's top left.
@@ -52,6 +53,7 @@ class Cursor:
     number: str = ""  # the window number being typed
     number_typed_at: float = 0.0  # when its last digit arrived
     drag: Drag | None = None  # a window being dragged to a new place
+    help: bool = False  # the key hints are shown
 
 
 def split_keys(data: str):
@@ -91,6 +93,8 @@ def handle_key(
         return Action("open")
     elif key in LEAVE:
         return Action("leave")
+    elif key == HELP:
+        cursor.help = not cursor.help
     return None
 
 

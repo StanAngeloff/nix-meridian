@@ -87,6 +87,9 @@ def run() -> None:
         # Away from the navigator, the cursor rests on the open window, where it starts when focus comes back.
         if not focused or cursor.window not in model.window_order(snapshot.sessions):
             cursor.window = open_window
+        # The key hints show only on ?, and go with focus, so the next focus starts without them.
+        if not focused:
+            cursor.help = False
         # While a window is dragged, the list shows it where it would drop, every window numbered as after the drop.
         drag = cursor.drag
         if drag and drag.window not in model.window_order(snapshot.sessions):
@@ -98,7 +101,7 @@ def run() -> None:
             )
             dragging = drag.window
         size = os.get_terminal_size(0)
-        view = draw.View(open_window, cursor.window, focused, dragging)
+        view = draw.View(open_window, cursor.window, focused, dragging, cursor.help)
         canvas = draw.draw(sessions, view, size.columns, size.lines)
         frame = canvas.to_ansi()
         if frame != previous_frame:

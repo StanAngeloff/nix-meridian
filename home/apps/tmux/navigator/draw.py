@@ -91,11 +91,12 @@ CONTENT_X = 5
 class View:
     open_window: str  # the window the navigator sits in, drawn cyan
     cursor: str  # the window under the cursor
-    # The cursor and the key hints show only while the navigator has focus.
+    # The cursor shows only while the navigator has focus.
     focused: bool
-    dragging: str = (
-        ""  # a window being dragged, drawn raised in the place it would drop into
-    )
+    # A window being dragged, drawn raised in the place it would drop into.
+    dragging: str = ""
+    # The key hints, shown while the navigator has focus once ? has asked for them.
+    help: bool = False
 
 
 class Canvas:
@@ -274,14 +275,14 @@ def draw_header(c: Canvas, y: int, session: Session) -> None:
 def draw_hints(c: Canvas, y: int) -> None:
     c.put(0, y, "─" * c.cols, DIMMER)
     x = 1
-    for key, label in (("j k", "move"), ("⏎", "open"), ("⇥", "pane")):
+    for key, label in (("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")):
         x = c.put(x, y + 1, key, TEXT, bold=True)
-        x = c.put(x, y + 1, f" {label}   ", DIM)
+        x = c.put(x, y + 1, f" {label}  ", DIM)
 
 
 def draw(sessions: list[Session], view: View, cols: int, rows: int) -> Canvas:
     c = Canvas(cols, rows)
-    footer_rows = 2 if view.focused else 0
+    footer_rows = 2 if view.focused and view.help else 0
     list_rows = rows - footer_rows
     lines = list_lines(c, view, sessions)
 

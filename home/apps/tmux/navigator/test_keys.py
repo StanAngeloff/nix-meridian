@@ -62,6 +62,13 @@ class ActionTest(unittest.TestCase):
         self.assertEqual(handle("\x1b"), Action("leave"))
         self.assertIsNone(handle("\x1b[I"))
 
+    def test_question_mark_shows_and_hides_the_hints(self):
+        cursor = keys.Cursor(window="@d1")
+        keys.handle_key(cursor, SESSIONS, "?", 0.0, {})
+        self.assertTrue(cursor.help)
+        keys.handle_key(cursor, SESSIONS, "?", 0.0, {})
+        self.assertFalse(cursor.help)
+
     def test_split_keys_keeps_sequences_whole(self):
         split = list(keys.split_keys("jj\x1b[A\x1b[I4\x1b[<0;12;3M\x1b[<0;12;3m\x1b"))
         expected = [

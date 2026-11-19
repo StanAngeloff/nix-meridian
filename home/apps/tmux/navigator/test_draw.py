@@ -24,9 +24,11 @@ SESSIONS = [
 ]
 
 
-def render(cursor="@1", focused=False, rows=14, cols=30, sessions=None, dragging=""):
+def render(
+    cursor="@1", focused=False, rows=14, cols=30, sessions=None, dragging="", help=False
+):
     view = draw.View(
-        open_window="@1", cursor=cursor, focused=focused, dragging=dragging
+        open_window="@1", cursor=cursor, focused=focused, dragging=dragging, help=help
     )
     return draw.draw(sessions or SESSIONS, view, cols, rows)
 
@@ -128,12 +130,19 @@ class FocusTest(unittest.TestCase):
         self.assertNotIn("move", canvas.text(13))
         self.assertEqual(canvas.cells[3][0][0], " ")
 
-    def test_focused_marks_the_cursor_window_and_shows_hints(self):
+    def test_focused_marks_the_cursor_window_but_shows_no_hints_until_asked(self):
         canvas = render(cursor="@2", focused=True)
-        self.assertIn("move", canvas.text(13))
+        self.assertNotIn("move", canvas.text(13))
         self.assertEqual(
             canvas.cells[3][0][:3], ("▌", draw.FOCUSED_TAB_BG, draw.CURSOR_BG)
         )
+
+    def test_hints_show_when_asked_for_and_fit_the_column(self):
+        canvas = render(cursor="@2", focused=True, help=True, cols=36)
+        self.assertIn("move", canvas.text(13))
+        self.assertIn("? hide", canvas.text(13))
+        unfocused = render(cursor="@2", focused=False, help=True)
+        self.assertNotIn("move", unfocused.text(13))
 
     def test_the_cursor_on_the_open_window_has_a_white_bar(self):
         canvas = render(cursor="@1", focused=True)
