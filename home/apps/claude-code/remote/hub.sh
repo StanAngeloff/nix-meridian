@@ -153,48 +153,6 @@ ensure_remote_session() {
 	tmux bind Escape if -F "#{==:#S,$SESSION}" 'detach-client'
 }
 
-color_for_verdict() {
-	case "$1" in
-	B) printf '\033[31m' ;;
-	W) printf '\033[33m' ;;
-	U) printf '\033[32m' ;;
-	R) printf '\033[2;32m' ;;
-	*) printf '\033[37m' ;;
-	esac
-}
-
-list_cc_panes() {
-	# Scoped to the default session, not -a: once the remote session exists it is grouped with
-	# default (shares its windows), and -a would walk every session's view of those same windows,
-	# listing each pane twice.
-	tmux list-panes -s -t default -F '#{pane_id}|#{window_id}|#{window_name}|#{E:@claude-pane-verdict}' 2>/dev/null |
-		while IFS='|' read -r pane_id window_id window_name verdict; do
-			[ -n "$verdict" ] || continue
-			printf '%s|%s|%s|%s\n' "$pane_id" "$window_id" "$window_name" "$verdict"
-		done
-}
-
-render_picker() {
-	local reset=$'\033[0m'
-	printf '\033[2J\033[H'
-	printf '\033[1m  Claude Code Sessions\033[0m\n\n'
-
-	local index=0
-	while IFS='|' read -r _pane_id _window_id window_name verdict; do
-		index=$((index + 1))
-		local color
-		color="$(color_for_verdict "$verdict")"
-		printf '  %s│ %s●%s %s\n' "$index" "$color" "$reset" "$window_name"
-	done
-
-	if [ "$index" -eq 0 ]; then
-		printf '  \033[2mNo cc sessions running. Waiting...\033[0m\n'
-	fi
-
-	printf '\n  \033[2mTap a session or type its number.  \033[4mN\033[24mew  \033[4mQ\033[24muit\033[0m\n'
-	return "$index"
-}
-
 select_and_attach() {
 	local pane_id="$1" window_id="$2"
 	tmux select-window -t "$SESSION:=${window_id}" 2>/dev/null || true
@@ -206,69 +164,27 @@ main() {
 	ensure_remote_session
 
 	while true; do
-		local entries=()
-		while IFS= read -r line; do
-			entries+=("$line")
-		done < <(list_cc_panes)
-
-		local count="${#entries[@]}"
-
-		# Two gotchas: printf reuses its format at least once even with zero arguments, so a
-		# zero-element array would still send render_picker one blank line and render a phantom row;
-		# and render_picker reports its count through its exit status, which set -e treats as a
-		# failure for any nonzero count.
-		local rendered_count=0
-		if [ "$count" -eq 0 ]; then
-			render_picker </dev/null || rendered_count=$?
-		else
-			render_picker < <(printf '%s\n' "${entries[@]}") || rendered_count=$?
+		# The navigator's rows for the windows of the remote session's group, drawn by the navigator's own code
+		# (home/apps/tmux/navigator/pick.py), so the phone shows them as the laptop does.
+		local choice
+		if ! choice=$(tmux-navigator pick "$SESSION"); then
+			printf '\n  The session list failed. Press a key to try again.\n'
+			read -rsn1 || exit 0
+			continue
 		fi
-
-		local timeout=3
-		if [ "$rendered_count" -gt 0 ]; then
-			timeout=10
-		fi
-
-		local selection=""
-		printf '\033[?1000h\033[?1006h'
-		if read -rsn1 -t "$timeout" selection; then
-			printf '\033[?1000l\033[?1006l'
-			case "$selection" in
-			[1-9])
-				local idx=$((selection - 1))
-				if [ "$idx" -lt "$count" ]; then
-					local entry="${entries[$idx]}"
-					local pane_id window_id
-					IFS='|' read -r pane_id window_id _ _ <<<"$entry"
-					select_and_attach "$pane_id" "$window_id"
-				fi
-				;;
-			$'\033')
-				local seq=""
-				while IFS= read -rsn1 -t 0.1 ch; do
-					seq="${seq}${ch}"
-					[[ "$ch" == [Mm] ]] && break
-				done
-				if [[ "$seq" =~ ^\[.?([0-9]+)\;([0-9]+)\;([0-9]+)[Mm]$ ]] && [ "${BASH_REMATCH[1]}" -eq 0 ]; then
-					local row="${BASH_REMATCH[3]}"
-					local idx=$((row - 3))
-					if [ "$idx" -ge 0 ] && [ "$idx" -lt "$count" ]; then
-						local entry="${entries[$idx]}"
-						local pane_id window_id
-						IFS='|' read -r pane_id window_id _ _ <<<"$entry"
-						select_and_attach "$pane_id" "$window_id"
-					fi
-				fi
-				;;
-			n)
-				new_session_flow
-				;;
-			q)
-				exit 0
-				;;
-			esac
-		fi
-		printf '\033[?1000l\033[?1006l'
+		local kind window_id pane_id
+		read -r kind window_id pane_id <<<"$choice"
+		case "$kind" in
+		open)
+			select_and_attach "$pane_id" "$window_id"
+			;;
+		new)
+			new_session_flow
+			;;
+		*)
+			exit 0 # quit, or the connection closed
+			;;
+		esac
 	done
 }
 

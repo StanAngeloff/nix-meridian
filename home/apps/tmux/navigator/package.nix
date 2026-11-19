@@ -24,6 +24,7 @@ stdenv.mkDerivation {
       ./main.py
       ./model.py
       ./pane.py
+      ./pick.py
       ./processes.py
       ./tmux.py
       ./widgets.py
@@ -31,6 +32,7 @@ stdenv.mkDerivation {
       ./test_keys.py
       ./test_links.py
       ./test_model.py
+      ./test_pick.py
       ./test_processes.py
       ./test_widgets.py
     ];
@@ -51,7 +53,7 @@ stdenv.mkDerivation {
   # so both run from here: the navigator through its own command, a placeholder as a sleep that lasts until killed.
   installPhase = ''
     runHook preInstall
-    install -Dm644 -t $out/share/tmux-navigator control.py draw.py keys.py links.py main.py model.py pane.py processes.py tmux.py widgets.py
+    install -Dm644 -t $out/share/tmux-navigator control.py draw.py keys.py links.py main.py model.py pane.py pick.py processes.py tmux.py widgets.py
     install -Dm644 ${writeText "tmux-navigator-links.json" (builtins.toJSON links)} $out/share/tmux-navigator/links.json
     makeWrapper ${python3}/bin/python3 $out/bin/tmux-navigator \
       --add-flags $out/share/tmux-navigator/main.py \

@@ -40,11 +40,18 @@ def render(
     dragging="",
     help=False,
     rules=(),
+    hints=None,
+    glyphs=draw.NERD_FONT,
 ):
     view = draw.View(
-        open_window="@1", cursor=cursor, focused=focused, dragging=dragging, help=help
+        open_window="@1",
+        cursor=cursor,
+        focused=focused,
+        dragging=dragging,
+        help=help,
+        glyphs=glyphs,
     )
-    return draw.draw(sessions or SESSIONS, view, cols, rows, rules)
+    return draw.draw(sessions or SESSIONS, view, cols, rows, rules, hints)
 
 
 class TreeTest(unittest.TestCase):
@@ -86,6 +93,21 @@ class IconTest(unittest.TestCase):
         nested = Pane("%7", "bash", "~/work", role="tmux")
         self.assertEqual(draw.icon(nested, on_cyan=False)[0], draw.ROLE_ICONS["tmux"])
         self.assertEqual(nested.label, "tmux  ~/work")
+
+
+class PlainGlyphTest(unittest.TestCase):
+    def test_the_phone_glyphs_need_no_nerd_font(self):
+        panes = [Pane("%7", "nvim", "~"), Pane("%8", "zsh", "~", role="issues")]
+        window = Window("@7", 7, "webapp@ticket-101[lint]", panes)
+        canvas = render(
+            sessions=[Session("default", [window])], cols=36, glyphs=draw.PLAIN
+        )
+        text = "".join(canvas.text(y) for y in range(canvas.rows))
+        self.assertFalse(any("\ue000" <= character <= "\uf8ff" for character in text))
+        self.assertTrue(canvas.text(0).startswith(" default  ─"))
+        self.assertTrue(canvas.text(1).rstrip().endswith("@ webapp"))
+        self.assertEqual(canvas.text(2)[draw.CONTENT_X + 3], "○")
+        self.assertEqual(canvas.text(3)[draw.CONTENT_X + 3], "○")
 
 
 class DragTest(unittest.TestCase):
@@ -190,6 +212,11 @@ class FocusTest(unittest.TestCase):
         self.assertTrue(all(len(canvas.text(y).rstrip()) <= 36 for y in range(14)))
         unfocused = render(cursor="@2", focused=False, help=True)
         self.assertNotIn("move", footer(unfocused))
+
+    def test_hints_given_by_the_caller_show_whatever_the_focus(self):
+        canvas = render(cursor="@2", focused=False, hints=[[("n", "new")]])
+        self.assertIn("n new", footer(canvas))
+        self.assertNotIn("reorder", footer(canvas))
 
     def test_the_cursor_on_the_open_window_has_a_white_bar(self):
         canvas = render(cursor="@1", focused=True)

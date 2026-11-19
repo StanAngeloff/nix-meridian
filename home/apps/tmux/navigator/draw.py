@@ -82,6 +82,25 @@ TITLE_MIN_WIDTH = 10
 # two cells in tmux (U+1F3AB) or possibly in Ghostty (U+1F39F, which tmux counts as one); tmux's own for a nested tmux.
 ROLE_ICONS = {"issues": "\uf145", "tmux": "\uebc8"}
 
+
+@dataclass(frozen=True)
+class Glyphs:
+    """The glyphs the rows draw besides text: a Nerd Font's (NERD_FONT), or PLAIN where the terminal has none."""
+
+    arrow: str  # after a session's name
+    programs: dict[str, str]  # a pane's icon by #{pane_current_command}
+    other: str  # the icon of any other program
+    roles: dict[str, str]  # a pane's icon by Pane.role, ahead of its program's
+    repository: str  # before a window's repository
+
+
+NERD_FONT = Glyphs(
+    POWERLINE_ARROW, PROGRAM_ICONS, OTHER_ICON, ROLE_ICONS, REPOSITORY_ICON
+)
+# For the phone hub, as Termux has no Nerd Font: the session's patch ends square, every pane without Claude Code gets
+# a hollow dot (its command is named beside it), and @ comes before the repository, as in the names cc gives windows.
+PLAIN = Glyphs("", {}, "○", {}, "@")
+
 # Columns of a window's rows: the cursor's bar, the window number, the session's trunk, then the content.
 INDEX_X = 1
 TRUNK_X = 3
@@ -98,6 +117,7 @@ class View:
     dragging: str = ""
     # The key hints, shown while the navigator has focus once ? has asked for them.
     help: bool = False
+    glyphs: Glyphs = NERD_FONT
 
 
 class Canvas:
@@ -177,11 +197,13 @@ def fit(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 1] + ELLIPSIS
 
 
-def icon(pane: Pane, on_cyan: bool) -> tuple[str, str]:
+def icon(pane: Pane, on_cyan: bool, glyphs: Glyphs = NERD_FONT) -> tuple[str, str]:
     """A Claude pane's traffic-light dot, or the icon of the program running in the pane."""
     if pane.state:
         return DOT, (DOT_ON_CYAN if on_cyan else DOT_ON_DARK)[pane.state]
-    glyph = ROLE_ICONS.get(pane.role) or PROGRAM_ICONS.get(pane.command, OTHER_ICON)
+    glyph = glyphs.roles.get(pane.role) or glyphs.programs.get(
+        pane.command, glyphs.other
+    )
     return glyph, FOCUSED_TAB_DIM if on_cyan else STATUS_FG
 
 
@@ -190,6 +212,7 @@ class RowPainter:
 
     def __init__(self, c: Canvas, view: View, window: Window):
         self.c = c
+        self.glyphs = view.glyphs
         lifted = window.id == view.dragging
         self.on_cyan = window.id == view.open_window and not lifted
         self.under_cursor = lifted or (view.focused and window.id == view.cursor)
@@ -222,7 +245,7 @@ class RowPainter:
         bold = self.on_cyan or self.under_cursor
         width = self.c.cols - x - 1
         right_width = min(len(right), width - TITLE_MIN_WIDTH - 1) if right else 0
-        if right_width >= len(REPOSITORY_ICON) + 4:
+        if right_width >= len(self.glyphs.repository) + 4:
             shown_width = len(fit(right, right_width))
             title_width = width - shown_width - 1
             self.c.put_fitted(
@@ -242,7 +265,7 @@ class RowPainter:
         self.c.put_fitted(x, y, text, width, self.secondary_fg, self.bg)
 
     def icon(self, x: int, y: int, pane: Pane) -> None:
-        glyph, fg = icon(pane, self.on_cyan)
+        glyph, fg = icon(pane, self.on_cyan, self.glyphs)
         self.c.put(x, y, glyph, fg, self.bg)
 
 
@@ -261,7 +284,9 @@ def list_lines(c: Canvas, view: View, sessions: list[Session]) -> list[Line]:
     for s, session in enumerate(sessions):
         if s:
             lines.append(Line(lambda y: None))
-        lines.append(Line(lambda y, session=session: draw_header(c, y, session)))
+        lines.append(
+            Line(lambda y, session=session: draw_header(c, y, session, view.glyphs))
+        )
         for w, window in enumerate(session.windows):
             lines += window_lines(c, view, window, w == len(session.windows) - 1)
     return lines
@@ -274,7 +299,7 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
     def name_line(y):
         row.start(y, "│", str(window.index))
         repository = (
-            f"{REPOSITORY_ICON} {window.repository}" if window.repository else ""
+            f"{view.glyphs.repository} {window.repository}" if window.repository else ""
         )
         row.name(CONTENT_X, y, window.title, repository)
 
@@ -295,9 +320,9 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
     return lines
 
 
-def draw_header(c: Canvas, y: int, session: Session) -> None:
+def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
     x = c.put(0, y, f" {session.name} ", SESSION_FG, SESSION_BG, bold=True)
-    x = c.put(x, y, POWERLINE_ARROW, SESSION_BG)
+    x = c.put(x, y, glyphs.arrow, SESSION_BG)
     c.put(x + 1, y, "─" * (c.cols - x - 1), DIMMER)
 
 
@@ -307,9 +332,9 @@ HINTS = [
 ]
 
 
-def draw_hints(c: Canvas, y: int) -> None:
+def draw_hints(c: Canvas, y: int, lines: list[list[tuple[str, str]]]) -> None:
     c.put(0, y, "─" * c.cols, DIMMER)
-    for row, hints in enumerate(HINTS, 1):
+    for row, hints in enumerate(lines, 1):
         x = 1
         for key, label in hints:
             x = c.put(x, y + row, key, TEXT, bold=True)
@@ -322,9 +347,13 @@ def draw(
     cols: int,
     rows: int,
     rules: list[links.Rule] = (),
+    hints: list[list[tuple[str, str]]] | None = None,
 ) -> Canvas:
+    """The list, with the key hints at the foot: HINTS once ? has asked for them, or hints, always, when given."""
     c = Canvas(cols, rows, rules)
-    footer_rows = 1 + len(HINTS) if view.focused and view.help else 0
+    if hints is None:
+        hints = HINTS if view.focused and view.help else []
+    footer_rows = 1 + len(hints) if hints else 0
     list_rows = rows - footer_rows
     lines = list_lines(c, view, sessions)
 
@@ -349,5 +378,5 @@ def draw(
         c.put(cols - 12, list_rows - 1, f"↓ {hidden_below} more", DIM)
         c.targets.pop(list_rows - 1, None)
     if footer_rows:
-        draw_hints(c, list_rows)
+        draw_hints(c, list_rows, hints)
     return c

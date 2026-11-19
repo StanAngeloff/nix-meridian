@@ -5,12 +5,14 @@ tmux-navigator toggle <pane> <client> <session>  prefix Tab, pressed in <pane>
 tmux-navigator arrive [<window> [<session>]]     a window came on screen without the navigator; all, without one
 tmux-navigator resized <window>                  a window crossed the minimum width
 tmux-navigator close
+tmux-navigator pick <session>                    the phone hub's list for <session>; prints what was picked
 """
 
 import sys
 
 import control
 import pane
+import pick
 
 # Each command with the fewest and most arguments it takes.
 COMMANDS = {
@@ -19,6 +21,7 @@ COMMANDS = {
     "arrive": (control.arrive, 0, 2),
     "resized": (control.resized, 1, 1),
     "close": (control.close, 0, 0),
+    "pick": (pick.main, 1, 1),
 }
 
 

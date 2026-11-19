@@ -1,9 +1,14 @@
 { claude-cc }:
 { lib, pkgs, ... }:
 let
+  # The hub's list is the tmux navigator's (tmux-navigator pick), built as home/apps/tmux/default.nix builds it.
+  navigator = pkgs.callPackage ../../tmux/navigator/package.nix {
+    links = import ../footer-links.nix;
+  };
   cc-hub = pkgs.writeShellApplication {
     name = "cc-hub";
     runtimeInputs = [
+      navigator
       pkgs.tmux
       pkgs.findutils
       pkgs.gnugrep
