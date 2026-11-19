@@ -29,6 +29,32 @@ def row(
     return model.FIELD_SEPARATOR.join(fields + rest)
 
 
+class WindowNameTest(unittest.TestCase):
+    def title_and_repository(self, name):
+        window = model.Window("@1", 1, name)
+        return window.title, window.repository
+
+    def test_a_name_cc_gave_shows_its_keyword_and_repository(self):
+        self.assertEqual(
+            self.title_and_repository("webapp@ticket-101[lint triage]"),
+            ("lint triage", "webapp"),
+        )
+        self.assertEqual(
+            self.title_and_repository("nix-meridian@feature-x [DOCS]"),
+            ("DOCS", "nix-meridian"),
+        )
+
+    def test_without_a_keyword_the_session_is_the_title(self):
+        self.assertEqual(
+            self.title_and_repository("nix-meridian@x-tmux-tabby"),
+            ("x-tmux-tabby", "nix-meridian"),
+        )
+
+    def test_any_other_name_stays_as_it_is(self):
+        for name in ("webapp", "bold-fox", "a@b c", "@x", "repo@"):
+            self.assertEqual(self.title_and_repository(name), (name, ""))
+
+
 class ReorderedTest(unittest.TestCase):
     def test_moves_the_window_and_numbers_its_session_from_the_base(self):
         sessions = [

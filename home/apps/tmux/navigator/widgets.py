@@ -17,6 +17,7 @@ HOT_FG = "#ffffff"
 HOT_FRACTION = 0.75
 # CPU use is averaged over this long, the status bar's own refresh interval.
 CPU_WINDOW_SECONDS = 5
+CPU_FIGURE_WIDTH = len("100%")
 # Swap in use is shown from this many GiB.
 SHOWN_SWAP_GIB = 0.1
 
@@ -78,9 +79,12 @@ def value(fraction: float, text: str) -> str:
 
 def status_text(cpu: float | None, used: Memory) -> str:
     """The widgets in tmux style markup: the CPU icon and use, then the memory icon and use, and swap when in use."""
-    cpu_text = (
-        value(cpu, f"{cpu * 100:3.0f}%") if cpu is not None else f"#[fg={VALUE_FG}]  -%"
-    )
+    # The figure sits next to its icon and the spare cells come after it, up to the four of "100%", so the group keeps
+    # its width and nothing shifts as the value changes.
+    if cpu is None:
+        cpu_text = f"#[fg={VALUE_FG}]" + "-%".ljust(CPU_FIGURE_WIDTH)
+    else:
+        cpu_text = value(cpu, f"{cpu * 100:.0f}%".ljust(CPU_FIGURE_WIDTH))
     memory_text = value(used.used / used.total, f"{used.used:4.1f}/{used.total:.0f}G")
     swap_text = (
         f"#[fg={ICON_FG}] +{used.swap:.1f}G swap" if used.swap >= SHOWN_SWAP_GIB else ""

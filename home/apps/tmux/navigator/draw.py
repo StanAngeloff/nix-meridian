@@ -72,6 +72,11 @@ PROGRAM_ICONS = {
     "man": "\uf02d",
 }
 OTHER_ICON = "\uf013"
+REPOSITORY_ICON = (
+    "\uf401"  # nf-oct-repo, before a window's repository at the right edge
+)
+# A window's title keeps at least this many cells; its repository gives way first, and goes when even this is short.
+TITLE_MIN_WIDTH = 10
 # Icons by Pane.role: a ticket for the issue board, one cell wide like the rest, where an emoji ticket would take
 # two cells in tmux (U+1F3AB) or possibly in Ghostty (U+1F39F, which tmux counts as one); tmux's own for a nested tmux.
 ROLE_ICONS = {"issues": "\uf145", "tmux": "\uebc8"}
@@ -183,13 +188,24 @@ class RowPainter:
             self.c.put(INDEX_X, y, f"{index:>2}", fg, self.bg)
         self.c.put(TRUNK_X, y, trunk, self.trunk_fg, self.bg)
 
-    def name(self, x: int, y: int, text: str) -> None:
+    def name(self, x: int, y: int, text: str, right: str = "") -> None:
+        """The window's title from x, and right, dimmed, against the right edge when there is room for both."""
         if self.on_cyan:
             fg = FOCUSED_TAB_FG
         else:
             fg = TEXT if self.under_cursor else STATUS_FG
         bold = self.on_cyan or self.under_cursor
-        self.c.put(x, y, fit(text, self.c.cols - x - 1), fg, self.bg, bold)
+        width = self.c.cols - x - 1
+        right_width = min(len(right), width - TITLE_MIN_WIDTH - 1) if right else 0
+        if right_width >= len(REPOSITORY_ICON) + 4:
+            right = fit(right, right_width)
+            title_width = width - len(right) - 1
+            self.c.put(
+                self.c.cols - 1 - len(right), y, right, self.secondary_fg, self.bg
+            )
+        else:
+            title_width = width
+        self.c.put(x, y, fit(text, title_width), fg, self.bg, bold)
 
     def secondary(self, x: int, y: int, text: str) -> None:
         width = self.c.cols - x - 1
@@ -227,7 +243,10 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
 
     def name_line(y):
         row.start(y, "│", str(window.index))
-        row.name(CONTENT_X, y, window.name)
+        repository = (
+            f"{REPOSITORY_ICON} {window.repository}" if window.repository else ""
+        )
+        row.name(CONTENT_X, y, window.title, repository)
 
     lines = [Line(name_line, window.id)]
     for p, pane in enumerate(window.panes):

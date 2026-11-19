@@ -8,13 +8,11 @@ SESSIONS = [
     Session(
         "default",
         [
-            Window(
-                "@1", 1, "repo@task", [Pane("%1", "claude", "~", "◐ Do it", "working")]
-            ),
+            Window("@1", 1, "task", [Pane("%1", "claude", "~", "◐ Do it", "working")]),
             Window(
                 "@2",
                 2,
-                "repo@other",
+                "other",
                 [
                     Pane("%2", "claude", "~", "✳ Wait", "blocked"),
                     Pane("%3", "tig", "~/repo"),
@@ -37,7 +35,7 @@ class TreeTest(unittest.TestCase):
     def test_windows_branch_into_their_panes_and_the_trunk_ends_each_session(self):
         canvas = render()
         lines = [canvas.text(y).rstrip() for y in range(10)]
-        self.assertEqual(lines[1], "  1│ repo@task")
+        self.assertEqual(lines[1], "  1│ task")
         self.assertTrue(lines[2].startswith("   │ └─ ● Do it"))
         self.assertTrue(lines[4].startswith("   │ ├─ ● Wait"))
         self.assertTrue(lines[5].startswith("   ╵ └─"))
@@ -81,9 +79,32 @@ class DragTest(unittest.TestCase):
         sessions = model.reordered(SESSIONS, "@1", 1, 1)
         canvas = render(sessions=sessions, dragging="@1", focused=True)
         lines = [canvas.text(y).rstrip() for y in range(6)]
-        self.assertEqual(lines[1], "  1│ repo@other")
-        self.assertEqual(lines[4], "▌ 2│ repo@task")
+        self.assertEqual(lines[1], "  1│ other")
+        self.assertEqual(lines[4], "▌ 2│ task")
         self.assertEqual(canvas.cells[4][2][2], draw.LIFTED_BG)
+
+
+class NameTest(unittest.TestCase):
+    def frame(self, name, cols):
+        sessions = [
+            Session("default", [Window("@7", 7, name, [Pane("%7", "zsh", "~")])])
+        ]
+        return render(sessions=sessions, cols=cols)
+
+    def test_the_title_then_the_repository_dimmed_against_the_right_edge(self):
+        canvas = self.frame("webapp@ticket-101[lint triage]", 36)
+        line = canvas.text(1)
+        self.assertTrue(line.startswith("  7│ lint triage "))
+        self.assertTrue(line.rstrip().endswith(draw.REPOSITORY_ICON + " webapp"))
+        self.assertEqual(canvas.cells[1][34][1], draw.DIM)
+
+    def test_the_repository_gives_way_first_then_goes(self):
+        long_title = "webapp@ticket-101[continuous integration monitoring]"
+        line = self.frame(long_title, 36).text(1).rstrip()
+        self.assertIn("continuous", line)
+        self.assertTrue(line.endswith(draw.ELLIPSIS) or "webapp" in line)
+        narrow = self.frame(long_title, 20).text(1).rstrip()
+        self.assertNotIn(draw.REPOSITORY_ICON, narrow)
 
 
 class TargetTest(unittest.TestCase):

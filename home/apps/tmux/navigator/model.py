@@ -14,6 +14,12 @@ VERDICT_STATES = {"B": "blocked", "W": "working", "U": "unread", "R": "read"}
 # Both run from the tmux-navigator package (package.nix), so their start commands contain its bin directory.
 COLUMN_MARKER = "/bin/tmux-navigator"
 
+# cc names a window <repository>@<session>[<keyword>] (home/apps/claude-code/initialize.zsh): the keyword is the name
+# its owner gave the work, and a rename by hand may put a space before the bracket.
+CC_WINDOW_NAME = re.compile(
+    r"(?P<repository>[^@\s]+)@(?P<session>[^\s\[\]]+)(?:\s*\[(?P<keyword>[^\]]+)\])?"
+)
+
 FIELD_SEPARATOR = "\x1f"
 FIELDS = [
     "session_name",
@@ -66,6 +72,22 @@ class Window:
     index: int
     name: str
     panes: list[Pane] = field(default_factory=list)
+
+    @property
+    def title(self) -> str:
+        """What the window is called in the navigator: the keyword of a name cc gave it, else its session, else the
+        name as it is. The session usually reappears in the title Claude Code gives its pane, just below.
+        """
+        match = CC_WINDOW_NAME.fullmatch(self.name)
+        if match is None:
+            return self.name
+        return match["keyword"] or match["session"]
+
+    @property
+    def repository(self) -> str:
+        """The repository of a name cc gave the window, else nothing."""
+        match = CC_WINDOW_NAME.fullmatch(self.name)
+        return match["repository"] if match else ""
 
 
 @dataclass
