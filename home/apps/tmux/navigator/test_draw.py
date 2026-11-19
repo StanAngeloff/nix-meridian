@@ -1,7 +1,8 @@
 import unittest
 
 import draw
-from model import Pane, Session, Snapshot, Window
+import model
+from model import Pane, Session, Window
 
 SESSIONS = [
     Session(
@@ -23,12 +24,13 @@ SESSIONS = [
     ),
     Session("scratch", [Window("@5", 1, "notes", [Pane("%5", "nvim", "~/notes")])]),
 ]
-SNAPSHOT = Snapshot(SESSIONS, {}, set())
 
 
-def render(cursor="@1", focused=False, rows=14, cols=30):
-    view = draw.View(open_window="@1", cursor=cursor, focused=focused)
-    return draw.draw(SNAPSHOT, view, cols, rows)
+def render(cursor="@1", focused=False, rows=14, cols=30, sessions=None, dragging=""):
+    view = draw.View(
+        open_window="@1", cursor=cursor, focused=focused, dragging=dragging
+    )
+    return draw.draw(sessions or SESSIONS, view, cols, rows)
 
 
 class TreeTest(unittest.TestCase):
@@ -58,6 +60,30 @@ class TreeTest(unittest.TestCase):
         canvas = render(cols=13)
         self.assertEqual(canvas.text(2).rstrip()[-1], draw.ELLIPSIS)
         self.assertEqual(len(canvas.text(2)), 13)
+
+
+class IconTest(unittest.TestCase):
+    def test_the_issue_board_gets_a_ticket_whatever_shell_runs_it(self):
+        board = Pane("%9", "zsh", "~", role="issues")
+        self.assertEqual(draw.icon(board, on_cyan=False)[0], draw.ROLE_ICONS["issues"])
+        self.assertEqual(draw.icon(Pane("%8", "zsh", "~"), False)[0], draw.SHELL_ICON)
+
+    def test_a_nested_tmux_gets_the_tmux_icon_and_label(self):
+        nested = Pane("%7", "bash", "~/work", role="tmux")
+        self.assertEqual(draw.icon(nested, on_cyan=False)[0], draw.ROLE_ICONS["tmux"])
+        self.assertEqual(nested.label, "tmux  ~/work")
+
+
+class DragTest(unittest.TestCase):
+    def test_a_dragged_window_shows_raised_in_its_new_place_with_the_numbers_after_the_drop(
+        self,
+    ):
+        sessions = model.reordered(SESSIONS, "@1", 1, 1)
+        canvas = render(sessions=sessions, dragging="@1", focused=True)
+        lines = [canvas.text(y).rstrip() for y in range(6)]
+        self.assertEqual(lines[1], "  1│ repo@other")
+        self.assertEqual(lines[4], "▌ 2│ repo@task")
+        self.assertEqual(canvas.cells[4][2][2], draw.LIFTED_BG)
 
 
 class TargetTest(unittest.TestCase):

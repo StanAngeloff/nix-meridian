@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from model import Pane, Session, Snapshot, Window
+from model import Pane, Session, Window
 
 # Colours, from home/apps/tmux/tmux.conf, PALETTE.md and the Ghostty palette.
 TERMINAL_BG = "#000000"
@@ -16,9 +16,9 @@ SESSION_BG = "#808080"  # colour244
 DIM = "#6c6c6c"  # colour242
 DIMMER = "#4e4e4e"  # colour239
 CURSOR_BG = "#262626"  # colour235
-CURSOR_ON_CYAN = (
-    "#ffffff"  # the cursor's bar on the open window, where cyan would vanish
-)
+# The cursor's bar on the open window, where cyan would vanish.
+CURSOR_ON_CYAN = "#ffffff"
+LIFTED_BG = "#3a3a3a"  # colour237, a window being dragged
 TEXT = "#bcbcbc"  # colour250
 
 # Traffic-light dots: shade 500 on the dark bar, shade 600 on the cyan tab (PALETTE.md).
@@ -72,6 +72,9 @@ PROGRAM_ICONS = {
     "man": "\uf02d",
 }
 OTHER_ICON = "\uf013"
+# Icons by Pane.role: a ticket for the issue board, one cell wide like the rest, where an emoji ticket would take
+# two cells in tmux (U+1F3AB) or possibly in Ghostty (U+1F39F, which tmux counts as one); tmux's own for a nested tmux.
+ROLE_ICONS = {"issues": "\uf145", "tmux": "\uebc8"}
 
 # Columns of a window's rows: the cursor's bar, the window number, the session's trunk, then the content.
 INDEX_X = 1
@@ -83,8 +86,10 @@ CONTENT_X = 5
 class View:
     open_window: str  # the window the navigator sits in, drawn cyan
     cursor: str  # the window under the cursor
-    focused: (
-        bool  # the cursor and the key hints show only while the navigator has focus
+    # The cursor and the key hints show only while the navigator has focus.
+    focused: bool
+    dragging: str = (
+        ""  # a window being dragged, drawn raised in the place it would drop into
     )
 
 
@@ -146,7 +151,7 @@ def icon(pane: Pane, on_cyan: bool) -> tuple[str, str]:
     """A Claude pane's traffic-light dot, or the icon of the program running in the pane."""
     if pane.state:
         return DOT, (DOT_ON_CYAN if on_cyan else DOT_ON_DARK)[pane.state]
-    glyph = PROGRAM_ICONS.get(pane.command, OTHER_ICON)
+    glyph = ROLE_ICONS.get(pane.role) or PROGRAM_ICONS.get(pane.command, OTHER_ICON)
     return glyph, FOCUSED_TAB_DIM if on_cyan else STATUS_FG
 
 
@@ -155,10 +160,13 @@ class RowPainter:
 
     def __init__(self, c: Canvas, view: View, window: Window):
         self.c = c
-        self.on_cyan = window.id == view.open_window
-        self.under_cursor = view.focused and window.id == view.cursor
+        lifted = window.id == view.dragging
+        self.on_cyan = window.id == view.open_window and not lifted
+        self.under_cursor = lifted or (view.focused and window.id == view.cursor)
         if self.on_cyan:
             self.bg = FOCUSED_TAB_BG
+        elif lifted:
+            self.bg = LIFTED_BG
         else:
             self.bg = CURSOR_BG if self.under_cursor else TERMINAL_BG
         self.trunk_fg = FOCUSED_TAB_DIM if self.on_cyan else DIMMER
@@ -252,11 +260,11 @@ def draw_hints(c: Canvas, y: int) -> None:
         x = c.put(x, y + 1, f" {label}   ", DIM)
 
 
-def draw(snapshot: Snapshot, view: View, cols: int, rows: int) -> Canvas:
+def draw(sessions: list[Session], view: View, cols: int, rows: int) -> Canvas:
     c = Canvas(cols, rows)
     footer_rows = 2 if view.focused else 0
     list_rows = rows - footer_rows
-    lines = list_lines(c, view, snapshot.sessions)
+    lines = list_lines(c, view, sessions)
 
     # Scroll so the window under the cursor, or the open one, stays in view whole.
     anchor = view.cursor if view.focused else view.open_window

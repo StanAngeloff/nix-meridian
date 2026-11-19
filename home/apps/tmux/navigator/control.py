@@ -11,7 +11,7 @@ import os
 import signal
 
 import model
-from tmux import MIN_WINDOW_WIDTH, OPEN, PANE, SESSION, WIDTH, TmuxError, lock
+from tmux import MIN_WINDOW_WIDTH, OPEN, PANE, SESSION, WIDGETS, WIDTH, TmuxError, lock
 from tmux import number_option
 from tmux import option, tmux
 
@@ -116,7 +116,7 @@ def windows_on_screen() -> list[str]:
 
 
 def refresh_status() -> None:
-    """Redraws every status bar now: the focused tab's colour depends on whether the navigator is open."""
+    """Redraws every status bar now: it shows the window list, or the widgets while the navigator is open."""
     for client in tmux("list-clients", "-F", "#{client_name}").split():
         tmux("refresh-client", "-S", "-t", client)
 
@@ -240,6 +240,7 @@ def close() -> None:
     with lock():
         navigator = live_navigator()
         tmux("set", "-gu", OPEN, ";", "set", "-gu", PANE, ";", "set", "-gu", SESSION)
+        tmux("set", "-gu", WIDGETS)
         refresh_status()
         columns = [
             pane_id
@@ -257,6 +258,17 @@ def close() -> None:
                 pass  # gone with its window meanwhile
 
 
+def focus_content(window_id: str, navigator: str | None) -> None:
+    """Moves focus off a navigator that arrived focused: a window left with it focused keeps that spot active for the
+    placeholder that takes its place, and a switch made outside the navigator should land in the window's content.
+    """
+    if (
+        navigator
+        and tmux("display", "-p", "-t", window_id, "#{pane_id}").strip() == navigator
+    ):
+        leave(navigator)
+
+
 def arrive(window_id: str = "", session: str = "") -> None:
     """A window came on screen that the swap in tmux.navigator.conf could not serve: no column, or no navigator.
 
@@ -269,7 +281,7 @@ def arrive(window_id: str = "", session: str = "") -> None:
         if session:
             tmux("set", "-g", SESSION, session)
         for window in [window_id] if window_id else windows_on_screen():
-            install(window)
+            focus_content(window, install(window))
 
 
 def resized(window_id: str) -> None:
@@ -287,7 +299,7 @@ def resized(window_id: str) -> None:
         if column:
             return
         if window_id in windows_on_screen():
-            install(window_id)
+            focus_content(window_id, install(window_id))
         else:
             give_placeholder(window_id)
 
@@ -335,6 +347,30 @@ def go(navigator: str, window_id: str, pane_id: str = "") -> None:
         if pane_id or column:
             commands += [";", "select-pane", "-t", pane_id or navigator]
         tmux(*commands)
+
+
+def move(window_id: str, neighbour_id: str, side: str) -> None:
+    """A drop: the window goes before or after its neighbour in its session, and every session of the group is
+    renumbered, as move-window -r renumbers only the one session it is given."""
+    fields = f"#{{session_name}}{SEPARATOR}#{{session_group}}{SEPARATOR}#{{window_id}}"
+    rows = [
+        line.split(SEPARATOR)
+        for line in tmux("list-windows", "-a", "-F", fields).splitlines()
+    ]
+    holder = next(((s, g) for s, g, w in rows if w == window_id), None)
+    if holder is None:
+        return  # closed meanwhile
+    session, group = holder
+    tmux(
+        "move-window",
+        "-b" if side == "before" else "-a",
+        "-s",
+        f"{session}:{window_id}",
+        "-t",
+        f"{session}:{neighbour_id}",
+    )
+    for name in sorted({s for s, g, _ in rows if (g or s) == (group or session)}):
+        tmux("move-window", "-r", "-t", name)
 
 
 def leave(navigator: str) -> None:

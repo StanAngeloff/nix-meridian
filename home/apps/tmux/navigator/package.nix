@@ -20,10 +20,14 @@ stdenv.mkDerivation {
       ./main.py
       ./model.py
       ./pane.py
+      ./processes.py
       ./tmux.py
+      ./widgets.py
       ./test_draw.py
       ./test_keys.py
       ./test_model.py
+      ./test_processes.py
+      ./test_widgets.py
     ];
   };
 
@@ -42,7 +46,7 @@ stdenv.mkDerivation {
   # so both run from here: the navigator through its own command, a placeholder as a sleep that lasts until killed.
   installPhase = ''
     runHook preInstall
-    install -Dm644 -t $out/share/tmux-navigator control.py draw.py keys.py main.py model.py pane.py tmux.py
+    install -Dm644 -t $out/share/tmux-navigator control.py draw.py keys.py main.py model.py pane.py processes.py tmux.py widgets.py
     makeWrapper ${python3}/bin/python3 $out/bin/tmux-navigator \
       --add-flags $out/share/tmux-navigator/main.py \
       --prefix PATH : ${lib.makeBinPath [ tmux ]} \

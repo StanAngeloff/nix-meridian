@@ -21,9 +21,31 @@ def row(
     title="",
     start="",
     floating="0",
+    issues_board="",
+    pid="100",
 ):
     fields = [session, group, window, index, name, pane, active, verdict, command]
-    return model.FIELD_SEPARATOR.join(fields + [path, title, start, floating])
+    rest = [path, title, start, floating, issues_board, pid]
+    return model.FIELD_SEPARATOR.join(fields + rest)
+
+
+class ReorderedTest(unittest.TestCase):
+    def test_moves_the_window_and_numbers_its_session_from_the_base(self):
+        sessions = [
+            model.Session(
+                "default", [model.Window(f"@{i}", i + 4, f"w{i}") for i in range(4)]
+            ),
+            model.Session("other", [model.Window("@9", 7, "x")]),
+        ]
+        moved = model.reordered(sessions, "@0", 2, 1)
+        self.assertEqual(
+            [(w.id, w.index) for w in moved[0].windows],
+            [("@1", 1), ("@2", 2), ("@0", 3), ("@3", 4)],
+        )
+        self.assertEqual(moved[1].windows[0].index, 7)
+        self.assertEqual(
+            sessions[0].windows[0].index, 4
+        )  # the snapshot itself is left alone
 
 
 class ClaudeTaskTest(unittest.TestCase):
@@ -68,6 +90,12 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(panes, ["%1", "%2"])
         self.assertEqual(snapshot.pane_windows["%9"], "@1")
         self.assertIn("%9", snapshot.active_panes)
+
+    def test_the_issue_board_is_named_for_what_it_is(self):
+        text = "\n".join([row(pane="%1"), row(pane="%2", issues_board="1")])
+        (window,) = model.parse(text, HOME).sessions[0].windows
+        self.assertEqual([p.role for p in window.panes], ["", "issues"])
+        self.assertEqual(window.panes[1].label, "issue board")
 
     def test_floating_panes_are_left_out(self):
         text = "\n".join([row(pane="%1"), row(pane="%2", command="tig", floating="1")])

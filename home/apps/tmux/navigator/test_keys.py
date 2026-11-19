@@ -1,6 +1,8 @@
 import unittest
 
 import keys
+import model
+from keys import Action
 from model import Pane, Session, Window
 
 
@@ -55,9 +57,9 @@ class ActionTest(unittest.TestCase):
         def handle(key):
             return keys.handle_key(cursor, SESSIONS, key, 0.0, {})
 
-        self.assertEqual(handle("\r"), ("open", ""))
-        self.assertEqual(handle("\t"), ("leave", ""))
-        self.assertEqual(handle("\x1b"), ("leave", ""))
+        self.assertEqual(handle("\r"), Action("open"))
+        self.assertEqual(handle("\t"), Action("leave"))
+        self.assertEqual(handle("\x1b"), Action("leave"))
         self.assertIsNone(handle("\x1b[I"))
 
     def test_split_keys_keeps_sequences_whole(self):
@@ -75,31 +77,85 @@ class ActionTest(unittest.TestCase):
         self.assertEqual(split, expected)
 
 
-# Rows of the last frame: row 2 is window 4's name, row 3 its first pane.
-TARGETS = {2: ("@d4", ""), 3: ("@d4", "%d4")}
+def mouse(button: int, row: int, pressed: bool = True) -> str:
+    """A mouse event at a 0-based row of the navigator, as tmux sends it in SGR form (1-based)."""
+    return f"\x1b[<{button};10;{row + 1}{'M' if pressed else 'm'}"
 
 
-def click(key: str) -> tuple[keys.Action | None, str]:
-    cursor = keys.Cursor(window="@d1")
-    action = keys.handle_key(cursor, SESSIONS, key, 0.0, TARGETS)
-    return action, cursor.window
+def rows_of(drawn: list[Session]) -> dict[int, tuple[str, str]]:
+    """One row per window, in the order drawn: the targets a frame of the drawn sessions would have."""
+    order = model.window_order(drawn)
+    return {row: (window_id, "") for row, window_id in enumerate(order)}
 
 
-class MouseTest(unittest.TestCase):
+def gesture(*events: str, cursor: keys.Cursor | None = None, targets=None):
+    """Runs mouse events as pane.py would: against the sessions as drawn, with a dragged window in its new place,
+    and the rows of that frame."""
+    cursor = cursor or keys.Cursor(window="@d1")
+    action = None
+    for event in events:
+        drawn = SESSIONS
+        if cursor.drag and cursor.drag.position != cursor.drag.origin:
+            drawn = model.reordered(
+                SESSIONS, cursor.drag.window, cursor.drag.position, 1
+            )
+        rows = targets if targets is not None else rows_of(drawn)
+        action = keys.handle_key(cursor, drawn, event, 0.0, rows)
+    return action, cursor
+
+
+class ClickTest(unittest.TestCase):
     def test_a_click_on_a_window_row_opens_it_like_enter(self):
-        self.assertEqual(click("\x1b[<0;10;3M"), (("open", ""), "@d4"))
+        action, cursor = gesture(mouse(0, 3), mouse(0, 3, pressed=False))
+        self.assertEqual((action, cursor.window), (Action("open"), "@d4"))
 
     def test_a_click_on_a_pane_row_opens_the_window_at_that_pane(self):
-        self.assertEqual(click("\x1b[<0;10;4M"), (("open", "%d4"), "@d4"))
+        pane_row = {4: ("@d4", "%d4")}
+        events = (mouse(0, 4), mouse(0, 4, pressed=False))
+        action, cursor = gesture(*events, targets=pane_row)
+        self.assertEqual((action, cursor.window), (Action("open", pane="%d4"), "@d4"))
+
+    def test_a_press_alone_does_nothing_yet(self):
+        self.assertIsNone(gesture(mouse(0, 3))[0])
 
     def test_releases_other_buttons_and_empty_rows_do_nothing(self):
-        self.assertEqual(click("\x1b[<0;10;3m"), (None, "@d1"))
-        self.assertEqual(click("\x1b[<2;10;3M"), (None, "@d1"))
-        self.assertEqual(click("\x1b[<0;10;1M"), (None, "@d1"))
+        self.assertIsNone(gesture(mouse(0, 3, pressed=False))[0])
+        self.assertIsNone(gesture(mouse(2, 3), mouse(2, 3, pressed=False))[0])
+        self.assertIsNone(gesture(mouse(0, 30), mouse(0, 30, pressed=False))[0])
 
     def test_the_wheel_moves_the_cursor(self):
-        self.assertEqual(click("\x1b[<65;10;1M"), (None, "@d2"))
-        self.assertEqual(click("\x1b[<64;10;1M"), (None, "@s3"))
+        self.assertEqual(gesture(mouse(65, 0))[1].window, "@d2")
+        self.assertEqual(gesture(mouse(64, 0))[1].window, "@s3")
+
+
+class DragTest(unittest.TestCase):
+    def test_a_window_dragged_down_goes_before_the_one_now_after_it(self):
+        events = (mouse(0, 0), mouse(32, 1), mouse(32, 2), mouse(0, 2, pressed=False))
+        action, _ = gesture(*events)
+        expected = Action("move", window="@d1", neighbour="@d4", side="before")
+        self.assertEqual(action, expected)
+
+    def test_a_window_dragged_up_goes_before_the_one_it_was_dropped_on(self):
+        action, _ = gesture(mouse(0, 3), mouse(32, 0), mouse(0, 0, pressed=False))
+        expected = Action("move", window="@d4", neighbour="@d1", side="before")
+        self.assertEqual(action, expected)
+
+    def test_a_window_dragged_to_the_end_goes_after_the_last(self):
+        cursor = keys.Cursor(window="@d1")
+        gesture(mouse(0, 0), cursor=cursor)
+        cursor.drag.position = 11  # carried past every other window
+        action, _ = gesture(mouse(0, 0, pressed=False), cursor=cursor)
+        expected = Action("move", window="@d1", neighbour="@d12", side="after")
+        self.assertEqual(action, expected)
+
+    def test_another_session_s_rows_are_not_a_place(self):
+        _, cursor = gesture(mouse(0, 0), mouse(32, 12))  # row 12 is scratch's first
+        self.assertEqual(cursor.drag.position, cursor.drag.origin)
+
+    def test_dragged_back_where_it_started_it_is_a_click(self):
+        events = (mouse(0, 0), mouse(32, 2), mouse(32, 0), mouse(0, 0, pressed=False))
+        action, _ = gesture(*events)
+        self.assertEqual(action, Action("open"))
 
 
 if __name__ == "__main__":

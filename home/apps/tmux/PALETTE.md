@@ -57,7 +57,7 @@ The desaturation does double duty: it keeps read distinct from unread on the foc
 
 Text: #000000 (black) on focused tabs, #9e9e9e (grey) on unfocused. Bar background: #080808. The focused tab background is always #00afff regardless of state.
 
-While the navigator (prefix Tab) is open, the focused tab background is #a6a6a6 instead, the grey of the same relative luminance as #00afff, so that the navigator's cyan row is the only cyan on screen.
+While the navigator (prefix Tab) is open, the bar shows widgets instead of tabs: a │ in the border colours (colour248 lit, colour238 not) continues the navigator's border, and the part beside the pane takes a faint #0c0c0c tint.
 
 ## Dot rules
 

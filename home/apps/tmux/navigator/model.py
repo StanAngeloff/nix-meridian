@@ -1,7 +1,7 @@
 """What the navigator shows: every window of every session, read from one `tmux list-panes -a`."""
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 # The window rollup order of claude-state.conf: blocked > working > unread > read.
 STATE_ORDER = ["blocked", "working", "unread", "read"]
@@ -29,6 +29,8 @@ FIELDS = [
     "pane_title",
     "pane_start_command",
     "pane_floating_flag",
+    "@issues-board",
+    "pane_pid",
 ]
 PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
 
@@ -41,11 +43,20 @@ class Pane:
     title: str = ""  # #{pane_title}; Claude Code writes its task there
     state: str = ""  # blocked, working, unread or read while Claude Code runs here
     active: bool = False
+    # What the pane is when its foreground program does not say: "issues" for the issue board that prefix C-i opens,
+    # known by the option issues-toggle.sh sets on it; "tmux" for a pane attached to a tmux of its own, which
+    # pane.read_snapshot finds among its processes.
+    role: str = ""
+    pid: str = ""  # #{pane_pid}, the process tmux started in the pane
 
     @property
     def label(self) -> str:
         if self.state:
             return claude_task(self.title)
+        if self.role == "issues":
+            return "issue board"
+        if self.role == "tmux":
+            return f"tmux  {self.path}"
         return f"{self.command}  {self.path}"
 
 
@@ -115,6 +126,8 @@ def parse(text: str, home: str) -> Snapshot:
             title,
             start_command,
             floating,
+            issues_board,
+            pid,
         ) = fields
         pane_windows[pane_id] = window_id
         if active == "1":
@@ -131,13 +144,33 @@ def parse(text: str, home: str) -> Snapshot:
         if path == home or path.startswith(home + "/"):
             path = "~" + path[len(home) :]
         state = VERDICT_STATES.get(verdict, "")
-        pane = Pane(pane_id, command, path, title, state, active == "1")
+        role = "issues" if issues_board == "1" else ""
+        pane = Pane(pane_id, command, path, title, state, active == "1", role, pid)
         session.windows[-1].panes.append(pane)
     return Snapshot(
         [session for session in sessions.values() if session.windows],
         pane_windows,
         active_panes,
     )
+
+
+def reordered(
+    sessions: list[Session], window_id: str, position: int, base_index: int
+) -> list[Session]:
+    """The sessions with the window moved to position in its session's list, its windows numbered from base_index
+    as tmux numbers them after a move-window -r: what a drop in the navigator would leave.
+    """
+    result = []
+    for session in sessions:
+        moving = next((w for w in session.windows if w.id == window_id), None)
+        if moving is None:
+            result.append(session)
+            continue
+        others = [w for w in session.windows if w.id != window_id]
+        windows = others[:position] + [moving] + others[position:]
+        numbered = [replace(w, index=base_index + i) for i, w in enumerate(windows)]
+        result.append(Session(session.name, numbered))
+    return result
 
 
 def window_order(sessions: list[Session]) -> list[str]:
