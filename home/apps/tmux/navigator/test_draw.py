@@ -158,6 +158,17 @@ class BranchTest(unittest.TestCase):
             canvas.cells[5][draw.CONTENT_X + 6][1], draw.DOT_ON_CYAN["read"]
         )
 
+    def test_a_branch_under_a_pane_with_panes_after_it_keeps_that_panes_line(self):
+        agent = Branch("agent", "a1", "research", True)
+        first = Pane("%1", "claude", "~", "✳ Do it", "working", branches=[agent])
+        second = Pane("%2", "tig", "~/repo")
+        sessions = [Session("default", [Window("@1", 1, "task", [first, second])])]
+        canvas = render(sessions=sessions, rows=10, cols=36)
+        lines = [canvas.text(y).rstrip() for y in range(1, 5)]
+        self.assertEqual(lines[1], "   │ ├─ ● Do it")
+        self.assertEqual(lines[2], "   │ │  └─ ● research")
+        self.assertTrue(lines[3].startswith("   ╵ └─"))
+
     def test_a_branch_row_opens_its_pane(self):
         canvas = self.frame([Branch("agent", "a1", "research", True)])
         self.assertEqual(canvas.targets[3], ("@1", "%1"))

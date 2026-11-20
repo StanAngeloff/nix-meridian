@@ -432,6 +432,40 @@ class ShellTest(Fixture):
             handle.write("62 ")
         self.assertEqual([b.label for b in self.scan()], ["$ sleep 90"])
 
+    def test_a_command_run_in_a_sandbox_is_called_by_the_command_inside_it(self):
+        # Plannotator, as Claude Code starts it: a shell, bwrap's sandbox, then Plannotator itself.
+        output = "/tmp/claude-1000/-repo/S1/tasks/b4.output"
+        self.process("63", "bash", ["64"], started=BUSY_SINCE - 100, output=output)
+        self.process(
+            "64",
+            "bwrap",
+            ["65"],
+            started=BUSY_SINCE - 100,
+            command=[
+                "/nix/store/x-bubblewrap/bin/bwrap",
+                "--unshare-user",
+                "--bind",
+                "/",
+                "/",
+            ],
+        )
+        self.process(
+            "65",
+            "plannotator",
+            ["66"],
+            started=BUSY_SINCE - 100,
+            command=[
+                "/nix/store/x-plannotator/libexec/plannotator/plannotator",
+                "annotate-last",
+            ],
+        )
+        self.process("66", "plannotator-rev", [], started=BUSY_SINCE - 100)
+        with open(f"{self.proc}/50/task/50/children", "w") as handle:
+            handle.write("63 ")
+        self.assertEqual(
+            [b.label for b in self.scan()], ["$ plannotator annotate-last"]
+        )
+
     def test_the_shell_of_the_current_foreground_call_is_not_drawn(self):
         self.background_shell("f1", started=NOW - 5)
         self.assertEqual(self.scan(), [])

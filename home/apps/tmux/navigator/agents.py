@@ -44,6 +44,9 @@ BACKGROUND_TASK = re.compile(r'"backgroundTaskId"\s*:\s*"(\w+)"')
 TASK_OUTPUT = re.compile(r"/tasks/(\w+)\.output$")
 LABEL_WIDTH = 60  # of a shell's command
 SHELLS = {"bash", "sh", "zsh", "dash"}
+# Programs that start the real command in a child of their own: bwrap's sandbox (Plannotator runs in one), a timeout,
+# setsid. A shell's label is the command below them.
+WRAPPERS = {"bwrap", "timeout", "setsid"}
 
 
 def signature(path: str) -> tuple[int, int] | None:
@@ -209,6 +212,14 @@ def task_id(pid: str, root: str) -> str:
         return ""
     match = TASK_OUTPUT.search(target)
     return match[1] if match else ""
+
+
+def command_of(pid: str, root: str, depth: int = 0) -> str:
+    """The command a process runs, seen through WRAPPERS to the program they started."""
+    children = processes.children(pid, root)
+    if processes.command_name(pid, root) in WRAPPERS and children and depth < 4:
+        return command_of(children[0], root, depth + 1)
+    return command_line(pid, root)
 
 
 def command_line(pid: str, root: str) -> str:
@@ -622,7 +633,7 @@ class Scanner:
             # The command the shell runs, or the shell itself when it has replaced itself with its one command.
             command = next(
                 (
-                    command_line(grandchild, self.proc_root)
+                    command_of(grandchild, self.proc_root)
                     for grandchild in processes.children(pid, self.proc_root)
                 ),
                 "",
@@ -631,7 +642,7 @@ class Scanner:
                 not command
                 and processes.command_name(pid, self.proc_root) not in SHELLS
             ):
-                command = command_line(pid, self.proc_root)
+                command = command_of(pid, self.proc_root)
             shell.label = command or shell.label or "shell"
         branches = []
         for task, shell in state.shells.items():

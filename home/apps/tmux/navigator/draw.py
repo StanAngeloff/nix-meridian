@@ -344,7 +344,12 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
         for guides, last_branch, branch in branch_rows(pane.branches, expanded):
 
             def branch_line(
-                y, trunk, guides=guides, last_branch=last_branch, branch=branch
+                y,
+                trunk,
+                guides=guides,
+                last_branch=last_branch,
+                branch=branch,
+                last_pane=last_pane,
             ):
                 row.start(y, trunk)
                 # Guides: the pane's own line down to the panes after it, then one per level above this branch.
