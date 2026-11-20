@@ -5,9 +5,46 @@ let
   navigator = pkgs.callPackage ../../tmux/navigator/package.nix {
     links = import ../footer-links.nix;
   };
+  # The hub's new-session screens: a directory, then a profile and a name, drawn with the navigator's draw.py.
+  new-session = pkgs.stdenv.mkDerivation {
+    pname = "cc-hub-new-session";
+    version = "0";
+
+    # Listed explicitly so a stray __pycache__ from running the tests by hand cannot change the hash.
+    src = lib.fileset.toSource {
+      root = ./.;
+      fileset = lib.fileset.unions [
+        ./new_session.py
+        ./test_new_session.py
+      ];
+    };
+
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+
+    dontBuild = true;
+
+    doCheck = true;
+    checkPhase = ''
+      runHook preCheck
+      PYTHONPATH=${navigator}/share/tmux-navigator ${pkgs.python3}/bin/python3 -m unittest discover -p 'test_*.py'
+      runHook postCheck
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      install -Dm644 -t $out/share/cc-hub-new-session new_session.py
+      makeWrapper ${pkgs.python3}/bin/python3 $out/bin/cc-hub-new-session \
+        --add-flags $out/share/cc-hub-new-session/new_session.py \
+        --prefix PYTHONPATH : ${navigator}/share/tmux-navigator
+      runHook postInstall
+    '';
+
+    meta.mainProgram = "cc-hub-new-session";
+  };
   cc-hub = pkgs.writeShellApplication {
     name = "cc-hub";
     runtimeInputs = [
+      new-session
       navigator
       pkgs.tmux
       pkgs.findutils

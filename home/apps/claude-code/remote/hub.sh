@@ -28,93 +28,38 @@ list_recent_directories() {
 	fi
 }
 
-abbreviate_home() {
-	local path="$1"
-	if [[ "$path" == "$HOME" || "$path" == "$HOME"/* ]]; then
-		printf '%s' "~${path#"$HOME"}"
-	else
-		printf '%s' "$path"
-	fi
-}
-
-render_directory_picker() {
-	local total="$1"
-	printf '\033[2J\033[H'
-	printf '\033[1m  Select a directory\033[0m\n\n'
-
-	local index=0
-	while IFS= read -r dir_path; do
-		index=$((index + 1))
-		local label
-		label=$(abbreviate_home "$dir_path")
-		local key=$((total - index + 1))
-		printf '  %s│ %s\n' "$key" "$label"
-	done
-
-	if [ "$index" -eq 0 ]; then
-		printf '  \033[2mNo project directories found.\033[0m\n'
-	fi
-
-	printf '\n  \033[2mType a number or Escape to go back.\033[0m\n'
-	return "$index"
-}
-
 new_session_flow() {
-	local entries=()
-	while IFS= read -r line; do
-		entries+=("$line")
-	done < <(list_recent_directories 9 | tac)
+	local -a directories=()
+	mapfile -t directories < <(list_recent_directories 9)
 
-	local count="${#entries[@]}"
-	local rendered_count=0
-	if [ "$count" -eq 0 ]; then
-		render_directory_picker 0 </dev/null || rendered_count=$?
-	else
-		render_directory_picker "$count" < <(printf '%s\n' "${entries[@]}") || rendered_count=$?
-	fi
-
-	if [ "$rendered_count" -eq 0 ]; then
-		sleep 2
+	# A directory, then a profile and a name, on the screens new_session.py beside this script draws. It prints the
+	# three on separate lines, or nothing when the phone went back to the list.
+	local picked
+	if ! picked=$(cc-hub-new-session "${directories[@]}"); then
+		printf '\n  The new-session screens failed. Press a key to go back.\n'
+		read -rsn1 || true
 		return
 	fi
-
-	local selection=""
-	if ! read -rsn1 -t 30 selection; then
+	local -a chosen=()
+	mapfile -t chosen <<<"$picked"
+	if [ "${#chosen[@]}" -lt 3 ]; then
 		return
 	fi
-
-	local idx=-1
-	case "$selection" in
-	[1-9])
-		idx=$((count - selection))
-		;;
-	esac
-
-	if [ "$idx" -lt 0 ] || [ "$idx" -ge "$count" ]; then
-		return
-	fi
-
-	local target_dir="${entries[$idx]}"
-
-	printf '\033[2J\033[H'
-	local label
-	label=$(abbreviate_home "$target_dir")
-	printf '\033[1m  New session in %s\033[0m\n\n' "$label"
-	printf '  Session name: '
-	local session_name=""
-	read -r session_name </dev/tty
-	if [ -z "$session_name" ]; then
-		return
-	fi
+	local target_dir="${chosen[0]}" profile_name="${chosen[1]}" session_name="${chosen[2]}"
 
 	ensure_remote_session
 
+	# The profile is always explicit: a session started without -P holds up switching the default profile until it ends.
+	local -a profile_args=()
+	if [ -n "$profile_name" ]; then
+		profile_args=(-P "$profile_name")
+	fi
 	# direnv loads the .envrc the directory or a parent holds, such as bubble binds or a session-name rule, as a shell does
 	# on cd. claude-cc then starts the session the way cc does.
 	local launch
-	printf -v launch '%q ' @direnv@ exec . @claudeCc@ -n "$session_name"
+	printf -v launch '%q ' @direnv@ exec . @claudeCc@ "${profile_args[@]}" -n "$session_name"
+	# new-window makes the new window current; it takes the lowest free index, so after a closed window it is not the last.
 	tmux new-window -t "$SESSION" -n "$session_name" -c "$target_dir" "$launch; tmux detach-client"
-	tmux select-window -t "$SESSION:{end}"
 	tmux attach -t "$SESSION"
 }
 
