@@ -54,7 +54,7 @@ class Branch:
         0.0  # when it ended, in seconds since the epoch; its tick shows for a while after
     )
     detail: str = (
-        ""  # a workflow's phase and its running and started agents, as "Verify 1/3"
+        ""  # a workflow's phase and its done and started agents, as "Verify 1/3"
     )
     children: list["Branch"] = field(default_factory=list)
 

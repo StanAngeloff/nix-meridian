@@ -674,13 +674,14 @@ def shown(branches: list[Branch], now: float, linger: float) -> list[Branch]:
 
 
 def workflow_branch(workflow: WorkflowRun, now: float, linger: float) -> Branch:
-    """One line for the workflow: its phase and how many of its started agents still run; its agents as children,
-    shown only when its window's workflows are expanded (Space), the running ones first.
+    """One line for the workflow: its phase and how many of its started agents are done, counted as Claude Code's own
+    progress line counts them (0/2 while both run); its agents as children, shown only when its window's workflows are
+    expanded (Space), the running ones first.
     """
-    running = sum(1 for agent in workflow.agents.values() if agent[1])
+    done = sum(1 for agent in workflow.agents.values() if not agent[1])
     detail = ""
     if not workflow.ended_at:
-        detail = f"{workflow.phase} {running}/{len(workflow.agents)}".strip()
+        detail = f"{workflow.phase} {done}/{len(workflow.agents)}".strip()
     children = [
         Branch("agent", agent_id, label, agent_running, ended_at)
         for agent_id, (label, agent_running, ended_at) in workflow.agents.items()

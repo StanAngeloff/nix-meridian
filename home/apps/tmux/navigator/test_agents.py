@@ -348,7 +348,14 @@ class WorkflowTest(Fixture):
         ]
         self.lines(f"{self.run}/journal.jsonl", self.journal, at=NOW - 10)
 
-    def test_one_line_with_its_phase_and_running_out_of_started_agents(self):
+    def test_while_every_agent_still_runs_none_is_done_as_claude_codes_progress_line_says(
+        self,
+    ):
+        self.lines(f"{self.run}/journal.jsonl", self.journal[:3], at=NOW - 10)
+        [branch] = self.scan()
+        self.assertEqual(branch.detail, "Review 0/2")
+
+    def test_one_line_with_its_phase_and_done_out_of_started_agents(self):
         [branch] = self.scan()
         self.assertEqual(
             (branch.kind, branch.label, branch.running),
@@ -386,7 +393,7 @@ class WorkflowTest(Fixture):
             at=NOW,
         )
         [branch] = self.scan(now=NOW + 1)
-        self.assertEqual(branch.detail, "Verify 2/3")
+        self.assertEqual(branch.detail, "Verify 1/3")
 
 
 class ShellTest(Fixture):
