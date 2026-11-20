@@ -69,6 +69,18 @@ class ActionTest(unittest.TestCase):
         keys.handle_key(cursor, SESSIONS, "?", 0.0, {})
         self.assertFalse(cursor.help)
 
+    def test_space_expands_the_workflows_of_the_cursors_window_and_folds_them_back(
+        self,
+    ):
+        cursor = keys.Cursor(window="@d1")
+        self.assertIsNone(keys.handle_key(cursor, SESSIONS, " ", 0.0, {}))
+        self.assertEqual(cursor.expanded, {"@d1"})
+        cursor.window = "@d2"
+        keys.handle_key(cursor, SESSIONS, " ", 0.0, {})
+        self.assertEqual(cursor.expanded, {"@d1", "@d2"})
+        keys.handle_key(cursor, SESSIONS, " ", 0.0, {})
+        self.assertEqual(cursor.expanded, {"@d1"})
+
     def test_shift_down_and_up_move_the_window_within_its_session(self):
         cursor = keys.Cursor(window="@d1")
         down = keys.handle_key(cursor, SESSIONS, "\x1b[1;2B", 0.0, {})

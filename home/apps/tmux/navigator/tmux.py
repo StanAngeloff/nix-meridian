@@ -12,6 +12,8 @@ PANE = "@navigator-pane"  # the pane the navigator runs in
 # The session whose window switches the navigator follows: the one it was opened or opened a window from.
 # The phone switches windows in its own session, grouped with default, and must not take the navigator along.
 SESSION = "@navigator-session"
+# How long an agent, workflow or shell that ended keeps its tick under its pane (agents.py), in seconds; 30 when unset.
+DONE_SECONDS = "@navigator-done-seconds"
 WIDGETS = "@navigator-widgets"  # the status bar's widgets while open, in tmux style markup (widgets.py)
 WIDTH = "@navigator-width"  # columns of the navigator and of every placeholder
 MIN_WINDOW_WIDTH = (

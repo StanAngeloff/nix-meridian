@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 import links
-from model import Pane, Session, Window
+from model import Branch, Pane, Session, Window
 
 # Colours, from home/apps/tmux/tmux.conf, PALETTE.md and the Ghostty palette.
 TERMINAL_BG = "#000000"
@@ -38,6 +38,9 @@ DOT_ON_CYAN = {
 
 POWERLINE_ARROW = "\ue0b0"
 DOT = "●"
+TICK = "✓"  # a branch that ended (agents.py), in the read shade, for the linger time
+# Most agent rows an expanded workflow shows (Space); a last row counts the rest.
+WORKFLOW_ROWS = 20
 ELLIPSIS = "…"
 
 # Nerd Font icons for panes without Claude Code, keyed by #{pane_current_command}.
@@ -118,6 +121,8 @@ class View:
     # The key hints, shown while the navigator has focus once ? has asked for them.
     help: bool = False
     glyphs: Glyphs = NERD_FONT
+    # Windows whose workflows list their agents, one row each, rather than a count (Space).
+    expanded: frozenset[str] = frozenset()
 
 
 class Canvas:
@@ -268,6 +273,26 @@ class RowPainter:
         glyph, fg = icon(pane, self.on_cyan, self.glyphs)
         self.c.put(x, y, glyph, fg, self.bg)
 
+    def branch(self, x: int, y: int, branch: Branch) -> None:
+        """A branch's dot (its tick once ended) at x, its label after it, and a workflow's progress against the right
+        edge when there is room for both."""
+        if branch.kind != "more":
+            dots = DOT_ON_CYAN if self.on_cyan else DOT_ON_DARK
+            glyph, state = (DOT, "working") if branch.running else (TICK, "read")
+            self.c.put(x, y, glyph, dots[state], self.bg)
+        x += 2
+        width = self.c.cols - x - 1
+        detail = branch.detail
+        # A workflow's name matters more than its phase: when both do not fit, only its count stays.
+        if len(branch.label) + 1 + len(detail) > width:
+            detail = detail.rpartition(" ")[2]
+        if detail and width - len(detail) - 1 >= TITLE_MIN_WIDTH:
+            width -= len(detail) + 1
+            self.c.put(
+                self.c.cols - 1 - len(detail), y, detail, self.secondary_fg, self.bg
+            )
+        self.c.put_fitted(x, y, branch.label, width, self.secondary_fg, self.bg)
+
 
 @dataclass
 class Line:
@@ -293,31 +318,77 @@ def list_lines(c: Canvas, view: View, sessions: list[Session]) -> list[Line]:
 
 
 def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line]:
-    """The window's name, then one tree line per pane; the window line has no icon, as state belongs to panes."""
+    """The window's name, then one tree line per pane, each followed by its branches (agents.py); the window line has
+    no icon, as state belongs to panes. A row of a pane's branch opens that pane."""
     row = RowPainter(c, view, window)
 
-    def name_line(y):
-        row.start(y, "│", str(window.index))
+    def name_line(y, trunk):
+        row.start(y, trunk, str(window.index))
         repository = (
             f"{view.glyphs.repository} {window.repository}" if window.repository else ""
         )
         row.name(CONTENT_X, y, window.title, repository)
 
-    lines = [Line(name_line, window.id)]
+    drawers = [(name_line, "")]
     for p, pane in enumerate(window.panes):
         last_pane = p == len(window.panes) - 1
-        branch = "└─" if last_pane else "├─"
-        # The trunk stops at mid-row on the session's last row, level with the last branch beside it.
-        trunk = "╵" if last and last_pane else "│"
 
-        def pane_line(y, pane=pane, branch=branch, trunk=trunk):
+        def pane_line(y, trunk, pane=pane, last_pane=last_pane):
             row.start(y, trunk)
-            row.c.put(CONTENT_X, y, branch, row.trunk_fg, row.bg)
+            row.c.put(CONTENT_X, y, "└─" if last_pane else "├─", row.trunk_fg, row.bg)
             row.icon(CONTENT_X + 3, y, pane)
             row.secondary(CONTENT_X + 5, y, pane.label)
 
-        lines.append(Line(pane_line, window.id, pane.id))
+        drawers.append((pane_line, pane.id))
+        expanded = window.id in view.expanded
+        for guides, last_branch, branch in branch_rows(pane.branches, expanded):
+
+            def branch_line(
+                y, trunk, guides=guides, last_branch=last_branch, branch=branch
+            ):
+                row.start(y, trunk)
+                # Guides: the pane's own line down to the panes after it, then one per level above this branch.
+                for level, more in enumerate((not last_pane,) + guides):
+                    if more:
+                        row.c.put(CONTENT_X + 3 * level, y, "│", row.trunk_fg, row.bg)
+                x = CONTENT_X + 3 * (len(guides) + 1)
+                row.c.put(x, y, "└─" if last_branch else "├─", row.trunk_fg, row.bg)
+                row.branch(x + 3, y, branch)
+
+            drawers.append((branch_line, pane.id))
+    # The trunk stops at mid-row on the session's last row, level with the last branch beside it.
+    lines = []
+    for index, (drawer, pane_id) in enumerate(drawers):
+        trunk = "╵" if last and index == len(drawers) - 1 else "│"
+        lines.append(
+            Line(
+                lambda y, drawer=drawer, trunk=trunk: drawer(y, trunk),
+                window.id,
+                pane_id,
+            )
+        )
     return lines
+
+
+def branch_rows(
+    branches: list[Branch], expanded: bool, guides: tuple[bool, ...] = ()
+) -> list[tuple[tuple[bool, ...], bool, Branch]]:
+    """Each branch in tree order, with a guide per level above it (whether a sibling follows there) and whether it is
+    the last of its own siblings. A workflow lists its agents only when expanded, at most WORKFLOW_ROWS of them.
+    """
+    rows = []
+    for index, branch in enumerate(branches):
+        last = index == len(branches) - 1
+        rows.append((guides, last, branch))
+        children = branch.children
+        if branch.kind == "workflow":
+            children = children if expanded else []
+            if len(children) > WORKFLOW_ROWS:
+                hidden = len(children) - WORKFLOW_ROWS + 1
+                more = Branch("more", "", f"{ELLIPSIS} {hidden} more", False)
+                children = children[: WORKFLOW_ROWS - 1] + [more]
+        rows += branch_rows(children, expanded, guides + (not last,))
+    return rows
 
 
 def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
@@ -329,6 +400,7 @@ def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
 HINTS = [
     [("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")],
     [("⇧↑ ⇧↓", "reorder"), ("1-9", "jump")],
+    [("space", "workflow agents")],
 ]
 
 

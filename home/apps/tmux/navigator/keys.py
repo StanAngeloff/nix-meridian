@@ -1,7 +1,7 @@
 """Keys and clicks in the navigator: what each does to the cursor, and which action it asks for."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from model import Session, session_of, window_order
 
@@ -16,6 +16,7 @@ SHIFT_UP = "\x1b[1;2A"
 ENTER = ("\r", "\n")
 LEAVE = ("\t", "\x1b")  # Tab hands focus back to the pane; so does Esc
 HELP = "?"  # shows the key hints, and hides them again
+SPACE = " "  # lists the workflows of the cursor's window agent by agent, and folds them back into a count
 
 # A mouse event in SGR form (mode 1006), which the navigator asks tmux for: ESC [ < button ; column ; row, then M for
 # a press or m for a release. Column and row count from 1 at the pane's top left.
@@ -60,6 +61,9 @@ class Cursor:
     number_typed_at: float = 0.0  # when its last digit arrived
     drag: Drag | None = None  # a window being dragged to a new place
     help: bool = False  # the key hints are shown
+    expanded: set[str] = field(
+        default_factory=set
+    )  # windows whose workflows list their agents
 
 
 def split_keys(data: str):
@@ -98,6 +102,8 @@ def handle_key(
         return Action("leave")
     elif key == HELP:
         cursor.help = not cursor.help
+    elif key == SPACE and cursor.window:
+        cursor.expanded ^= {cursor.window}
     return None
 
 

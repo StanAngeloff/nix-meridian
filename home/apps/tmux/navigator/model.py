@@ -42,6 +42,24 @@ PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
 
 
 @dataclass
+class Branch:
+    """Work a Claude Code session runs beside its own turn, drawn under its pane: a sub-agent, a workflow, or a shell
+    started in the background (agents.py)."""
+
+    kind: str  # "agent", "workflow" or "shell"
+    key: str  # the same thing from one look to the next: an agent ID, a workflow run, a shell's task
+    label: str
+    running: bool
+    ended_at: float = (
+        0.0  # when it ended, in seconds since the epoch; its tick shows for a while after
+    )
+    detail: str = (
+        ""  # a workflow's phase and its running and started agents, as "Verify 1/3"
+    )
+    children: list["Branch"] = field(default_factory=list)
+
+
+@dataclass
 class Pane:
     id: str
     command: str  # #{pane_current_command}
@@ -54,6 +72,9 @@ class Pane:
     # pane.read_snapshot finds among its processes.
     role: str = ""
     pid: str = ""  # #{pane_pid}, the process tmux started in the pane
+    branches: list[Branch] = field(
+        default_factory=list
+    )  # a Claude Code pane's, which agents.Scanner adds
 
     @property
     def label(self) -> str:

@@ -4,7 +4,7 @@ import unittest
 import draw
 import model
 import test_links
-from model import Pane, Session, Window
+from model import Branch, Pane, Session, Window
 
 SESSIONS = [
     Session(
@@ -42,6 +42,7 @@ def render(
     rules=(),
     hints=None,
     glyphs=draw.NERD_FONT,
+    expanded=frozenset(),
 ):
     view = draw.View(
         open_window="@1",
@@ -50,6 +51,7 @@ def render(
         dragging=dragging,
         help=help,
         glyphs=glyphs,
+        expanded=expanded,
     )
     return draw.draw(sessions or SESSIONS, view, cols, rows, rules, hints)
 
@@ -108,6 +110,78 @@ class PlainGlyphTest(unittest.TestCase):
         self.assertTrue(canvas.text(1).rstrip().endswith("@ webapp"))
         self.assertEqual(canvas.text(2)[draw.CONTENT_X + 3], "○")
         self.assertEqual(canvas.text(3)[draw.CONTENT_X + 3], "○")
+
+
+def workflow(agents):
+    children = [Branch("agent", f"w{i}", f"review:{i}", True) for i in range(agents)]
+    return Branch(
+        "workflow",
+        "wf_1",
+        "review-changes",
+        True,
+        detail="Review 2/3",
+        children=children,
+    )
+
+
+class BranchTest(unittest.TestCase):
+    def frame(self, branches, expanded=frozenset(), rows=30, cols=36):
+        task = Pane("%1", "claude", "~", "✳ Do it", "working", branches=branches)
+        sessions = [Session("default", [Window("@1", 1, "task", [task])])]
+        return render(sessions=sessions, rows=rows, cols=cols, expanded=expanded)
+
+    def test_branches_hang_under_their_pane_and_the_trunk_ends_on_the_last(self):
+        research = Branch(
+            "agent",
+            "a1",
+            "research",
+            True,
+            children=[Branch("agent", "a2", "chromium", True)],
+        )
+        shell = Branch("shell", "b1", "$ sleep 600", False, ended_at=1.0)
+        canvas = self.frame([research, shell])
+        lines = [canvas.text(y).rstrip() for y in range(1, 6)]
+        self.assertEqual(
+            lines,
+            [
+                "  1│ task",
+                "   │ └─ ● Do it",
+                "   │    ├─ ● research",
+                "   │    │  └─ ● chromium",
+                f"   ╵    └─ {draw.TICK} $ sleep 600",
+            ],
+        )
+        self.assertEqual(
+            canvas.cells[3][draw.CONTENT_X + 6][1], draw.DOT_ON_CYAN["working"]
+        )
+        self.assertEqual(
+            canvas.cells[5][draw.CONTENT_X + 6][1], draw.DOT_ON_CYAN["read"]
+        )
+
+    def test_a_branch_row_opens_its_pane(self):
+        canvas = self.frame([Branch("agent", "a1", "research", True)])
+        self.assertEqual(canvas.targets[3], ("@1", "%1"))
+
+    def test_a_workflow_is_one_line_with_its_progress_at_the_right_until_expanded(self):
+        canvas = self.frame([workflow(3)], cols=40)
+        line = canvas.text(3).rstrip()
+        self.assertTrue(line.startswith("   ╵    └─ ● review-changes"))
+        self.assertTrue(line.endswith("Review 2/3"))
+        narrow = self.frame([workflow(3)]).text(3).rstrip()
+        self.assertTrue(narrow.startswith("   ╵    └─ ● review-changes"))
+        self.assertTrue(narrow.endswith(" 2/3") and "Review" not in narrow)
+        self.assertEqual(canvas.text(4).strip(), "")
+        expanded = self.frame([workflow(3)], expanded=frozenset({"@1"}))
+        self.assertEqual(expanded.text(4).rstrip(), "   │       ├─ ● review:0")
+        self.assertEqual(expanded.text(6).rstrip(), "   ╵       └─ ● review:2")
+
+    def test_an_expanded_workflow_shows_at_most_twenty_rows_the_last_counting_the_rest(
+        self,
+    ):
+        canvas = self.frame([workflow(25)], expanded=frozenset({"@1"}), rows=40)
+        rows = [canvas.text(y).rstrip() for y in range(4, 4 + draw.WORKFLOW_ROWS)]
+        self.assertEqual(rows[-1], f"   ╵       └─   {draw.ELLIPSIS} 6 more")
+        self.assertEqual(canvas.text(4 + draw.WORKFLOW_ROWS).strip(), "")
 
 
 class DragTest(unittest.TestCase):

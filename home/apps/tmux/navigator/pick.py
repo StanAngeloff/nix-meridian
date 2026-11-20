@@ -15,12 +15,13 @@ import time
 import tty
 from dataclasses import dataclass
 
+import agents
 import draw
 import keys
 import model
 import pane
 from model import Session
-from tmux import TmuxError, tmux
+from tmux import DONE_SECONDS, TmuxError, number_option, tmux
 
 POLL_SECONDS = 1.0
 HINTS = [[("tap 1-9", "open"), ("n", "new"), ("q", "quit")]]
@@ -120,10 +121,13 @@ def of_group(sessions: list[Session], group: str) -> list[Session]:
     return [s for s in sessions if s.name == group] or sessions
 
 
-def hub_view(session: str, home: str) -> tuple[list[Session], str]:
-    """The windows the hub's session shares with its group, and the one it last showed, drawn cyan like the window the
-    navigator sits in."""
+def hub_view(
+    session: str, home: str, scanner: agents.Scanner, linger: float
+) -> tuple[list[Session], str]:
+    """The windows the hub's session shares with its group, with their Claude Code panes' branches, and the one it last
+    showed, drawn cyan like the window the navigator sits in."""
     snapshot = pane.read_snapshot(home)
+    scanner.attach(snapshot.sessions, time.time(), linger)
     try:
         output = tmux(
             "display", "-p", "-t", f"={session}", "#{session_group}\x1f#{window_id}"
@@ -137,6 +141,8 @@ def hub_view(session: str, home: str) -> tuple[list[Session], str]:
 def run(session: str, screen: int) -> Picked:
     home = os.path.expanduser("~")
     picker = Picker()
+    scanner = agents.Scanner(home)
+    linger = number_option(DONE_SECONDS, pane.DONE_SECONDS_DEFAULT)
     # A resize, the phone turning, redraws at once; the signal only wakes select.
     wake_read, wake_write = os.pipe()
     os.set_blocking(wake_write, False)
@@ -144,7 +150,7 @@ def run(session: str, screen: int) -> Picked:
     signal.signal(signal.SIGWINCH, lambda *_: None)
     previous_frame = ""
     while True:
-        sessions, open_window = hub_view(session, home)
+        sessions, open_window = hub_view(session, home, scanner, linger)
         now = time.monotonic()
         picked = picker.tick(sessions, now)
         if picked:

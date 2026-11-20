@@ -12,6 +12,7 @@ import termios
 import time
 import tty
 
+import agents
 import control
 import draw
 import keys
@@ -19,9 +20,10 @@ import links
 import model
 import processes
 import widgets
-from tmux import WIDGETS, TmuxError, number_option, tmux
+from tmux import DONE_SECONDS, WIDGETS, TmuxError, number_option, tmux
 
 POLL_SECONDS = 1.0
+DONE_SECONDS_DEFAULT = 30
 PROFILE_VARIABLE = "CLAUDE_BUBBLE_PROFILE"
 
 
@@ -54,6 +56,8 @@ def run() -> None:
     cursor = keys.Cursor()
     cpu_meter = widgets.CpuMeter()
     link_rules = links.load()
+    scanner = agents.Scanner(home)
+    linger = number_option(DONE_SECONDS, DONE_SECONDS_DEFAULT)
     shown_widgets = shown_profile = ""
 
     # Signals only wake the loop; the wakeup descriptor turns them into something select can wait on.
@@ -75,6 +79,7 @@ def run() -> None:
             snapshot = read_snapshot(home)
         except TmuxError:
             return  # the server is gone
+        scanner.attach(snapshot.sessions, time.time(), linger)
         # The status bar's widgets: handed to tmux only when they change, and drawn at once the first time and when the
         # profile changes, as a window switch should not wait for the bar's own 5-second refresh.
         open_window = snapshot.pane_windows.get(own_pane, "")
@@ -103,7 +108,14 @@ def run() -> None:
             )
             dragging = drag.window
         size = os.get_terminal_size(0)
-        view = draw.View(open_window, cursor.window, focused, dragging, cursor.help)
+        view = draw.View(
+            open_window,
+            cursor.window,
+            focused,
+            dragging,
+            cursor.help,
+            expanded=frozenset(cursor.expanded),
+        )
         canvas = draw.draw(sessions, view, size.columns, size.lines, link_rules)
         frame = canvas.to_ansi()
         if frame != previous_frame:
