@@ -114,6 +114,9 @@ let
   navigator = pkgs.callPackage ./navigator/package.nix {
     links = import ../claude-code/footer-links.nix;
   };
+
+  # Cleans what the copy bindings in tmux.conf copy in a Claude Code pane.
+  claudeCopy = pkgs.callPackage ./claude-copy/package.nix { };
 in
 {
   programs.tmux = {
@@ -139,6 +142,7 @@ in
       ${
         let
           replacements = {
+            "@claudeCopy@" = pkgs.lib.getExe claudeCopy;
             "@dismissClaudeIdle@" = "${dismissClaudeIdle}";
             "@machineName@" = osConfig.networking.hostName;
             "@nameWindow@" = "${nameWindow}";
