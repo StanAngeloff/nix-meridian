@@ -1,5 +1,6 @@
 // Run by Bun at build time (package.nix) on the release binary's embedded files, the .bun ELF section, which objcopy dumps.
-// Writes the review window's copies of the two pages the server serves, plan and review, as the server unpacks them:
+// Writes the review window's copies of the two pages the server serves, plan and review, as the server unpacks them
+// for a data directory with no custom themes:
 // each page's shell at <plan|review>/index.html, the files it loads from /assets/ under the same paths below it,
 // and <plan|review>.json, which maps every path the window serves to its file and content type (review-window/main.js).
 // Every assumption about the section's layout (Bun 1.4, src/standalone_graph/StandaloneModuleGraph.rs)
@@ -65,6 +66,11 @@ const PAGE_BINDINGS = { plan: "planHtmlContent", review: "reviewHtmlContent" };
 // ({"/assets/<name>": {type, start, end, base64}}), then their contents, at offsets counted from the line after the index.
 const PACKED_ASSETS_MARKER = "<plaintext hidden><!--plannotator:packed-assets-->";
 const ASSET_PATH = /^\/assets\/\w[\w.-]*$/;
+// The shell's tag for the custom themes script, which the server rewrites on every request (Plannotator's
+// packages/shared/theme-files.ts, pageWithCustomThemes): left out with no themes in the data directory, the themes inlined otherwise.
+// The copies leave it out, as the page with no custom themes. Kept, it would be a blocking script only the server can answer,
+// so the early window would stay blank until the server hands over.
+const THEMES_TAG = /<script\b[^>]*\bsrc="\/plannotator-themes\.js"[^>]*><\/script>/;
 for (const [pageName, bindingName] of Object.entries(PAGE_BINDINGS)) {
   const binding = serverSource.match(new RegExp(`\\nvar ${bindingName} = embeddedPage\\((\\w+)\\);\\n`));
   check(binding, `no binding ${bindingName}`);
@@ -87,7 +93,7 @@ for (const [pageName, bindingName] of Object.entries(PAGE_BINDINGS)) {
   }
   const dataLength = page.length - dataStart;
 
-  const shell = page.slice(0, markerAt);
+  const shell = page.slice(0, markerAt).replace(THEMES_TAG, "");
   fs.mkdirSync(path.join(outputPath, pageName, "assets"), { recursive: true });
   fs.writeFileSync(path.join(outputPath, pageName, "index.html"), shell);
   const manifest = { "/": { file: `${pageName}/index.html`, type: "text/html; charset=utf-8" } };

@@ -4,10 +4,10 @@
 # It first checks the release binary against its published checksum and its SLSA provenance against upstream's release workflow;
 # either failure stops it.
 # It then shows how the release changes the three SKILL.md files, which Claude Code reads as instructions,
-# whether the review window's icon changed, and whether it expects another sem. Nothing changes until you answer yes.
+# and whether the review window's icon changed. Nothing changes until you answer yes.
 # On yes, it writes the new version, binary hash, skill checksums and icon checksum into package.nix,
-# bumps pkgs/ataraxy-sem when the sem version changed, builds the package with its skills,
-# checks the version it reports and runs tests/plannotator against it, leaving the result for review in git diff.
+# builds the package with its skills, checks the version it reports and runs tests/plannotator against it,
+# leaving the result for review in git diff.
 # Giving the current version re-verifies the pinned release without changing anything;
 # asking for latest when it is already current stops before downloading anything.
 set -euo pipefail
@@ -17,12 +17,10 @@ repository_name=plannotator
 package_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_path="$(git -C "$package_path" rev-parse --show-toplevel)"
 package_file="$package_path/package.nix"
-sem_package_file="$repository_path/pkgs/ataraxy-sem/package.nix"
 skill_names=(plannotator-review plannotator-annotate plannotator-last)
 # A path: flake reads the working tree as it is, untracked files included, which is what this script just edited.
 flake_url="path:$repository_path"
 packages_attribute="nixosConfigurations.$HOSTNAME.pkgs"
-fake_hash="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
 new_version="${1:-}"
 if [[ "$new_version" != latest && ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -30,7 +28,7 @@ if [[ "$new_version" != latest && ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]
 	exit 2
 fi
 
-for command_name in curl cut diff gh jq nix sed sha256sum; do
+for command_name in curl cut diff gh nix sed sha256sum; do
 	if ! command -v "$command_name" >/dev/null; then
 		echo "error: $command_name is not on PATH" >&2
 		exit 1
@@ -50,12 +48,8 @@ for skill_name in "${skill_names[@]}"; do
 	require_single_line "$package_file" "^    $skill_name = \"[0-9a-f]*\";\$"
 done
 require_single_line "$package_file" '^  iconSha256 = "[0-9a-f]*";$'
-require_single_line "$sem_package_file" '^  version = ".*";$'
-require_single_line "$sem_package_file" '^    hash = "sha256-.*";$'
-require_single_line "$sem_package_file" '^  cargoHash = "sha256-.*";$'
 
 current_version="$(sed -n 's/^  version = "\(.*\)";$/\1/p' "$package_file")"
-current_sem_version="$(sed -n 's/^  version = "\(.*\)";$/\1/p' "$sem_package_file")"
 
 if [[ "$new_version" == latest ]]; then
 	latest_tag="$(gh api "repos/$owner_name/$repository_name/releases/latest" --jq .tag_name 2>/dev/null || true)"
@@ -134,33 +128,11 @@ if [[ "$icon_sha256" == "$(sed -n 's/^  iconSha256 = "\([0-9a-f]*\)";$/\1/p' "$p
 else
 	echo "review window icon: changed, see $(raw_url "$new_version" "$icon_path")"
 fi
-
-if ! curl -sfL "$(raw_url "$new_version" packages/shared/semantic-diff.ts)" -o "$work_path/semantic-diff.ts"; then
-	echo "error: cannot download packages/shared/semantic-diff.ts at v$new_version" >&2
-	exit 1
-fi
-new_sem_version="$(sed -n 's/^export const PLANNOTATOR_SEM_VERSION = "v\(.*\)";$/\1/p' "$work_path/semantic-diff.ts")"
-if [[ ! "$new_sem_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-	echo "error: cannot read PLANNOTATOR_SEM_VERSION from packages/shared/semantic-diff.ts at v$new_version" >&2
-	exit 1
-fi
-if [[ "$new_sem_version" == "$current_sem_version" ]]; then
-	echo "sem stays at $current_sem_version"
-else
-	echo "sem $current_sem_version -> $new_sem_version (pkgs/ataraxy-sem is bumped as well)"
-fi
 echo
 read -r -p "Apply plannotator $new_version? [y/N] " answer || answer=""
 if [[ "$answer" != [yY] ]]; then
 	echo "Nothing changed."
 	exit 0
-fi
-
-# Everything that can fail on the network runs before the first file is rewritten.
-if [[ "$new_sem_version" != "$current_sem_version" ]]; then
-	echo "Fetching sem $new_sem_version..."
-	sem_source_hash="$(nix store prefetch-file --json --unpack --name source \
-		"https://github.com/Ataraxy-Labs/sem/archive/refs/tags/v$new_sem_version.tar.gz" | jq -r .hash)"
 fi
 
 binary_hash="$(nix hash convert --hash-algo sha256 --to sri "$binary_sha256")"
@@ -175,25 +147,6 @@ for skill_name in "${skill_names[@]}"; do
 	package_substitutions+=(-e "s|^    $skill_name = \"[0-9a-f]*\";\$|    $skill_name = \"$skill_sha256\";|")
 done
 sed -i "${package_substitutions[@]}" "$package_file"
-
-if [[ "$new_sem_version" != "$current_sem_version" ]]; then
-	sed -i \
-		-e "s|^  version = \".*\";\$|  version = \"$new_sem_version\";|" \
-		-e "s|^    hash = \"sha256-.*\";\$|    hash = \"$sem_source_hash\";|" \
-		-e "s|^  cargoHash = \"sha256-.*\";\$|  cargoHash = \"$fake_hash\";|" \
-		"$sem_package_file"
-	# The source fetches cleanly first, so the only hash mismatch left in the next build is the crates'.
-	nix build --no-link "$flake_url#$packages_attribute.ataraxy-sem.src"
-	echo "Resolving sem's crate hash..."
-	# The first build fails on the placeholder and names the hash of the vendored crates.
-	cargo_hash="$(nix build --no-link "$flake_url#$packages_attribute.ataraxy-sem" 2>&1 |
-		sed -n 's/^ *got: *\(sha256-[A-Za-z0-9+\/=]*\)$/\1/p' | tail -n 1 || true)"
-	if [[ -z "$cargo_hash" ]]; then
-		echo "error: no crate hash in the build output; run nix build $flake_url#$packages_attribute.ataraxy-sem" >&2
-		exit 1
-	fi
-	sed -i "s|^  cargoHash = \"sha256-.*\";\$|  cargoHash = \"$cargo_hash\";|" "$sem_package_file"
-fi
 
 echo "Building..."
 # With installSkills the build also fetches the three skills, which checks their checksums, and the tests need them,
@@ -218,4 +171,4 @@ fi
 
 echo
 echo "Updated to plannotator $new_version and built $built_path"
-echo "Review with: git -C $repository_path diff pkgs/plannotator pkgs/ataraxy-sem"
+echo "Review with: git -C $repository_path diff pkgs/plannotator"

@@ -47,7 +47,6 @@ def pinned_version(package_file):
 
 
 PLANNOTATOR_VERSION = pinned_version("pkgs/plannotator/package.nix")
-SEM_VERSION = pinned_version("pkgs/ataraxy-sem/package.nix")
 SKILL_NAMES = ["plannotator-annotate", "plannotator-last", "plannotator-review"]
 ORIGINAL_SOURCE = (
     "export function greet(name: string): string {\n  return `Hello, ${name}`;\n}\n"
@@ -190,22 +189,6 @@ def test_ai_features_stay_off_whatever_the_caller_asks(
             refused_path, "POST", {}, {"Origin": session.base_url}
         )
         assert status == 503, (refused_path, answer)
-
-    status, _ = session.request_json("/api/exit", "POST", {})
-    assert status == 200
-    session.process.communicate(timeout=60)
-
-
-def test_semantic_diff_runs_the_pinned_sem(tmp_path, environment, start_session):
-    repository_path = tmp_path / "repository"
-    make_repository(repository_path, environment)
-    session = start_session(["review"], environment, repository_path)
-
-    status, semantic_diff = session.request_json("/api/semantic-diff")
-    assert status == 200
-    assert semantic_diff["status"] == "ok", semantic_diff
-    assert semantic_diff["semVersion"] == SEM_VERSION
-    assert semantic_diff["semSource"] == "env"
 
     status, _ = session.request_json("/api/exit", "POST", {})
     assert status == 200

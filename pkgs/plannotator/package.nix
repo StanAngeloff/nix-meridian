@@ -15,7 +15,6 @@
   # so the review window adds no second copy.
   electron,
   util-linux,
-  ataraxy-sem,
   # Also from nixpkgs-unstable (the overlay), built from the same Chromium as that Electron:
   # Chromium accepts a dictionary only under its versioned file name (en-GB-10-2.bdic since Chromium 156).
   hunspellDictsChromium,
@@ -127,7 +126,6 @@ let
   # PLANNOTATOR_GIT_REMOTE_CHECK: upstream's documented opt-out. The namespace has no route to a remote,
   #   so reviews compare against local refs instead of waiting on a `git ls-remote` that cannot succeed.
   # PLANNOTATOR_BROWSER: the review window. A browser command the caller sets instead still runs inside the namespace.
-  # PLANNOTATOR_SEM_PATH: once set, the only sem Plannotator tries, never one from its data directory or PATH.
   # PLANNOTATOR_DATA_DIR: under ~/.claude, which the Claude Code bubble binds from the host, so bubbled sessions keep drafts.
   # vendor/: runtimes install there with code Nix never pinned (Call flow from the review UI, the agent terminal from the CLI);
   #   read-only makes both fail.
@@ -146,7 +144,6 @@ let
     "--set-default" "PLANNOTATOR_JINA" "0"
     "--set-default" "PLANNOTATOR_GIT_REMOTE_CHECK" "0"
     "--set-default" "PLANNOTATOR_BROWSER" (lib.getExe reviewWindow)
-    "--set" "PLANNOTATOR_SEM_PATH" (lib.getExe ataraxy-sem)
     "--run" ''export PLANNOTATOR_DATA_DIR="''${PLANNOTATOR_DATA_DIR:-$HOME/.claude/plannotator}"''
     "--run" ''mkdir -p "$PLANNOTATOR_DATA_DIR/vendor"''
     "--run" ''chmod 0555 "$PLANNOTATOR_DATA_DIR/vendor"''
@@ -168,13 +165,13 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "plannotator";
-  version = "0.28.65";
+  version = "0.29.2";
 
   # Upstream's release build (`bun build --compile`): a Bun runtime with the server and the review UI embedded.
   # update.sh verifies its SLSA provenance against upstream's release workflow before writing a bump.
   src = fetchurl {
     url = "https://github.com/backnotprop/plannotator/releases/download/v${finalAttrs.version}/plannotator-linux-x64";
-    hash = "sha256-nISe6+swk8sePtmz5GoVAQ1EnyHGmVJJoth192SV1AI=";
+    hash = "sha256-K4lTDZMRfi28TB0QPuxfG32kZOqEP0fGJExXUQwuC58=";
   };
 
   nativeBuildInputs = [
