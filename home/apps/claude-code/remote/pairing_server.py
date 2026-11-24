@@ -205,7 +205,7 @@ def main():
     # them, or when Stan skips it, this prints the Termux command and serves until Ctrl-C, as before.
     client_tools = {
         name: os.environ.get(f"CC_REMOTE_{name.upper()}")
-        for name in ("adb", "apksigner", "keytool", "client_apk")
+        for name in ("adb", "voxize_remote")
     }
     try:
         if all(client_tools.values()):
@@ -214,13 +214,7 @@ def main():
             try:
                 done = client_setup.run(
                     client_tools["adb"],
-                    client_tools["apksigner"],
-                    client_tools["keytool"],
-                    client_tools["client_apk"],
-                    control_path=os.path.join(
-                        os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"),
-                        "voxize-remote.sock",
-                    ),
+                    client_tools["voxize_remote"],
                     server_name=dns_name or address,
                     port=int(os.environ.get("CC_REMOTE_VOXIZE_PORT", "7223")),
                     bootstrap_command=f"curl -sS {address}:{pairing.PAIRING_PORT}/cc | sh",

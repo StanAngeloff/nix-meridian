@@ -2,6 +2,7 @@
   lib,
   python313,
   fetchFromGitHub,
+  fetchurl,
   # Build-time dependencies
   wrapGAppsHook4,
   gobject-introspection,
@@ -12,11 +13,21 @@
   pipewire,
   portaudio,
   wl-clipboard,
+  # Voxize Remote: adb for `voxize-remote setup-client`, ffmpeg for each dictation's Opus file (the systemd service has
+  # no profile to find it in)
+  android-tools,
+  ffmpeg-headless,
   # Typography
   ibm-plex,
 }:
 let
+  version = "0.4.1";
   python = python313;
+  # Voxize Remote's Android client as the release signed it; `voxize-remote setup-client` installs it.
+  remoteApk = fetchurl {
+    url = "https://github.com/Flemma-Dev/voxize/releases/download/v${version}/voxize-remote-${version}.apk";
+    hash = "sha256-0q/FYd0ltmSBnTvuay4laKTpQUYoWkrq7exB1O9Essc=";
+  };
   runtimeLibs = [
     gtk4
     libadwaita
@@ -38,14 +49,14 @@ let
 in
 python.pkgs.buildPythonApplication rec {
   pname = "voxize";
-  version = "0.4.0";
+  inherit version;
   name = pname;
 
   src = fetchFromGitHub {
     owner = "Flemma-Dev";
     repo = "voxize";
     rev = "v${version}";
-    hash = "sha256-yj8myOqXlxBJd1fAcqXFdoY1qgRSVKHalYfFdpj13cQ=";
+    hash = "sha256-Pebs+tjNZ//xJw7csGabbvXMQ9vO8UQfUXGbn4MqPuA=";
   };
 
   buildInputs = runtimeDeps;
@@ -73,9 +84,32 @@ python.pkgs.buildPythonApplication rec {
         --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
         --set ALSA_PLUGIN_DIR ${pipewire}/lib/alsa-lib
         --prefix PYTHONPATH : "$out/${python.sitePackages}:${pyPath}"
-        --prefix PATH : ${lib.makeBinPath [ wl-clipboard ]}
+        --prefix PATH : ${
+          lib.makeBinPath [
+            wl-clipboard
+            android-tools
+            ffmpeg-headless
+          ]
+        }
+        --set-default VOXIZE_REMOTE_APK ${remoteApk}
       )
     '';
+
+  passthru.remoteApk = remoteApk;
+
+  # The systemd service runs voxize-remote with the wrapper's environment and little else: the keyring's typelib
+  # (the server reads its pairings through it), the backend's PYTHONPATH, adb and ffmpeg must all come from the wrapper.
+  doInstallCheck = true;
+  installCheckPhase = ''
+    runHook preInstallCheck
+    (timeout 10 env -i HOME=$TMPDIR $out/bin/voxize-remote --control-socket $TMPDIR/control \
+      serve --listen 127.0.0.1:0 2>$TMPDIR/serve.log || true)
+    grep -q "control socket" $TMPDIR/serve.log || { cat $TMPDIR/serve.log; exit 1; }
+    for wrapped in PYTHONPATH ${android-tools}/bin ${ffmpeg-headless.bin}/bin VOXIZE_REMOTE_APK; do
+      grep -aq "$wrapped" $out/bin/voxize-remote || { echo "voxize-remote's wrapper lacks $wrapped"; exit 1; }
+    done
+    runHook postInstallCheck
+  '';
 
   meta = with lib; {
     description = "Voice-to-text for Linux (Wayland/GNOME): desktop overlay and terminal client";

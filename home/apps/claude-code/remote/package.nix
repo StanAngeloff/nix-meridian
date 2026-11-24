@@ -9,8 +9,9 @@
   coreutils,
   writeShellApplication,
   tailscale,
-  # Voxize Remote (home/apps/voxize/remote): `cc remote setup` installs and pairs its client app over adb.
-  voxize-remote,
+  # Voxize Remote: `cc remote setup` hands the device to `voxize-remote setup-client` (pkgs/voxize), over adb.
+  voxize,
+  android-tools,
   # The `tailscale up` line for this machine's very first login, built by the caller from services.tailscale.extraSetFlags.
   firstLoginCommand,
 }:
@@ -62,11 +63,9 @@ let
         --add-flags $out/share/cc-remote-setup/pairing_server.py \
         --prefix PATH : ${lib.makeBinPath [ tailscale ]} \
         --set CC_REMOTE_FIRST_LOGIN_COMMAND ${lib.escapeShellArg firstLoginCommand} \
-        --set CC_REMOTE_ADB ${voxize-remote.tools}/bin/adb \
-        --set CC_REMOTE_APKSIGNER ${voxize-remote.tools}/bin/apksigner \
-        --set CC_REMOTE_KEYTOOL ${voxize-remote.tools}/bin/keytool \
-        --set CC_REMOTE_CLIENT_APK ${voxize-remote.apk}/voxize-remote-unsigned.apk \
-        --set CC_REMOTE_VOXIZE_PORT ${toString voxize-remote.port}
+        --set CC_REMOTE_ADB ${android-tools}/bin/adb \
+        --set CC_REMOTE_VOXIZE_REMOTE ${lib.getExe' voxize "voxize-remote"} \
+        --set CC_REMOTE_VOXIZE_PORT ${toString (import ../../voxize/remote/port.nix)}
       runHook postInstall
     '';
 

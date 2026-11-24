@@ -6,18 +6,11 @@
   ...
 }:
 let
-  voxize-remote = pkgs.callPackage ./package.nix { };
   port = import ./port.nix;
 in
 {
-  # Only the command: the package carries voxize's own Python tree too (it is voxize's environment), which would clash
-  # with pkgs.voxize in the profile.
-  home.packages = [
-    (pkgs.runCommand "voxize-remote-command" { meta.mainProgram = "voxize-remote"; } ''
-      mkdir -p $out/bin
-      ln -s ${lib.getExe voxize-remote} $out/bin/voxize-remote
-    '')
-  ];
+  # Voxize Remote ships with Voxize (pkgs/voxize: `voxize-remote`, and the release's signed APK that
+  # `voxize-remote setup-client` installs); this module runs its server on this machine.
 
   # The server starts on demand: systemd holds its two sockets and starts voxize-remote.service at the first connection
   # (a client dialling in, or `voxize-remote pair|status|devices` on this machine); it exits after 5 minutes with none.
@@ -50,7 +43,7 @@ in
       ];
     };
     Service = {
-      ExecStart = "${lib.getExe voxize-remote} serve --systemd --idle-exit 300";
+      ExecStart = "${lib.getExe' pkgs.voxize "voxize-remote"} serve --systemd --idle-exit 300";
       Sockets = [
         "voxize-remote-clients.socket"
         "voxize-remote-control.socket"

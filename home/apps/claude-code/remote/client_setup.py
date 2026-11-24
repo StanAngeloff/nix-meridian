@@ -1,39 +1,25 @@
-"""`cc remote setup`'s client half: the Voxize Remote client and Termux's ssh cc, set up over adb.
+"""`cc remote setup`'s client half: Termux's ssh cc and the Voxize Remote client, set up over adb.
 
-With the device on a USB cable (or Wireless debugging), this installs the client signed with this machine's key, grants
-every permission it needs, types the Termux bootstrap, pairs the client with the Voxize Remote server (Stan types the
-code the client shows) and checks the client connects. What is left on the device are Android's own prompts: allowing
-USB debugging, and the fingerprint test Termux's setup asks for.
+With the device on a USB cable (or Wireless debugging), this types the Termux bootstrap, then hands the device to
+`voxize-remote setup-client` (Voxize's own: it installs the release's client, allows it, pairs it with this machine's
+server and checks it connects), and switches Wireless debugging off again. What is left on the device are Android's own
+prompts: allowing USB debugging, and the fingerprint test Termux's setup asks for.
 
 Every outside effect goes through Adb, Console and the control socket, so the tests drive the whole flow with fakes.
 """
 
-import json
 import os
 import select
 import shlex
-import socket
 import subprocess
 import sys
-import tempfile
 import time
 
-CLIENT_PACKAGE = "dev.flemma.voxize.remote"
 TERMUX_PACKAGE = "com.termux"
 TAILSCALE_PACKAGE = "com.tailscale.ipn"
-GRANTED_PERMISSIONS = (
-    "android.permission.RECORD_AUDIO",
-    "android.permission.POST_NOTIFICATIONS",
-)
-# appops: "Display over other apps" for the floating button, Usage access so it shows only over Termux.
-ALLOWED_OPERATIONS = ("SYSTEM_ALERT_WINDOW", "GET_USAGE_STATS")
-SIGNING_DIRECTORY = os.path.expanduser("~/.local/share/voxize-remote/signing")
-KEYSTORE_NAME = "voxize-remote.p12"
-KEY_ALIAS = "voxize-remote"
 DEVICE_POLL_SECONDS = 1.0
 KEY_REGISTRATION_SECONDS = 600.0
-CONNECT_CHECK_SECONDS = 20.0
-STEPS = 5
+STEPS = 3
 
 
 class SetupError(Exception):
@@ -120,13 +106,6 @@ class Adb:
         if status != 0:
             raise SetupError(f"cannot list the phone's apps: {output.strip()}")
         return f"package:{package}" in output.split()
-
-    def checked_shell(self, command, what):
-        """A device command that must work; SetupError saying ``what`` failed otherwise."""
-        status, output = self.shell(command)
-        if status != 0:
-            raise SetupError(f"could not {what}: {output.strip() or f'exit {status}'}")
-        return output
 
 
 def typed_text(text):
@@ -256,127 +235,6 @@ def wireless_connect(adb, console):
     return connect_address
 
 
-# ── the client app ──
-
-
-def ensure_signing_key(keytool, directory=SIGNING_DIRECTORY, runner=subprocess.run):
-    """This machine's key for the client app (made once, outside the Nix store): (keystore, password file).
-
-    Made beside the final names and moved into place only when whole, so an interrupted run leaves nothing half-made.
-    """
-    keystore = os.path.join(directory, KEYSTORE_NAME)
-    password_file = os.path.join(directory, "password")
-    if os.path.exists(keystore) and os.path.exists(password_file):
-        return keystore, password_file
-    os.makedirs(directory, mode=0o700, exist_ok=True)
-    os.chmod(directory, 0o700)
-    with tempfile.TemporaryDirectory(prefix=".new-key.", dir=directory) as scratch:
-        new_password_file = os.path.join(scratch, "password")
-        new_keystore = os.path.join(scratch, KEYSTORE_NAME)
-        descriptor = os.open(
-            new_password_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
-        )
-        with os.fdopen(descriptor, "w") as handle:
-            handle.write(os.urandom(24).hex())
-        completed = runner(
-            [
-                keytool,
-                "-genkeypair",
-                "-keystore",
-                new_keystore,
-                "-storetype",
-                "PKCS12",
-                "-storepass:file",
-                new_password_file,
-                "-alias",
-                KEY_ALIAS,
-                "-keyalg",
-                "RSA",
-                "-keysize",
-                "3072",
-                "-validity",
-                "10000",
-                "-dname",
-                "CN=Voxize Remote",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise SetupError(
-                f"could not make the signing key: {completed.stderr.strip()}"
-            )
-        os.chmod(new_keystore, 0o600)
-        os.replace(new_password_file, password_file)
-        os.replace(new_keystore, keystore)
-    return keystore, password_file
-
-
-def signed_client(
-    apksigner, unsigned_apk, keystore, password_file, directory, runner=subprocess.run
-):
-    signed = os.path.join(directory, "voxize-remote.apk")
-    completed = runner(
-        [
-            apksigner,
-            "sign",
-            "--ks",
-            keystore,
-            "--ks-pass",
-            f"file:{password_file}",
-            "--ks-key-alias",
-            KEY_ALIAS,
-            "--out",
-            signed,
-            unsigned_apk,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        raise SetupError(f"could not sign the client: {completed.stderr.strip()}")
-    return signed
-
-
-def install_client(adb, apk, console):
-    status, output = adb.run("install", "-r", apk, timeout=180)
-    if status == 0 and "Success" in output:
-        return
-    # Installs only an uninstall gets past; the pairing is redone below either way, so nothing else is lost.
-    reasons = {
-        "INSTALL_FAILED_UPDATE_INCOMPATIBLE": "was signed with another key",
-        "INSTALL_FAILED_VERSION_DOWNGRADE": "is newer than this one (this machine rolled back?)",
-    }
-    reason = next((text for code, text in reasons.items() if code in output), None)
-    if reason is not None:
-        console.say(
-            f"The Voxize Remote on the phone {reason}, so it cannot be updated in place."
-        )
-        if console.ask(
-            "Uninstall it and install this one (its pairing goes with it)? [y/N] "
-        ).lower() in ("y", "yes"):
-            adb.run("uninstall", CLIENT_PACKAGE, timeout=60)
-            status, output = adb.run("install", apk, timeout=180)
-            if status == 0 and "Success" in output:
-                return
-    raise SetupError(f"could not install the client: {output.strip()}")
-
-
-def grant_client(adb):
-    for permission in GRANTED_PERMISSIONS:
-        adb.checked_shell(
-            f"pm grant {CLIENT_PACKAGE} {permission}",
-            f"grant Voxize Remote {permission}",
-        )
-    for operation in ALLOWED_OPERATIONS:
-        adb.checked_shell(
-            f"appops set {CLIENT_PACKAGE} {operation} allow",
-            f"allow Voxize Remote {operation}",
-        )
-
-
 # ── Termux ──
 
 
@@ -433,87 +291,6 @@ def run_termux_bootstrap(adb, console, bootstrap_command, key_registered):
         time.sleep(0.5)
 
 
-# ── pairing with the Voxize Remote server ──
-
-
-def pair_client(adb, console, control_path, server_name, port):
-    """A pairing window on the server, the client asked to pair over adb, the code typed here."""
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-        try:
-            connection.connect(control_path)
-        except OSError as error:
-            raise SetupError(
-                f"the Voxize Remote server is not reachable at {control_path} ({error}); is the "
-                "configuration switched in (make switch)?"
-            ) from None
-        stream = connection.makefile("rwb", buffering=0)
-        stream.write(b"pair\n")
-        for line in stream:
-            event = json.loads(line)
-            kind = event.get("event")
-            if kind == "busy":
-                raise SetupError(
-                    "another voxize-remote pair is already waiting on this machine"
-                )
-            if kind == "open":
-                adb.shell(
-                    f"am start -n {CLIENT_PACKAGE}/.MainActivity --es server {shlex.quote(server_name)} "
-                    f"--ei port {int(port)} --ez pair true"
-                )
-                console.say(
-                    f"Asked Voxize Remote to pair; it shows a six-digit code once it reaches {server_name}."
-                )
-            elif kind == "code_requested":
-                console.say(f"{event['device']} ({event['node']}) asks to pair.")
-                typed = console.ask("Type the code the phone shows: ")
-                stream.write(f"{typed}\n".encode())
-            elif kind == "paired":
-                console.say(f"Paired {event['device']}.")
-                return
-            elif kind == "rejected":
-                console.say(
-                    f"Not paired: {event.get('reason', 'refused')}. The phone can try again."
-                )
-            elif kind == "expired":
-                raise SetupError(
-                    "the pairing window closed before the client paired; Voxize Remote's screen on the "
-                    "phone says why (most often Tailscale's split tunneling leaves it out)"
-                )
-    raise SetupError("the Voxize Remote server closed the pairing")
-
-
-def client_status(control_path):
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-        connection.settimeout(10)
-        connection.connect(control_path)
-        connection.sendall(b"status\n")
-        reply = b""
-        while chunk := connection.recv(65536):
-            reply += chunk
-    return json.loads(reply)
-
-
-def check_connection(adb, console, control_path):
-    """Arms the client as ssh cc will, and waits for it to connect; says what to fix when it does not."""
-    adb.shell(f"am start -n {CLIENT_PACKAGE}/.ArmActivity")
-    deadline = time.monotonic() + CONNECT_CHECK_SECONDS
-    while time.monotonic() < deadline:
-        try:
-            if client_status(control_path).get("client"):
-                console.say("The client is connected over Tailscale.")
-                return True
-        except (OSError, ValueError):
-            pass
-        time.sleep(1)
-    console.say(
-        "The client did not connect. Most likely Tailscale's split tunneling leaves Voxize Remote out:"
-    )
-    console.say(
-        "in the Tailscale app, Settings → Split tunneling, include Voxize Remote. Its screen also says why."
-    )
-    return False
-
-
 # ── the whole flow ──
 
 
@@ -542,33 +319,30 @@ def switch_off_wireless_debugging(adb, adb_executable, runner, serial, console):
 
 def run(
     adb_executable,
-    apksigner,
-    keytool,
-    unsigned_apk,
-    control_path,
+    voxize_remote,
     server_name,
     port,
     bootstrap_command,
     key_registered,
     console=None,
     runner=subprocess.run,
-    signing_directory=SIGNING_DIRECTORY,
+    launcher=subprocess.run,
 ):
-    """The client half of `cc remote setup`; False when Stan skipped it. SetupError says what went wrong."""
+    """The client half of `cc remote setup`; False when Stan skipped it. SetupError says what went wrong.
+
+    ``runner`` runs adb (its output captured); ``launcher`` runs `voxize-remote setup-client` on this terminal.
+    """
     try:
         return _run(
             adb_executable,
-            apksigner,
-            keytool,
-            unsigned_apk,
-            control_path,
+            voxize_remote,
             server_name,
             port,
             bootstrap_command,
             key_registered,
             console or Console(),
             runner,
-            signing_directory,
+            launcher,
         )
     except subprocess.TimeoutExpired as error:
         raise SetupError(
@@ -581,17 +355,14 @@ def run(
 
 def _run(
     adb_executable,
-    apksigner,
-    keytool,
-    unsigned_apk,
-    control_path,
+    voxize_remote,
     server_name,
     port,
     bootstrap_command,
     key_registered,
     console,
     runner,
-    signing_directory,
+    launcher,
 ):
     adb = Adb(adb_executable, runner=runner)
     console.step(1, "The phone")
@@ -614,37 +385,33 @@ def _run(
                     f"{name} is not installed on the phone. Install it from {where}, then press Enter: "
                 )
 
-        console.step(2, "Voxize Remote on the phone")
-        keystore, password_file = ensure_signing_key(keytool, signing_directory, runner)
-        with tempfile.TemporaryDirectory(prefix="voxize-remote-apk.") as directory:
-            install_client(
-                adb,
-                signed_client(
-                    apksigner, unsigned_apk, keystore, password_file, directory, runner
-                ),
-                console,
-            )
-        # A fresh start: setup pairs again, so the client forgets an earlier pairing (the server replaces its own).
-        adb.shell(f"am force-stop {CLIENT_PACKAGE}")
-        if "Success" not in adb.checked_shell(
-            f"pm clear {CLIENT_PACKAGE}", "clear Voxize Remote's earlier pairing"
-        ):
-            raise SetupError(
-                "could not clear Voxize Remote's earlier pairing (pm clear did not succeed)"
-            )
-        grant_client(adb)
-        console.say(
-            "Installed, with the microphone, notifications, the floating button and Usage access allowed."
-        )
-
-        console.step(3, "ssh cc in Termux")
+        console.step(2, "ssh cc in Termux")
         run_termux_bootstrap(adb, console, bootstrap_command, key_registered)
         console.say("ssh cc is set up.")
 
-        console.step(4, "Pairing Voxize Remote with this machine")
-        pair_client(adb, console, control_path, server_name, port)
-        console.step(5, "Checking the connection")
-        connected = check_connection(adb, console, control_path)
+        console.step(3, "Voxize Remote")
+        # Voxize's own setup: install, allow, pair (Stan types the code here) and check the connection. It talks to
+        # Stan on this terminal itself; 0 means connected, 2 paired but not connected (it said why), 1 failed.
+        result = launcher(
+            [
+                voxize_remote,
+                "setup-client",
+                "--serial",
+                serial,
+                "--server",
+                server_name,
+                "--port",
+                str(int(port)),
+                "--adb",
+                adb_executable,
+            ],
+            check=False,
+        )
+        if result.returncode not in (0, 2):
+            raise SetupError(
+                "voxize-remote setup-client did not finish; the lines above say why"
+            )
+        connected = result.returncode == 0
         if connected:
             # Termux is where Stan goes next; without a connection the client's screen stays up to say why.
             adb.shell("am start -n com.termux/.app.TermuxActivity")

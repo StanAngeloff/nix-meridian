@@ -20,7 +20,6 @@ let
   # `cc remote`: phone pairing over Tailscale; see remote/package.nix.
   cc-remote = pkgs.callPackage ./remote/package.nix {
     tailscale = osConfig.services.tailscale.package;
-    voxize-remote = pkgs.callPackage ../voxize/remote/package.nix { };
     firstLoginCommand = "tailscale up ${lib.concatStringsSep " " osConfig.services.tailscale.extraSetFlags}";
   };
   # Bubblewrap isolation wrapper that cc launches through; also profile-installed so it is runnable directly by name.
