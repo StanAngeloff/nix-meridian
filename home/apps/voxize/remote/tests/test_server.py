@@ -1004,14 +1004,15 @@ class JournalTest(unittest.TestCase):
         with mock.patch.object(
             server_module, "LOG_PREFIX", None
         ), contextlib.redirect_stderr(io.StringIO()) as out:
-            server_module.log("client connected: phone")
-        self.assertEqual(out.getvalue(), "client connected: phone\n")
+            server_module.log("client connected: test-client")
+        self.assertEqual(out.getvalue(), "client connected: test-client\n")
         with mock.patch.object(
             server_module, "LOG_PREFIX", "voxize-remote: "
         ), contextlib.redirect_stderr(io.StringIO()) as out:
-            server_module.log("client connected: phone")
+            server_module.log("client connected: test-client")
         self.assertRegex(
-            out.getvalue(), r"^\d\d:\d\d:\d\d voxize-remote: client connected: phone\n$"
+            out.getvalue(),
+            r"^\d\d:\d\d:\d\d voxize-remote: client connected: test-client\n$",
         )
 
 

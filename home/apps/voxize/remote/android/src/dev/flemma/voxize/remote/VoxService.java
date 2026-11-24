@@ -50,7 +50,7 @@ public final class VoxService extends Service
     private static final long TIMER_TICK_MILLISECONDS = 250;
     // With no Termux session and no dictation for this long, the client disarms: the microphone service, the
     // connection and, on the server, the process that only runs while a client is connected. Counted in uptime, which
-    // stops while the phone sleeps: a connection that dropped during sleep gets its chance to return at wake.
+    // stops while the device sleeps: a connection that dropped during sleep gets its chance to return at wake.
     private static final long IDLE_DISARM_MILLISECONDS = 15 * 60 * 1000L;
     private static final long IDLE_CHECK_MILLISECONDS = 60 * 1000L;
 

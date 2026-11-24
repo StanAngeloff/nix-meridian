@@ -1,8 +1,8 @@
-"""`cc remote setup`'s phone half: the Voxize Remote client and Termux's ssh cc, set up over adb.
+"""`cc remote setup`'s client half: the Voxize Remote client and Termux's ssh cc, set up over adb.
 
-With the phone on a USB cable (or Wireless debugging), this installs the client signed with this machine's key, grants
+With the device on a USB cable (or Wireless debugging), this installs the client signed with this machine's key, grants
 every permission it needs, types the Termux bootstrap, pairs the client with the Voxize Remote server (Stan types the
-code the phone shows) and checks the client connects. What is left on the phone are Android's own prompts: allowing
+code the client shows) and checks the client connects. What is left on the device are Android's own prompts: allowing
 USB debugging, and the fingerprint test Termux's setup asks for.
 
 Every outside effect goes through Adb, Console and the control socket, so the tests drive the whole flow with fakes.
@@ -136,17 +136,17 @@ def typed_text(text):
     return "'" + text.replace(" ", "%s") + "'"
 
 
-# ── finding the phone ──
+# ── finding the device ──
 
 
 def over_wifi(serial):
-    """Wireless debugging's serials: IP:port after adb connect, an mDNS service name when adb found the phone itself."""
+    """Wireless debugging's serials: IP:port after adb connect, an mDNS service name when adb found the device itself."""
     return ":" in serial or "._adb-tls-connect." in serial
 
 
-def distinct_phones(adb, ready):
-    """One entry per phone: a phone on the cable and on Wireless debugging at once is listed twice by adb (the
-    cable is kept). Phones tell themselves apart by their hardware serial."""
+def distinct_devices(adb, ready):
+    """One entry per device: a device on the cable and on Wireless debugging at once is listed twice by adb (the
+    cable is kept). Devices tell themselves apart by their hardware serial."""
     chosen = {}
     for entry in ready:
         serial = entry[0]
@@ -163,8 +163,8 @@ def distinct_phones(adb, ready):
     return list(chosen.values())
 
 
-def find_phone(adb, console):
-    """The serial of the phone to set up, and whether it came over Wireless debugging; None to skip the phone."""
+def find_device(adb, console):
+    """The serial of the device to set up, and whether it came over Wireless debugging; None to skip it."""
     console.say(
         "Connect the phone with a USB cable (Developer options → USB debugging on) and allow this computer when"
     )
@@ -179,13 +179,13 @@ def find_phone(adb, console):
         devices = adb.devices()
         ready = [device for device in devices if device[1] == "device"]
         if len(ready) > 1:
-            ready = distinct_phones(adb, ready)
+            ready = distinct_devices(adb, ready)
         if len(ready) == 1:
             serial, _, description = ready[0]
             console.say(f"Found {model_name(description) or serial}.")
             return serial, over_wifi(serial)
         if len(ready) > 1:
-            serial = choose_phone(ready, console)
+            serial = choose_device(ready, console)
             return serial, over_wifi(serial)
         for serial, state, description in devices:
             if state in told:
@@ -221,7 +221,7 @@ def model_name(description):
     return ""
 
 
-def choose_phone(ready, console):
+def choose_device(ready, console):
     for number, (serial, _, description) in enumerate(ready, 1):
         console.say(f"  {number}. {model_name(description) or serial} ({serial})")
     while True:
@@ -399,7 +399,7 @@ def termux_not_ready(adb):
 
 
 def run_termux_bootstrap(adb, console, bootstrap_command, key_registered):
-    """Types the bootstrap into Termux once Stan says it shows a prompt; waits for the phone's SSH key.
+    """Types the bootstrap into Termux once Stan says it shows a prompt; waits for Termux's SSH key.
 
     Nothing is typed unless Termux has the focus on an unlocked screen: keys sent to a lock screen are a wrong PIN.
     """
@@ -554,7 +554,7 @@ def run(
     runner=subprocess.run,
     signing_directory=SIGNING_DIRECTORY,
 ):
-    """The phone half of `cc remote setup`; False when Stan skipped the phone. SetupError says what went wrong."""
+    """The client half of `cc remote setup`; False when Stan skipped it. SetupError says what went wrong."""
     try:
         return _run(
             adb_executable,
@@ -595,7 +595,7 @@ def _run(
 ):
     adb = Adb(adb_executable, runner=runner)
     console.step(1, "The phone")
-    found = find_phone(adb, console)
+    found = find_device(adb, console)
     if found is None:
         return False
     serial, wireless = found

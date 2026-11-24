@@ -64,7 +64,7 @@ Every dictation is a normal Voxize session under `~/.local/state/voxize/`.
 | `package.nix` | the server, `passthru.apk` (unsigned, no Gradle) and `passthru.tools` (adb, apksigner, keytool) |
 | `default.nix`, `firewall.nix`, `port.nix` | the systemd user units, the tailnet-only port |
 
-`cc remote setup`'s phone half is `home/apps/claude-code/remote/phone_setup.py`; the signing key lives in `~/.local/share/voxize-remote/signing/` (never in the Nix store).
+`cc remote setup`'s client half is `home/apps/claude-code/remote/client_setup.py`; the signing key lives in `~/.local/share/voxize-remote/signing/` (never in the Nix store).
 
 ## Developing
 

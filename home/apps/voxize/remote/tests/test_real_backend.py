@@ -16,7 +16,7 @@ TERMINAL_STATES = {"READY", "ERROR", "CANCELLED"}
 
 
 class RealBackendTest(unittest.TestCase):
-    def test_phone_audio_reaches_the_wav(self):
+    def test_client_audio_reaches_the_wav(self):
         directory = tempfile.mkdtemp(prefix="voxize-remote-real.")
         self.addCleanup(shutil.rmtree, directory, True)
         # 1.5 s of a loud tone, so the WARMING detector flips to RECORDING on level, not on its timeout.

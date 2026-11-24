@@ -267,8 +267,7 @@ public final class MainActivity extends Activity {
     private void refresh() {
         SharedPreferences preferences = getSharedPreferences(VoxService.PREFERENCES, MODE_PRIVATE);
         boolean paired = preferences.getString(VoxService.PREFERENCE_SECRET, null) != null;
-        // Pairings made before the server was called the server kept its name under "laptop".
-        String serverName = preferences.getString(VoxService.PREFERENCE_SERVER, preferences.getString("laptop", "the server"));
+        String serverName = preferences.getString(VoxService.PREFERENCE_SERVER, "the server");
         int addressVisibility = paired ? android.view.View.GONE : android.view.View.VISIBLE;
         if (addressBox.getVisibility() != addressVisibility) {
             addressBox.setVisibility(addressVisibility);
@@ -440,7 +439,6 @@ public final class MainActivity extends Activity {
                 .remove(VoxService.PREFERENCE_DEVICE_ID)
                 .remove(VoxService.PREFERENCE_SECRET)
                 .remove(VoxService.PREFERENCE_SERVER)
-                .remove("laptop")
                 .commit();
         startService(VoxService.intent(this, VoxService.ACTION_QUIT));
         status.setText("Pairing forgotten. On the server, voxize-remote unpair removes this client there too.");

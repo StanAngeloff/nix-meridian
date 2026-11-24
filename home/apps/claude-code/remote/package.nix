@@ -26,11 +26,11 @@ let
       fileset = lib.fileset.unions [
         ./pairing.py
         ./pairing_server.py
-        ./phone_setup.py
+        ./client_setup.py
         ./setup-termux.sh
         ./test_pairing.py
         ./test_pairing_server.py
-        ./test_phone_setup.py
+        ./test_client_setup.py
         ./test_setup_termux.py
       ];
     };
@@ -57,7 +57,7 @@ let
     # The tailscale CLI comes from the same package as the running daemon, so the JSON it prints is the version tested against.
     installPhase = ''
       runHook preInstall
-      install -Dm644 -t $out/share/cc-remote-setup pairing.py pairing_server.py phone_setup.py setup-termux.sh
+      install -Dm644 -t $out/share/cc-remote-setup pairing.py pairing_server.py client_setup.py setup-termux.sh
       makeWrapper ${python3}/bin/python3 $out/bin/cc-remote-setup \
         --add-flags $out/share/cc-remote-setup/pairing_server.py \
         --prefix PATH : ${lib.makeBinPath [ tailscale ]} \
