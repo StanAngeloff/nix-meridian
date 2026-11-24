@@ -32,9 +32,18 @@ if [[ "$window_name" == *@* ]]; then
 	if [[ -n "$window_session" ]]; then board_command+=(--find-journal "$window_session"); fi
 fi
 
+# The board takes only what the pane can spare beside Claude Code's prose, so opening it doesn't rewrap the text:
+# maxProseWidth (120, claude-code/settings.nix), the 2-column bar before each reply line,
+# a blank column so the text doesn't touch the board's border, and the border itself.
+# It gets at least 60 columns, and never more than 45% of the pane.
+pane_width=$(tmux display-message -p -t "$pressed_pane_id" '#{pane_width}')
+board_width=$((pane_width - 120 - 2 - 1 - 1))
+board_width=$((board_width > 60 ? board_width : 60))
+board_width=$((board_width < pane_width * 45 / 100 ? board_width : pane_width * 45 / 100))
+
 # A board that fails keeps its pane open with the error until Enter, as the /issues skill's split does.
 board_pane_id=$(
-	tmux split-window -h -l 45% -t "$pressed_pane_id" -P -F '#{pane_id}' \
+	tmux split-window -h -l "$board_width" -t "$pressed_pane_id" -P -F '#{pane_id}' \
 		"${board_command[*]@Q} || { printf '\nThe board stopped. Press Enter to close this pane.'; read -r _; }"
 )
 tmux set -p -t "$board_pane_id" @issues-board 1
