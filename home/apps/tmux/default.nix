@@ -146,6 +146,7 @@ in
             "@dismissClaudeIdle@" = "${dismissClaudeIdle}";
             "@machineName@" = osConfig.networking.hostName;
             "@nameWindow@" = "${nameWindow}";
+            "@navigatorPlaceholder@" = "${navigator}/bin/tmux-navigator-placeholder";
             "@saveWindowKeyword@" = "${saveWindowKeyword}";
           };
         in
