@@ -105,6 +105,26 @@ class WriteSshConfigTest(ScriptTestCase):
         ):
             self.assertIn(f"  {option}\n", self.read_ssh_file("cc_config"))
 
+    def test_ssh_cc_arms_the_voxize_remote_client(self):
+        self.run_function("write_ssh_config 100.64.0.7")
+        config = self.read_ssh_file("cc_config")
+        self.assertIn("  PermitLocalCommand yes\n", config)
+        self.assertIn(
+            "  LocalCommand am start -n dev.flemma.voxize.remote/.ArmActivity >/dev/null 2>&1\n",
+            config,
+        )
+        # ssh itself reads it that way.
+        resolved = subprocess.run(
+            ["ssh", "-G", "-F", str(self.ssh_path / "cc_config"), "cc"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        self.assertIn("permitlocalcommand yes", resolved)
+        self.assertIn(
+            "localcommand am start -n dev.flemma.voxize.remote/.ArmActivity", resolved
+        )
+
     def test_the_identity_is_the_absolute_key_path_under_home(self):
         # The askpass helper recognizes the passphrase prompt by the key path built from $HOME, while ssh would expand
         # "~" from the passwd entry, which need not be the same directory.

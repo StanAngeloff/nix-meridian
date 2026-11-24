@@ -12,8 +12,10 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 
 import pairing
+import phone_setup
 
 AUTHORIZED_KEYS_FILE = os.path.expanduser("~/.ssh/authorized_keys")
 SETUP_SCRIPT_FILE = os.path.join(
@@ -199,8 +201,40 @@ def main():
 
     server.bootstrap_text = pairing.render_bootstrap(address, dns_name)
     server.registered_key = None
-    print(pairing.checklist(address), flush=True)
+    # With adb and the client app at hand (package.nix sets these), the phone is set up over adb as well; without
+    # them, or when Stan skips the phone, this prints the Termux command and serves until Ctrl-C, as before.
+    phone = {
+        name: os.environ.get(f"CC_REMOTE_{name.upper()}")
+        for name in ("adb", "apksigner", "keytool", "client_apk")
+    }
     try:
+        if all(phone.values()):
+            serving = threading.Thread(target=server.serve_forever, daemon=True)
+            serving.start()
+            try:
+                done = phone_setup.run(
+                    phone["adb"],
+                    phone["apksigner"],
+                    phone["keytool"],
+                    phone["client_apk"],
+                    control_path=os.path.join(
+                        os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"),
+                        "voxize-remote.sock",
+                    ),
+                    server_name=dns_name or address,
+                    port=int(os.environ.get("CC_REMOTE_VOXIZE_PORT", "7223")),
+                    bootstrap_command=f"curl -sS {address}:{pairing.PAIRING_PORT}/cc | sh",
+                    key_registered=lambda: server.registered_key is not None,
+                )
+            except phone_setup.SetupError as error:
+                server.shutdown()
+                sys.stderr.write(pairing.format_error(str(error), [], colour))
+                return 1
+            server.shutdown()
+            serving.join()
+            if done:
+                return 0
+        print(pairing.checklist(address), flush=True)
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nStopped.")

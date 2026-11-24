@@ -126,6 +126,9 @@ Host cc
   ConnectTimeout 10
   ServerAliveInterval 15
   ServerAliveCountMax 4
+  # Wakes Voxize Remote's floating microphone with every ssh cc (harmless while the app is not installed).
+  PermitLocalCommand yes
+  LocalCommand am start -n dev.flemma.voxize.remote/.ArmActivity >/dev/null 2>&1
 SSHCONFIG
 	chmod 600 "$cc_config_file"
 

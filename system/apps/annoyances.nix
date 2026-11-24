@@ -4,5 +4,7 @@
     ../../home/apps/brave/policies.nix
     # Locked-down sshd for phone remote access to Claude Code sessions.
     ../../home/apps/claude-code/remote/sshd.nix
+    # Voxize Remote's server port, on the tailnet only.
+    ../../home/apps/voxize/remote/firewall.nix
   ];
 }
