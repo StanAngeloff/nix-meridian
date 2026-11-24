@@ -573,9 +573,14 @@ class ServerTest(unittest.TestCase):
         kinds = [message["type"] for message in messages]
         self.assertIn("capture", kinds)
         self.assertIn("halt", kinds)
-        final = [message for message in messages if message["type"] == "status"][-1]
+        statuses = [message for message in messages if message["type"] == "status"]
+        final = statuses[-1]
         self.assertEqual(final["phase"], "done", final)
-        self.assertTrue(final["detail"].startswith("pasted into"), final)
+        # The bubble shows text and detail: the target window is never in detail, so it never reads as dictation.
+        self.assertEqual(
+            [status["detail"] for status in statuses if status["detail"]], [], statuses
+        )
+        self.assertEqual(final["target"], "cat", final)
         words = " ".join(final["text"].split())[:40]
         self.assertTrue(words)
         deadline = time.monotonic() + 5
@@ -650,6 +655,58 @@ class ServerTest(unittest.TestCase):
         code, messages = self.dictate("--seconds", "1.5")
         self.assertFalse(os.path.exists(marker), "the planted json.py ran")
         self.assertEqual(code, 0, f"{messages}\n{self.server_log()}")
+
+    def test_a_finished_dictation_is_reported_once(self):
+        # A session opened afterwards (leave the pane for the hub, open another) starts with a clean button.
+        code, messages = self.dictate("--seconds", "1")
+        self.assertEqual(code, 0, f"{messages}\n{self.server_log()}")
+        credentials = json.load(
+            open(os.path.join(self.directory, "credentials.json"), encoding="utf-8")
+        )
+
+        async def reconnect_and_attach() -> list[dict]:
+            reader, writer, status = await fake_client.handshake(
+                "127.0.0.1", self.port, credentials
+            )
+            seen = [status]
+            attached = subprocess.Popen(
+                [
+                    "script",
+                    "-qfc",
+                    f"tmux -S {self.tmux_socket} attach -t remote",
+                    "/dev/null",
+                ],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            try:
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline and seen[-1]["session"] is not True:
+                    message = await fake_client.receive(reader, timeout=10)
+                    if message["type"] == "status":
+                        seen.append(message)
+            finally:
+                attached.terminate()
+                attached.wait(10)
+            writer.close()
+            return seen
+
+        seen = asyncio.run(reconnect_and_attach())
+        self.assertTrue(seen[-1]["session"], seen)
+        self.assertEqual(
+            {(status["phase"], status["text"]) for status in seen}, {("idle", "")}, seen
+        )
+        # This machine still sees how it ended.
+        status = self.control("status")
+        self.assertEqual((status["phase"], status["target"]), ("done", "cat"), status)
+        cli = subprocess.run(
+            [SERVER, "--control-socket", self.control_socket, "status"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        self.assertIn("Dictation: done (pasted into cat)", cli)
 
     def test_no_attached_client_pastes_nowhere(self):
         # Without --any-pane a session nobody is attached to (the client on the hub's list) is refused.

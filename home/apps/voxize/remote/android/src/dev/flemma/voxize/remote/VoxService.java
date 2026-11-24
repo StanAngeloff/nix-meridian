@@ -105,6 +105,9 @@ public final class VoxService extends Service
     // host:port:device id of the running link; arming again with the same one keeps it.
     private String linkKey;
     private boolean connected;
+    // A connection attempt failed (or there is nothing to connect with): only then is "disconnected" worth showing,
+    // not while the first attempt after arming is still under way.
+    private boolean connectFailed;
     private String connectionNote = "connecting";
     private String phase = "idle";
     private String text = "";
@@ -199,7 +202,9 @@ public final class VoxService extends Service
             if (deviceId == null || secret == null) {
                 connectionNote = "not paired: open Voxize Remote and pair with the server";
                 problemNow = connectionNote;
+                connectFailed = true;
             } else {
+                connectFailed = false;
                 connectionNote = "connecting to " + host + ":" + port;
                 link = new Link(this, host, port, deviceId, secret, this);
                 link.start();
@@ -231,13 +236,15 @@ public final class VoxService extends Service
     }
 
     /**
-     * The floating button shows while Termux is in front with a session open: that is where it pastes. With no
-     * connection it shows too, so the trouble is visible where Stan expects the button. A recording keeps it wherever
+     * The floating button shows while Termux is in front with a session open: that is where it pastes. When the
+     * connection has failed it shows too, so the trouble is visible where Stan expects the button (not while the first
+     * attempt after `ssh cc` is still under way, which would flash it over the hub's list). A recording keeps it wherever
      * Stan goes, so the button that stops it never disappears. Never over this app's screen.
      */
     private void updateOverlay() {
         boolean recording = connected && ("starting".equals(phase) || "recording".equals(phase));
-        boolean wanted = armed && !appInFront && (recording || termuxInFront && (!connected || session));
+        boolean problem = !connected && connectFailed;
+        boolean wanted = armed && !appInFront && (recording || termuxInFront && (problem || connected && session));
         if (!wanted) {
             overlay.hide();
             return;
@@ -333,6 +340,7 @@ public final class VoxService extends Service
                 return;
             }
             connected = true;
+            connectFailed = false;
             connectedNow = true;
             problemNow = "";
             connectionNote = "connected";
@@ -349,6 +357,7 @@ public final class VoxService extends Service
                 return;
             }
             connected = false;
+            connectFailed = true;
             connectedNow = false;
             problemNow = reason;
             connectionNote = reason;

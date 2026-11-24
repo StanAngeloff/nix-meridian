@@ -57,6 +57,8 @@ CLIENT_SILENCE_SECONDS = 90.0
 # Until a client has proved itself: how long it may take, and how big a frame it may send.
 HANDSHAKE_SECONDS = 10.0
 UNAUTHENTICATED_FRAME_BYTES = 4096
+# Phases a dictation ends in; the client is told each ending once.
+ENDED_PHASES = ("done", "cancelled", "error")
 # How long ``voxize-remote pair`` keeps a pairing window open.
 PAIRING_WINDOW_SECONDS = 120.0
 # Connections being identified at once (each runs `tailscale status` and `tailscale whois`) and how long that may take.
@@ -508,7 +510,8 @@ class Dictation:
             try:
                 self.server.tmux.paste(self.target["pane_id"], text)
                 self.phase = "done"
-                self.detail = f"pasted into {self.target['window']}"
+                # The green check says it; detail is for what the client must be told (no speech, failures).
+                self.detail = ""
                 log(f"pasted {len(text)} characters into {self.target['pane_id']}")
             except RuntimeError as error:
                 self.phase = "error"
@@ -581,6 +584,9 @@ class Server:
         self.pairing_window: PairingWindow | None = None
         self.identify_slots = asyncio.Semaphore(IDENTIFYING_AT_ONCE)
         self.last: dict = {"phase": "idle", "text": "", "detail": ""}
+        # The client has been sent how the last dictation ended (done, cancelled, error): from then on it hears "idle",
+        # so a session opened later starts with a clean button; `voxize-remote status` keeps showing the result.
+        self.end_reported = False
         # Whether the client's Termux has a session open; the client shows its floating button only then.
         self.session = False
         # When the server last had a reason to stay up: a client, a dictation, or a pairing window.
@@ -612,26 +618,41 @@ class Server:
                 self.session = attached
                 self.publish()
 
-    def status(self) -> dict:
+    def status(self, for_client: bool = False) -> dict:
         dictation = self.dictation
         if dictation is not None:
             self.last = {
                 "phase": dictation.phase,
                 "text": dictation.display_text(),
-                "detail": dictation.detail or f"for {dictation.target['window']}",
+                "detail": dictation.detail,
+                # The tmux window it pastes into: for `voxize-remote status`; the client shows only text and detail.
+                "target": dictation.target["window"],
             }
             if dictation.phase in ("finishing", "processing"):
                 self.last["progress"] = dictation.progress
+        shown = self.last
+        ended = dictation is None or dictation.phase in ENDED_PHASES
+        if for_client and ended and self.end_reported:
+            shown = {"phase": "idle", "text": "", "detail": ""}
         return {
             "type": "status",
             "client": self.client.name if self.client else None,
             "session": self.session,
-            **self.last,
+            **shown,
         }
+
+    def end(self, last: dict) -> None:
+        """An attempt at a dictation failed before it began: told to the client once, kept for `voxize-remote status`."""
+        self.last = last
+        self.end_reported = False
+        self.publish()
 
     def publish(self) -> None:
         if self.client is not None:
-            self.client.send(self.status())
+            status = self.status(for_client=True)
+            self.client.send(status)
+            if status["phase"] in ENDED_PHASES:
+                self.end_reported = True
 
     def drop_device(self, device_id: str, reason: str) -> None:
         """A paired client that lost its pairing: its dictation is dropped (never pasted) and its connection closed."""
@@ -653,11 +674,11 @@ class Server:
             try:
                 target = self.tmux.pick_target()
             except (RuntimeError, ValueError) as error:
-                self.last = {"phase": "error", "text": "", "detail": str(error)}
-                self.publish()
+                self.end({"phase": "error", "text": "", "detail": str(error)})
                 return self.last["detail"]
             dictation = Dictation(self, target)
             self.dictation = dictation
+            self.end_reported = False
             try:
                 await dictation.begin(self.mock)
             except (
@@ -665,12 +686,13 @@ class Server:
             ) as error:  # noqa: BLE001 — report any spawn failure to the client
                 self.dictation = None
                 self.halt_client()
-                self.last = {
-                    "phase": "error",
-                    "text": "",
-                    "detail": f"backend did not start: {error}",
-                }
-                self.publish()
+                self.end(
+                    {
+                        "phase": "error",
+                        "text": "",
+                        "detail": f"backend did not start: {error}",
+                    }
+                )
                 return self.last["detail"]
             # The client's connection is not read while begin() runs, so its audio waits in the socket until here.
             if self.client is not None:
@@ -692,9 +714,10 @@ class Server:
 
     def dictation_ended(self, dictation: Dictation) -> None:
         if self.dictation is dictation:
-            self.status()  # keep its last words for the client
+            self.status()  # its last words, into self.last
             self.dictation = None
-            self.publish()
+            if not self.end_reported:
+                self.publish()  # a client that missed the end (it was away) hears it once
 
     # The client connection.
 
@@ -1294,10 +1317,13 @@ def describe(command: str, reply: dict) -> str:
                 f"Termux session open: {'yes' if reply.get('session') else 'no'}"
             )
         phase = reply.get("phase", "idle")
-        lines.append(
-            f"Dictation: {phase}"
-            + (f" ({reply['detail']})" if reply.get("detail") else "")
-        )
+        line = f"Dictation: {phase}"
+        if reply.get("target"):
+            pasted = phase == "done" and not reply.get("detail")
+            line += f" ({'pasted into' if pasted else 'for'} {reply['target']})"
+        if reply.get("detail"):
+            line += f": {reply['detail']}"
+        lines.append(line)
         if reply.get("progress") is not None:
             lines.append(f"Progress: {round(reply['progress'] * 100)}%")
         return "\n".join(lines)
