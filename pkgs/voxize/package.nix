@@ -21,12 +21,12 @@
   ibm-plex,
 }:
 let
-  version = "0.4.1";
+  version = "0.4.2";
   python = python313;
   # Voxize Remote's Android client as the release signed it; `voxize-remote setup-client` installs it.
   remoteApk = fetchurl {
     url = "https://github.com/Flemma-Dev/voxize/releases/download/v${version}/voxize-remote-${version}.apk";
-    hash = "sha256-0q/FYd0ltmSBnTvuay4laKTpQUYoWkrq7exB1O9Essc=";
+    hash = "sha256-3YQLWjLFy7YX3E8Ft3s1c+hYlBWtZDw+JqiSDGNGvJo=";
   };
   runtimeLibs = [
     gtk4
@@ -56,7 +56,7 @@ python.pkgs.buildPythonApplication rec {
     owner = "Flemma-Dev";
     repo = "voxize";
     rev = "v${version}";
-    hash = "sha256-Pebs+tjNZ//xJw7csGabbvXMQ9vO8UQfUXGbn4MqPuA=";
+    hash = "sha256-x6ADE4crefsalE1inB4EJJ4NYlHpIW6rqnnbtcLqxnA=";
   };
 
   buildInputs = runtimeDeps;
