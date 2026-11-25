@@ -117,6 +117,82 @@ let
 
   # Cleans what the copy bindings in tmux.conf copy in a Claude Code pane.
   claudeCopy = pkgs.callPackage ./claude-copy/package.nix { };
+
+  # Right-click and Alt+right-click on a pane: tmux's own pane menu, pasted into pane-menu/stock.conf,
+  # with an Open entry first for the file or directory named under the pointer (pane-menu/open-file.sh).
+  openFile = pkgs.writeShellApplication {
+    name = "tmux-open-file";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.tmux
+    ];
+    text = builtins.readFile ./pane-menu/open-file.sh;
+  };
+  stockPaneMenuBinding =
+    key:
+    let
+      prefix = "bind-key  -T root ${key} ";
+    in
+    pkgs.lib.removePrefix prefix (
+      pkgs.lib.findFirst (pkgs.lib.hasPrefix prefix) (throw "pane-menu/stock.conf has no ${key} binding")
+        (pkgs.lib.splitString "\n" (builtins.readFile ./pane-menu/stock.conf))
+    );
+  # Alt+right-click is the menu alone; right-click opens the same menu unless a program in the pane reads the mouse.
+  stockPaneMenu = stockPaneMenuBinding "M-MouseDown3Pane";
+  stockPaneMenuCondition =
+    let
+      binding = stockPaneMenuBinding "MouseDown3Pane";
+      menuSuffix = " { ${stockPaneMenu} }";
+    in
+    assert pkgs.lib.assertMsg (pkgs.lib.hasSuffix menuSuffix binding)
+      "pane-menu/stock.conf: the right-click binding no longer ends in the Alt+right-click menu";
+    pkgs.lib.removeSuffix menuSuffix binding;
+  # The Open entry goes between the menu's title and placement and its first item.
+  stockPaneMenuHeader = ''display-menu -T "#[align=centre]#{pane_index} (#{pane_id})" -t = -x M -y M '';
+  stockPaneMenuItems =
+    assert pkgs.lib.assertMsg (pkgs.lib.hasPrefix stockPaneMenuHeader stockPaneMenu)
+      "pane-menu/stock.conf: the pane menu no longer starts with its title and placement";
+    pkgs.lib.removePrefix stockPaneMenuHeader stockPaneMenu;
+  # tmux's word-separators split a path at every / and ., so they are narrowed while run-shell reads #{mouse_word}, then put back.
+  paneMenuWithOpenFile = builtins.concatStringsSep " ; " [
+    ''set -gF @open-file-separators "#{word-separators}"''
+    ''set -g word-separators " \"'`()[]{}<>|;"''
+    ''run-shell -t = "${pkgs.lib.getExe openFile} find #{pane_id} x#{q:pane_current_path} x#{q:mouse_hyperlink} x#{q:mouse_word}"''
+    ''set -gF word-separators "#{@open-file-separators}"''
+    (
+      stockPaneMenuHeader
+      + ''"#{?@open-file-path,Open #[underscore]#{=/-40/...:@open-file-label},-Open File}" o { run-shell -b -t = "${pkgs.lib.getExe openFile} open #{pane_id}" } ''
+      + "'' "
+      + stockPaneMenuItems
+    )
+  ];
+  paneMenu = ''
+    bind -n MouseDown3Pane ${stockPaneMenuCondition} { ${paneMenuWithOpenFile} }
+    bind -n M-MouseDown3Pane { ${paneMenuWithOpenFile} }
+  '';
+  # Fails the build when tmux's own pane menus no longer match pane-menu/stock.conf, or the menus with the Open entry don't load.
+  paneMenuCheck =
+    pkgs.runCommand "tmux-pane-menu-check"
+      {
+        nativeBuildInputs = [
+          pkgs.diffutils
+          pkgs.tmux
+        ];
+      }
+      ''
+        list_menus() {
+          tmux -S "$TMPDIR/$1" -f "$2" start-server \; list-keys -T root MouseDown3Pane \; list-keys -T root M-MouseDown3Pane
+        }
+        if ! diff -u <(grep -v '^#' ${./pane-menu/stock.conf}) <(list_menus stock /dev/null); then
+          echo "tmux ${pkgs.tmux.version} has changed its own pane menus: replace the bind-key lines in home/apps/tmux/pane-menu/stock.conf with the + lines above." >&2
+          exit 1
+        fi
+        if [ "$(list_menus open-file ${pkgs.writeText "tmux-pane-menu.conf" paneMenu} | grep -c '@open-file-path')" != 2 ]; then
+          echo "The pane menus with the Open entry do not load in tmux ${pkgs.tmux.version}." >&2
+          exit 1
+        fi
+        touch "$out"
+      '';
 in
 {
   programs.tmux = {
@@ -169,6 +245,9 @@ in
       ${builtins.replaceStrings [ "@navigator@" ] [ (pkgs.lib.getExe navigator) ] (
         builtins.readFile ./abilities/tmux.navigator.conf
       )}
+      ${paneMenu}
     '';
   };
+
+  home.checks = [ paneMenuCheck ];
 }
