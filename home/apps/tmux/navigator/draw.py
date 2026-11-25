@@ -39,6 +39,7 @@ DOT_ON_CYAN = {
 POWERLINE_ARROW = "\ue0b0"
 DOT = "●"
 TICK = "✓"  # a branch that ended (agents.py), in the read shade, for the linger time
+CROSS = "✗"  # one that was stopped instead, in the blocked shade, for the same time
 # Most agent rows an expanded workflow shows (Space); a last row counts the rest.
 WORKFLOW_ROWS = 20
 ELLIPSIS = "…"
@@ -274,11 +275,16 @@ class RowPainter:
         self.c.put(x, y, glyph, fg, self.bg)
 
     def branch(self, x: int, y: int, branch: Branch) -> None:
-        """A branch's dot (its tick once ended) at x, its label after it, and a workflow's progress against the right
-        edge when there is room for both."""
+        """A branch's dot (its tick once ended, its cross once stopped) at x, its label after it, and a workflow's
+        progress against the right edge when there is room for both."""
         if branch.kind != "more":
             dots = DOT_ON_CYAN if self.on_cyan else DOT_ON_DARK
-            glyph, state = (DOT, "working") if branch.running else (TICK, "read")
+            if branch.running:
+                glyph, state = DOT, "working"
+            elif branch.stopped:
+                glyph, state = CROSS, "blocked"
+            else:
+                glyph, state = TICK, "read"
             self.c.put(x, y, glyph, dots[state], self.bg)
         x += 2
         width = self.c.cols - x - 1

@@ -8,7 +8,10 @@ lossy, nor from the screen:
 - The session's directory, ~/.claude/projects/<slug>/<sessionId>/ (in the bubble's state overlay for a project other
   than the one it was launched in), beside its transcript, <sessionId>.jsonl:
   - subagents/agent-<id>.meta.json and agent-<id>.jsonl for every Agent call and fork. A background agent's meta gains
-    "finished" (or "stoppedByUser") when it ends; a foreground one has ended when its transcript ends its turn.
+    "finished" when it ends; a foreground one has ended when its transcript ends its turn. An agent stopped mid-turn
+    ends its transcript with "[Request interrupted by user…]", and that is all Claude's TaskStop leaves; Stan's x in
+    the background tasks also marks the meta "stoppedByUser" (or, when that write fails, creates
+    agent-<id>.stopped-by-user beside it).
   - subagents/workflows/<run>/journal.jsonl, appended as a workflow's agents start and return; workflows/scripts/
     <name>-<run>.js, written as the run starts; workflows/<run>.json, written only once it has ended.
 - A shell in the background is a child of the Claude Code process writing to tasks/<id>.output, as the shell of a
@@ -40,6 +43,7 @@ FIND_AGAIN_SECONDS = (
 )
 SPAWN_LOOKS = 5  # how many looks a nested agent's parent is searched for before it hangs under the session
 
+INTERRUPTED = "[Request interrupted by user"  # "…]" or "… for tool use]"
 BACKGROUND_TASK = re.compile(r'"backgroundTaskId"\s*:\s*"(\w+)"')
 TASK_OUTPUT = re.compile(r"/tasks/(\w+)\.output$")
 LABEL_WIDTH = 60  # of a shell's command
@@ -166,6 +170,32 @@ def turn_ended(lines: list[str]) -> bool:
     return False
 
 
+def interrupted(lines: list[str]) -> bool:
+    """Whether an agent's transcript ends stopped: its last message is the note Claude Code adds when the agent is
+    stopped mid-turn. A message sent to it afterwards resumes it, and is then the last.
+    """
+    # A running agent's transcript changes every few seconds: most looks need no parsing at all.
+    if not any(INTERRUPTED in line for line in lines):
+        return False
+    for entry in parsed(lines[::-1]):
+        if entry.get("type") == "assistant":
+            return False
+        if entry.get("type") != "user":
+            continue
+        content = (entry.get("message") or {}).get("content")
+        if isinstance(content, str):
+            return content.startswith(INTERRUPTED)
+        texts = [
+            part.get("text")
+            for part in content or []
+            if isinstance(part, dict) and part.get("type") == "text"
+        ]
+        return any(
+            isinstance(text, str) and text.startswith(INTERRUPTED) for text in texts
+        )
+    return False
+
+
 def find_claude(pid: str, root: str) -> str:
     """The Claude Code process at or below pid, else nothing."""
     pending, seen = [pid], set()
@@ -248,10 +278,12 @@ class Agent:
     )
     parent_looks: int = 0
     running: bool = True
+    stopped: bool = False  # ended by a stop rather than finishing
     ended_at: float = 0.0
     transcript: tuple[int, int] | None = (
         None  # its transcript's signature when last read
     )
+    interrupted: bool = False  # whether its transcript ended stopped when last read
 
 
 @dataclass
@@ -296,7 +328,7 @@ class SessionState:
 
 class Scanner:
     """Gives each Claude Code pane its branches, from one look a second; it keeps what it found between looks, so a
-    branch that ended keeps its tick for the linger time and nothing unchanged is read twice.
+    branch that ended keeps its tick (its cross, when stopped) for the linger time and nothing unchanged is read twice.
     """
 
     def __init__(self, home: str, proc_root: str = "/proc", state_home: str = ""):
@@ -430,8 +462,10 @@ class Scanner:
                     state.agents_listed = (
                         None  # its meta was half written: list again next look
                     )
+        # A background agent that was stopped is looked at every time too: a message sent to it resumes it, and its
+        # transcript grows only after its meta was replaced.
         for agent in sorted(state.agents.values(), key=lambda a: a.depth):
-            if agent.running:
+            if agent.running or agent.background and agent.stopped:
                 self.update_agent(state, agent, busy, busy_since)
 
     def add_agent(self, state: SessionState, agent_id: str) -> bool:
@@ -467,13 +501,23 @@ class Scanner:
         path = f"{state.directory}/subagents/agent-{agent.id}"
         if agent.parent is None:
             self.find_parent(state, agent)
+        lines = self.read_transcript(agent, path + ".jsonl")
         if agent.background:
             meta = state.files.json(path + ".meta.json")
             if not isinstance(meta, dict):
                 return
-            ended = bool(meta.get("finished") or meta.get("stoppedByUser"))
-            agent.running = not ended
-            agent.ended_at = modified(path + ".meta.json") if ended else 0.0
+            stopped = (
+                agent.interrupted
+                or bool(meta.get("stoppedByUser"))
+                or os.path.exists(path + ".stopped-by-user")
+            )
+            ended = stopped or bool(meta.get("finished"))
+            agent.running, agent.stopped = not ended, stopped
+            agent.ended_at = (
+                max(modified(path + ".meta.json"), modified(path + ".jsonl"))
+                if ended
+                else 0.0
+            )
             return
         # A foreground agent runs only within its parent's own run: the session's current busy spell, or a running agent.
         parent = state.agents.get(agent.parent or "")
@@ -481,13 +525,20 @@ class Scanner:
             parent_running = parent.running
         else:
             parent_running = busy and agent.started_at >= busy_since - 1
-        transcript = signature(path + ".jsonl")
-        ended = False
-        if transcript != agent.transcript:
-            agent.transcript = transcript
-            ended = turn_ended(read_tail(path + ".jsonl"))
-        if ended or not parent_running:
-            agent.running, agent.ended_at = False, modified(path + ".jsonl")
+        ended = lines is not None and turn_ended(lines)
+        if ended or agent.interrupted or not parent_running:
+            agent.running, agent.stopped = False, agent.interrupted
+            agent.ended_at = modified(path + ".jsonl")
+
+    def read_transcript(self, agent: Agent, path: str) -> list[str] | None:
+        """The end of the agent's transcript when it changed since the last look, else nothing."""
+        found = signature(path)
+        if found == agent.transcript:
+            return None
+        agent.transcript = found
+        lines = read_tail(path)
+        agent.interrupted = interrupted(lines)
+        return lines
 
     def find_parent(self, state: SessionState, agent: Agent) -> None:
         """The running agent one level up whose transcript holds the call that spawned agent; the session when none
@@ -513,7 +564,12 @@ class Scanner:
     ) -> list[Branch]:
         nodes = {
             agent.id: Branch(
-                "agent", agent.id, agent.label, agent.running, agent.ended_at
+                "agent",
+                agent.id,
+                agent.label,
+                agent.running,
+                agent.ended_at,
+                stopped=agent.stopped,
             )
             for agent in state.agents.values()
             if agent.depth <= MAX_DEPTH
@@ -659,17 +715,21 @@ class Scanner:
 
 def settle(branch: Branch) -> None:
     """An agent waits for the agents it started: it reads as running while any of them runs, and keeps its tick for as
-    long as theirs."""
+    long as theirs. One that was stopped waits for nothing, but its cross stays for as long as theirs, so they keep
+    their place under it."""
     for child in branch.children:
         settle(child)
-        branch.running = branch.running or child.running
+        if not branch.stopped:
+            branch.running = branch.running or child.running
         branch.ended_at = max(branch.ended_at, child.ended_at)
 
 
 def shown(branches: list[Branch], now: float, linger: float) -> list[Branch]:
-    kept = [b for b in branches if b.running or now - b.ended_at <= linger]
-    for branch in kept:
+    kept = []
+    for branch in branches:
         branch.children = shown(branch.children, now, linger)
+        if branch.running or branch.children or now - branch.ended_at <= linger:
+            kept.append(branch)
     return kept
 
 

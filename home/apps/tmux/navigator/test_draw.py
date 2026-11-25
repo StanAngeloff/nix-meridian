@@ -158,6 +158,14 @@ class BranchTest(unittest.TestCase):
             canvas.cells[5][draw.CONTENT_X + 6][1], draw.DOT_ON_CYAN["read"]
         )
 
+    def test_a_stopped_branch_shows_a_cross_in_the_blocked_shade(self):
+        stopped = Branch("agent", "a1", "wait", False, ended_at=1.0, stopped=True)
+        canvas = self.frame([stopped])
+        self.assertEqual(canvas.text(3).rstrip(), f"   ╵    └─ {draw.CROSS} wait")
+        self.assertEqual(
+            canvas.cells[3][draw.CONTENT_X + 6][1], draw.DOT_ON_CYAN["blocked"]
+        )
+
     def test_a_branch_under_a_pane_with_panes_after_it_keeps_that_panes_line(self):
         agent = Branch("agent", "a1", "research", True)
         first = Pane("%1", "claude", "~", "✳ Do it", "working", branches=[agent])

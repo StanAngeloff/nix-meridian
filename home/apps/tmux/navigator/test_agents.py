@@ -26,6 +26,14 @@ def assistant(stop_reason, *tools):
     }
 
 
+def interruption(text="[Request interrupted by user for tool use]"):
+    """The note Claude Code adds to an agent's transcript when the agent is stopped mid-turn."""
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": [{"type": "text", "text": text}]},
+    }
+
+
 class Fixture(unittest.TestCase):
     """A home with one Claude Code session, process 50 under the pane's shell 40, and a /proc to match."""
 
@@ -146,8 +154,67 @@ class AgentTest(Fixture):
         )
         [branch] = self.scan(now=NOW + 1)
         self.assertFalse(branch.running)
+        self.assertFalse(branch.stopped)
         self.assertEqual(branch.ended_at, NOW)
         self.assertEqual(self.scan(now=NOW + LINGER + 1), [])
+
+    def test_an_agent_claude_stops_shows_it_only_in_its_transcript_and_is_crossed_for_the_linger_time(
+        self,
+    ):
+        meta = {"description": "wait", "requestShape": "background", "spawnDepth": 1}
+        path = f"{self.directory}/subagents/agent-s1.jsonl"
+        self.agent("s1", meta, [assistant("tool_use", "Bash")])
+        self.assertTrue(self.scan()[0].running)
+        self.lines(
+            path,
+            [assistant("tool_use", "Bash"), interruption(), {"type": "attachment"}],
+            at=NOW,
+        )
+        [branch] = self.scan(now=NOW + 1)
+        self.assertEqual(
+            (branch.running, branch.stopped, branch.ended_at), (False, True, NOW)
+        )
+        self.assertEqual(self.scan(now=NOW + LINGER + 1), [])
+
+    def test_stans_x_marks_the_meta_or_a_file_beside_it(self):
+        meta = {"description": "x", "requestShape": "background"}
+        self.agent("x1", meta | {"stoppedByUser": True}, at=NOW - 2)
+        self.agent("x2", meta, at=NOW - 2)
+        self.write(
+            f"{self.directory}/subagents/agent-x2.stopped-by-user", "", at=NOW - 2
+        )
+        self.assertEqual(
+            [(b.running, b.stopped) for b in self.scan()], [(False, True)] * 2
+        )
+
+    def test_a_stopped_agent_sent_a_message_runs_again(self):
+        meta = {"description": "wait", "requestShape": "background"}
+        path = f"{self.directory}/subagents/agent-r1.jsonl"
+        stopped = [assistant("tool_use", "Bash"), interruption()]
+        self.agent("r1", meta, stopped, at=NOW - 2)
+        self.assertTrue(self.scan()[0].stopped)
+        # Only the transcript changes: Claude Code replaced the meta, unchanged, a few seconds earlier.
+        message = {
+            "type": "user",
+            "isMeta": True,
+            "message": {"role": "user", "content": "The coordinator sent a message"},
+        }
+        self.lines(path, stopped + [message], at=NOW)
+        [branch] = self.scan(now=NOW + 1)
+        self.assertEqual((branch.running, branch.stopped), (True, False))
+
+    def test_a_foreground_agent_stopped_mid_turn_is_crossed(self):
+        self.agent(
+            "f2",
+            {"description": "explore"},
+            [
+                assistant("tool_use", "Read"),
+                interruption("[Request interrupted by user]"),
+            ],
+            at=NOW - 5,
+        )
+        [branch] = self.scan()
+        self.assertEqual((branch.running, branch.stopped), (False, True))
 
     def test_a_fork_is_called_by_its_name(self):
         self.agent(
@@ -312,6 +379,34 @@ class NestingTest(Fixture):
         self.write(path + ".new", json.dumps(meta), at=NOW)
         os.replace(path + ".new", path)
         self.assertTrue(self.scan(now=NOW + 1)[0].running)
+
+    def test_a_stopped_agent_keeps_its_cross_while_an_agent_it_started_runs(self):
+        lead = {"description": "lead", "spawnDepth": 1, "requestShape": "background"}
+        self.agent(
+            "p6", lead, [assistant("tool_use", "Agent"), interruption()], at=NOW - 2
+        )
+        helper = {
+            "description": "helper",
+            "spawnDepth": 2,
+            "parentAgentId": "p6",
+            "requestShape": "background",
+        }
+        self.agent("c6", helper)
+        [root] = self.scan()
+        self.assertEqual(
+            (root.running, root.stopped, root.children[0].running), (False, True, True)
+        )
+        # Long after its own stop it stays, the helper still running under it…
+        [root] = self.scan(now=NOW + LINGER + 5)
+        self.assertEqual([c.label for c in root.children], ["helper"])
+        # …and goes the linger time after the helper ends.
+        self.write(
+            f"{self.directory}/subagents/agent-c6.meta.json",
+            json.dumps(helper | {"finished": True}),
+            at=NOW + 40,
+        )
+        self.assertEqual(len(self.scan(now=NOW + 41)), 1)
+        self.assertEqual(self.scan(now=NOW + 40 + LINGER + 1), [])
 
     def test_an_agent_whose_parent_is_not_found_hangs_under_the_session(self):
         self.spawn("p2", 1, None, "research")

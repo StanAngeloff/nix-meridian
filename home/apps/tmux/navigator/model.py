@@ -57,6 +57,9 @@ class Branch:
         ""  # a workflow's phase and its done and started agents, as "Verify 1/3"
     )
     children: list["Branch"] = field(default_factory=list)
+    stopped: bool = (
+        False  # it was stopped rather than finishing; a cross shows instead of the tick
+    )
 
 
 @dataclass
