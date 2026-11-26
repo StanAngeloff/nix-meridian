@@ -124,6 +124,8 @@ class View:
     glyphs: Glyphs = NERD_FONT
     # Windows whose workflows list their agents, one row each, rather than a count (Space).
     expanded: frozenset[str] = frozenset()
+    # The pane under the cursor while the cursor's window has its panes grouped (g): its rows are marked, not the window's.
+    cursor_pane: str = ""
 
 
 class Canvas:
@@ -214,14 +216,22 @@ def icon(pane: Pane, on_cyan: bool, glyphs: Glyphs = NERD_FONT) -> tuple[str, st
 
 
 class RowPainter:
-    """Paints the rows of one window: cyan when it is the open window, grey under the cursor."""
+    """Paints the rows of one window: cyan when it is the open window, grey under the cursor.
 
-    def __init__(self, c: Canvas, view: View, window: Window):
+    While its panes are being grouped, grouped_pane says which rows these are: the pane under the cursor's, cyan,
+    or the rest of the window's, grey under the cursor wherever the window is.
+    """
+
+    def __init__(
+        self, c: Canvas, view: View, window: Window, grouped_pane: bool | None = None
+    ):
         self.c = c
         self.glyphs = view.glyphs
         lifted = window.id == view.dragging
         self.on_cyan = window.id == view.open_window and not lifted
         self.under_cursor = lifted or (view.focused and window.id == view.cursor)
+        if grouped_pane is not None:
+            self.on_cyan, self.under_cursor = grouped_pane, True
         if self.on_cyan:
             self.bg = FOCUSED_TAB_BG
         elif lifted:
@@ -324,9 +334,16 @@ def list_lines(c: Canvas, view: View, sessions: list[Session]) -> list[Line]:
 
 
 def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line]:
-    """The window's name, then one tree line per pane, each followed by its branches (agents.py); the window line has
-    no icon, as state belongs to panes. A row of a pane's branch opens that pane."""
-    row = RowPainter(c, view, window)
+    """The window's name, then one tree line per pane, each followed by its branches (agents.py);
+    the window line has no icon, as state belongs to panes. A group's panes hang off a fork on its first pane's line.
+    A row of a pane's branch opens that pane.
+
+    While its panes are being grouped, the window shows grey under the cursor and the pane under it cyan.
+    """
+    panes = window.panes
+    grouping = view.focused and any(p.id == view.cursor_pane for p in panes)
+    row = RowPainter(c, view, window, grouped_pane=False if grouping else None)
+    marked = RowPainter(c, view, window, grouped_pane=True) if grouping else row
 
     def name_line(y, trunk):
         row.start(y, trunk, str(window.index))
@@ -336,14 +353,51 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
         row.name(CONTENT_X, y, window.title, repository)
 
     drawers = [(name_line, "")]
-    for p, pane in enumerate(window.panes):
-        last_pane = p == len(window.panes) - 1
+    for p, pane in enumerate(panes):
+        painter = marked if pane.id == view.cursor_pane else row
+        grouped = pane.group != 0
+        first = grouped and (p == 0 or panes[p - 1].group != pane.group)
+        last_of_group = grouped and (
+            p == len(panes) - 1 or panes[p + 1].group != pane.group
+        )
+        # Whether the window's line runs on past this pane, or past its group: something comes after either.
+        item_end = p
+        while (
+            grouped
+            and item_end + 1 < len(panes)
+            and panes[item_end + 1].group == pane.group
+        ):
+            item_end += 1
+        more = item_end < len(panes) - 1
+        # The guides a branch row carries for the lines it crosses, and the column its own tree starts in.
+        guides_before = [(CONTENT_X, more)]
+        if grouped:
+            guides_before.append((CONTENT_X + 2, not last_of_group))
+        base = CONTENT_X + (4 if grouped else 3)
 
-        def pane_line(y, trunk, pane=pane, last_pane=last_pane):
-            row.start(y, trunk)
-            row.c.put(CONTENT_X, y, "└─" if last_pane else "├─", row.trunk_fg, row.bg)
-            row.icon(CONTENT_X + 3, y, pane)
-            row.secondary(CONTENT_X + 5, y, pane.label)
+        def pane_line(
+            y,
+            trunk,
+            painter=painter,
+            pane=pane,
+            grouped=grouped,
+            first=first,
+            last_of_group=last_of_group,
+            more=more,
+            base=base,
+        ):
+            painter.start(y, trunk)
+            fg, bg = painter.trunk_fg, painter.bg
+            if not grouped:
+                painter.c.put(CONTENT_X, y, "├─" if more else "└─", fg, bg)
+            elif first:
+                painter.c.put(CONTENT_X, y, "├─┬" if more else "└─┬", fg, bg)
+            else:
+                if more:
+                    painter.c.put(CONTENT_X, y, "│", fg, bg)
+                painter.c.put(CONTENT_X + 2, y, "└" if last_of_group else "├", fg, bg)
+            painter.icon(base, y, pane)
+            painter.secondary(base + 2, y, pane.label)
 
         drawers.append((pane_line, pane.id))
         expanded = window.id in view.expanded
@@ -355,16 +409,25 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
                 guides=guides,
                 last_branch=last_branch,
                 branch=branch,
-                last_pane=last_pane,
+                painter=painter,
+                guides_before=guides_before,
+                base=base,
             ):
-                row.start(y, trunk)
-                # Guides: the pane's own line down to the panes after it, then one per level above this branch.
-                for level, more in enumerate((not last_pane,) + guides):
-                    if more:
-                        row.c.put(CONTENT_X + 3 * level, y, "│", row.trunk_fg, row.bg)
-                x = CONTENT_X + 3 * (len(guides) + 1)
-                row.c.put(x, y, "└─" if last_branch else "├─", row.trunk_fg, row.bg)
-                row.branch(x + 3, y, branch)
+                painter.start(y, trunk)
+                # Guides: the window's line and the group's down to what comes after, then one per level above this branch.
+                for x, line in guides_before:
+                    if line:
+                        painter.c.put(x, y, "│", painter.trunk_fg, painter.bg)
+                for level, line in enumerate(guides):
+                    if line:
+                        painter.c.put(
+                            base + 3 * level, y, "│", painter.trunk_fg, painter.bg
+                        )
+                x = base + 3 * len(guides)
+                painter.c.put(
+                    x, y, "└─" if last_branch else "├─", painter.trunk_fg, painter.bg
+                )
+                painter.branch(x + 3, y, branch)
 
             drawers.append((branch_line, pane.id))
     # The trunk stops at mid-row on the session's last row, level with the last branch beside it.
@@ -411,7 +474,12 @@ def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
 HINTS = [
     [("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")],
     [("⇧↑ ⇧↓", "reorder"), ("1-9", "jump")],
-    [("space", "workflow agents")],
+    [("space", "workflow agents"), ("g", "group")],
+]
+# While a window's panes are grouped (g), always: the keys differ, and they say which mode the navigator is in.
+GROUP_HINTS = [
+    [("j k", "pane"), ("h l", "group"), ("J K", "move")],
+    [("⏎", "open"), ("g q", "done")],
 ]
 
 

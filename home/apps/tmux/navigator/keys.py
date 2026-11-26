@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 
-from model import Session, session_of, window_order
+from model import Session, Window, session_of, window_order
 
 # A digit typed within this many seconds of the previous one extends the window number: 1 then 2 is window 12.
 NUMBER_TIMEOUT = 0.8
@@ -17,6 +17,15 @@ ENTER = ("\r", "\n")
 LEAVE = ("\t", "\x1b")  # Tab hands focus back to the pane; so does Esc
 HELP = "?"  # shows the key hints, and hides them again
 SPACE = " "  # lists the workflows of the cursor's window agent by agent, and folds them back into a count
+# Shift+J and Shift+K do what Shift+Down and Shift+Up do: move the window under the cursor, or a pane while grouping.
+MOVE_DOWN = ("J", SHIFT_DOWN)
+MOVE_UP = ("K", SHIFT_UP)
+GROUP = "g"  # starts grouping the panes of the cursor's window, and ends it
+# While grouping: a pane joins a group, or leaves its group (layout.py, joined and left).
+NEST = ("l", "\x1b[C")
+UNNEST = ("h", "\x1b[D")
+ESCAPE = "\x1b"
+QUIT = "q"  # ends grouping, as g and Esc do
 
 # A mouse event in SGR form (mode 1006), which the navigator asks tmux for: ESC [ < button ; column ; row, then M for
 # a press or m for a release. Column and row count from 1 at the pane's top left.
@@ -33,7 +42,8 @@ WHEEL_DOWN = 65
 @dataclass
 class Action:
     """What a key or click asks for: "open" the cursor's window, keeping focus in the navigator or giving it to
-    pane; "leave" for the window's pane; or "move" window before or after neighbour, a drop.
+    pane; "leave" for the window's pane; "move" window before or after neighbour, a drop; while grouping, "regroup"
+    pane of window, side "join" or "leave", or "swap" pane with its neighbour, a pane too.
     """
 
     kind: str
@@ -64,6 +74,8 @@ class Cursor:
     expanded: set[str] = field(
         default_factory=set
     )  # windows whose workflows list their agents
+    # The pane under the cursor while the panes of the cursor's window are being grouped; empty otherwise.
+    pane: str = ""
 
 
 def split_keys(data: str):
@@ -86,12 +98,16 @@ def handle_key(
     """Applies one key or click to the cursor, and returns the action it asks for, if any.
 
     targets maps each row of the last frame drawn to the window and pane a click there opens (draw.Canvas).
+    A click while grouping ends the grouping and counts as it would otherwise.
     """
     mouse = MOUSE.fullmatch(key)
+    if cursor.pane and not mouse:
+        return handle_grouping(cursor, sessions, key)
+    cursor.pane = ""
     if mouse:
         return handle_mouse(cursor, sessions, mouse, targets)
-    if key in (SHIFT_DOWN, SHIFT_UP):
-        return shift(cursor, sessions, 1 if key == SHIFT_DOWN else -1)
+    if key in MOVE_DOWN or key in MOVE_UP:
+        return shift(cursor, sessions, 1 if key in MOVE_DOWN else -1)
     if key in DOWN or key in UP:
         move(cursor, sessions, 1 if key in DOWN else -1)
     elif key.isdigit():
@@ -104,7 +120,52 @@ def handle_key(
         cursor.help = not cursor.help
     elif key == SPACE and cursor.window:
         cursor.expanded ^= {cursor.window}
+    elif key == GROUP:
+        window = window_of(sessions, cursor.window)
+        if window and len(window.panes) > 1:
+            cursor.pane = window.panes[0].id
     return None
+
+
+def handle_grouping(cursor: Cursor, sessions: list[Session], key: str) -> Action | None:
+    """Keys while grouping the panes of the cursor's window: j and k move between its panes,
+    l and h nest a pane into a group and take it out, J and K move it past its neighbour, Enter opens it;
+    g, q or Esc end the grouping, and Tab leaves the navigator."""
+    window = window_of(sessions, cursor.window)
+    order = [pane.id for pane in window.panes] if window else []
+    if cursor.pane not in order:
+        cursor.pane = ""  # the pane or its window went away
+        return None
+    position = order.index(cursor.pane)
+    if key in DOWN or key in UP:
+        cursor.pane = order[(position + (1 if key in DOWN else -1)) % len(order)]
+    elif key in NEST or key in UNNEST:
+        side = "join" if key in NEST else "leave"
+        return Action("regroup", pane=cursor.pane, window=cursor.window, side=side)
+    elif key in MOVE_DOWN or key in MOVE_UP:
+        neighbour = position + (1 if key in MOVE_DOWN else -1)
+        if 0 <= neighbour < len(order):
+            return Action(
+                "swap",
+                pane=cursor.pane,
+                window=cursor.window,
+                neighbour=order[neighbour],
+            )
+    elif key in ENTER:
+        pane, cursor.pane = cursor.pane, ""
+        return Action("open", pane=pane)
+    elif key in (GROUP, QUIT, ESCAPE):
+        cursor.pane = ""
+    elif key in LEAVE:
+        cursor.pane = ""
+        return Action("leave")
+    return None
+
+
+def window_of(sessions: list[Session], window_id: str) -> Window | None:
+    return next(
+        (w for session in sessions for w in session.windows if w.id == window_id), None
+    )
 
 
 def handle_mouse(cursor, sessions, mouse: re.Match, targets) -> Action | None:

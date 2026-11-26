@@ -3,6 +3,8 @@
 import re
 from dataclasses import dataclass, field, replace
 
+import layout
+
 # The window rollup order of claude-state.conf: blocked > working > unread > read.
 STATE_ORDER = ["blocked", "working", "unread", "read"]
 
@@ -37,6 +39,7 @@ FIELDS = [
     "pane_floating_flag",
     "@issues-board",
     "pane_pid",
+    "window_layout",
 ]
 PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
 
@@ -75,6 +78,8 @@ class Pane:
     # pane.read_snapshot finds among its processes.
     role: str = ""
     pid: str = ""  # #{pane_pid}, the process tmux started in the pane
+    # The group the pane is in, numbered within its window from 1; 0 on its own (layout.py).
+    group: int = 0
     branches: list[Branch] = field(
         default_factory=list
     )  # a Claude Code pane's, which agents.Scanner adds
@@ -149,11 +154,14 @@ def parse(text: str, home: str) -> Snapshot:
 
     The sessions of a group share their windows: the phone hub's remote session is grouped with default.
     The navigator, its placeholders and floating panes are left out, and so is a window with nothing else in it.
+    A window's panes come in the order tmux lays them out, top left first, each with its group.
     """
     sessions: dict[str, Session] = {}
     session_of_group: dict[str, str] = {}
     pane_windows: dict[str, str] = {}
     active_panes: set[str] = set()
+    layouts: dict[str, str] = {}
+    columns: dict[str, set[str]] = {}
     for line in text.splitlines():
         fields = line.split(FIELD_SEPARATOR)
         if len(fields) != len(FIELDS):
@@ -174,8 +182,12 @@ def parse(text: str, home: str) -> Snapshot:
             floating,
             issues_board,
             pid,
+            window_layout,
         ) = fields
         pane_windows[pane_id] = window_id
+        layouts.setdefault(window_id, window_layout)
+        if is_column(start_command):
+            columns.setdefault(window_id, set()).add(pane_id)
         if active == "1":
             active_panes.add(pane_id)
         group = group or session_name
@@ -193,11 +205,28 @@ def parse(text: str, home: str) -> Snapshot:
         role = "issues" if issues_board == "1" else ""
         pane = Pane(pane_id, command, path, title, state, active == "1", role, pid)
         session.windows[-1].panes.append(pane)
+    for session in sessions.values():
+        for window in session.windows:
+            read = layout.read(layouts[window.id], columns.get(window.id, set()))
+            if read:
+                arrange(window, read.arrangement)
     return Snapshot(
         [session for session in sessions.values() if session.windows],
         pane_windows,
         active_panes,
     )
+
+
+def arrange(window: Window, arrangement: layout.Arrangement) -> None:
+    """Puts the window's panes in the arrangement's order and numbers their groups; a pane it does not have goes last."""
+    order, groups = {}, {}
+    for number, item in enumerate(arrangement.items, 1):
+        for pane_id in item:
+            order[pane_id] = len(order)
+            groups[pane_id] = number if len(item) > 1 else 0
+    window.panes.sort(key=lambda pane: order.get(pane.id, len(order)))
+    for pane in window.panes:
+        pane.group = groups.get(pane.id, 0)
 
 
 def claude_pane(window: Window) -> Pane | None:

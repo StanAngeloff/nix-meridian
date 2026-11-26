@@ -117,6 +117,83 @@ class ActionTest(unittest.TestCase):
         self.assertEqual(split, expected)
 
 
+PAIRS = [
+    Session(
+        "default",
+        [
+            Window(
+                "@1",
+                1,
+                "pairs",
+                [Pane(f"%{n}", "zsh", "~") for n in ("1", "5", "2", "6")],
+            ),
+            Window("@2", 2, "alone", [Pane("%9", "zsh", "~")]),
+        ],
+    )
+]
+
+
+def grouping(*typed: str, start: str = "@1"):
+    """Presses g on the window, then each key; the cursor and the last action."""
+    cursor = keys.Cursor(window=start)
+    action = keys.handle_key(cursor, PAIRS, "g", 0.0, {})
+    for key in typed:
+        action = keys.handle_key(cursor, PAIRS, key, 0.0, {})
+    return cursor, action
+
+
+class GroupingTest(unittest.TestCase):
+    def test_g_starts_on_the_windows_first_pane_and_g_q_or_escape_ends_it(self):
+        self.assertEqual(grouping()[0].pane, "%1")
+        self.assertEqual(grouping("g")[0].pane, "")
+        self.assertEqual(grouping("\x1b")[0].pane, "")
+        self.assertEqual(grouping("q")[0].pane, "")
+
+    def test_a_window_with_one_pane_has_nothing_to_group(self):
+        self.assertEqual(grouping(start="@2")[0].pane, "")
+
+    def test_j_and_k_move_between_the_windows_panes_and_wrap(self):
+        self.assertEqual(grouping("j", "j")[0].pane, "%2")
+        self.assertEqual(grouping("k")[0].pane, "%6")
+        self.assertEqual(grouping("\x1b[B")[0].pane, "%5")
+        self.assertEqual(grouping("j")[0].window, "@1")
+
+    def test_l_and_h_regroup_the_pane(self):
+        _, join = grouping("j", "l")
+        self.assertEqual(join, Action("regroup", pane="%5", window="@1", side="join"))
+        _, leave = grouping("j", "\x1b[D")
+        self.assertEqual(leave, Action("regroup", pane="%5", window="@1", side="leave"))
+
+    def test_shift_j_and_k_swap_the_pane_with_its_neighbour_but_not_past_the_ends(self):
+        _, down = grouping("J")
+        self.assertEqual(down, Action("swap", pane="%1", window="@1", neighbour="%5"))
+        _, up = grouping("j", "\x1b[1;2A")
+        self.assertEqual(up, Action("swap", pane="%5", window="@1", neighbour="%1"))
+        self.assertIsNone(grouping("K")[1])
+
+    def test_enter_opens_the_pane_and_tab_leaves_both_ending_the_grouping(self):
+        cursor, action = grouping("j", "\r")
+        self.assertEqual((action, cursor.pane), (Action("open", pane="%5"), ""))
+        cursor, action = grouping("\t")
+        self.assertEqual((action, cursor.pane), (Action("leave"), ""))
+
+    def test_other_keys_do_nothing_while_grouping(self):
+        cursor, action = grouping("2", " ", "?")
+        self.assertEqual((cursor.window, cursor.pane, action), ("@1", "%1", None))
+        self.assertEqual((cursor.expanded, cursor.help), (set(), False))
+
+    def test_a_click_ends_the_grouping(self):
+        cursor, _ = grouping(mouse(65, 0))
+        self.assertEqual((cursor.pane, cursor.window), ("", "@2"))
+
+    def test_shift_j_and_k_move_the_window_outside_grouping(self):
+        cursor = keys.Cursor(window="@d1")
+        self.assertEqual(
+            keys.handle_key(cursor, SESSIONS, "J", 0.0, {}),
+            Action("move", window="@d1", neighbour="@d2", side="after"),
+        )
+
+
 def mouse(button: int, row: int, pressed: bool = True) -> str:
     """A mouse event at a 0-based row of the navigator, as tmux sends it in SGR form (1-based)."""
     return f"\x1b[<{button};10;{row + 1}{'M' if pressed else 'm'}"

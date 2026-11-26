@@ -10,6 +10,7 @@ no column yet, a window crossing the minimum width, and Enter and Tab in the nav
 import os
 import signal
 
+import layout
 import model
 from tmux import MIN_WINDOW_WIDTH, OPEN, PANE, SESSION, WIDGETS, WIDTH, TmuxError, lock
 from tmux import number_option
@@ -385,3 +386,55 @@ def leave(navigator: str) -> None:
     if candidates:
         last_used = [pane_id for pane_id, last in candidates if last]
         tmux("select-pane", "-t", (last_used or [candidates[0][0]])[0])
+
+
+def window_layout(window_id: str) -> tuple[layout.Layout | None, int]:
+    """The window's layout as tmux has it, and the width its column, if it has one, should have."""
+    fields = SEPARATOR.join(
+        ["#{window_layout}", "#{pane_id}", "#{pane_start_command}", f"#{{{WIDTH}}}"]
+    )
+    rows = panes(["-t", window_id], fields)
+    if not rows:
+        return None, DEFAULT_WIDTH
+    columns = {pane_id for _, pane_id, start, _ in rows if model.is_column(start)}
+    width = rows[0][3]
+    return layout.read(rows[0][0], columns), (
+        int(width) if width.isdigit() else DEFAULT_WIDTH
+    )
+
+
+def apply(window_id: str, read: layout.Layout, arrangement, width: int) -> None:
+    tmux("select-layout", "-t", window_id, layout.document(read, arrangement, width))
+
+
+def regroup(window_id: str, pane_id: str, side: str) -> None:
+    """l or h while grouping: the pane joins a group or leaves its group, and the window is laid out evenly again."""
+    with lock():
+        read, width = window_layout(window_id)
+        if read is None or pane_id not in read.leaves:
+            return
+        change = layout.joined if side == "join" else layout.left
+        arrangement = change(read.arrangement, pane_id)
+        if arrangement:
+            apply(window_id, read, arrangement, width)
+
+
+def swap(pane_id: str, neighbour_id: str) -> None:
+    """J or K while grouping: the pane and its neighbour trade places, each taking the other's size and group."""
+    tmux("swap-pane", "-d", "-s", pane_id, "-t", neighbour_id)
+
+
+def arrange(pane_id: str) -> None:
+    """prefix Space, pressed in pane_id: the window's next even arrangement for its number of panes (layout.py, cycled),
+    with pane_id the lead of an arrangement that has one."""
+    try:
+        with lock():
+            window_id = tmux("display", "-p", "-t", pane_id, "#{window_id}").strip()
+            read, width = window_layout(window_id)
+            if read is None:
+                return
+            arrangement = layout.arranged(read, pane_id, width)
+            if arrangement:
+                apply(window_id, read, arrangement, width)
+    except TmuxError:
+        pass  # a pane came or went meanwhile; the next press starts from what is there

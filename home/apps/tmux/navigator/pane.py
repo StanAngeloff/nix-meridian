@@ -94,9 +94,10 @@ def run() -> None:
         # Away from the navigator, the cursor rests on the open window, where it starts when focus comes back.
         if not focused or cursor.window not in model.window_order(snapshot.sessions):
             cursor.window = open_window
-        # The key hints show only on ?, and go with focus, so the next focus starts without them.
+        # The key hints show only on ?, and go with focus, so the next focus starts without them; so does grouping.
         if not focused:
             cursor.help = False
+            cursor.pane = ""
         # While a window is dragged, the list shows it where it would drop, every window numbered as after the drop.
         drag = cursor.drag
         if drag and drag.window not in model.window_order(snapshot.sessions):
@@ -115,8 +116,10 @@ def run() -> None:
             dragging,
             cursor.help,
             expanded=frozenset(cursor.expanded),
+            cursor_pane=cursor.pane,
         )
-        canvas = draw.draw(sessions, view, size.columns, size.lines, link_rules)
+        hints = draw.GROUP_HINTS if cursor.pane and focused else None
+        canvas = draw.draw(sessions, view, size.columns, size.lines, link_rules, hints)
         frame = canvas.to_ansi()
         if frame != previous_frame:
             os.write(1, frame.encode())
@@ -140,9 +143,14 @@ def run() -> None:
                     control.go(own_pane, cursor.window, action.pane)
                 elif action and action.kind == "leave":
                     control.leave(own_pane)
-                elif action and action.kind == "move":
-                    control.move(action.window, action.neighbour, action.side)
-                    # Keys still to come in this read, a held Shift+Down say, move from where the window is now.
+                elif action and action.kind in ("move", "regroup", "swap"):
+                    if action.kind == "move":
+                        control.move(action.window, action.neighbour, action.side)
+                    elif action.kind == "regroup":
+                        control.regroup(action.window, action.pane, action.side)
+                    else:
+                        control.swap(action.pane, action.neighbour)
+                    # Keys still to come in this read, a held Shift+Down say, move from where things are now.
                     snapshot = read_snapshot(home)
                     sessions = snapshot.sessions
             except TmuxError:

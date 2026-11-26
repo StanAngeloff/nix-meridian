@@ -1,6 +1,7 @@
 import unittest
 
 import model
+import test_layout
 
 HOME = "/home/someone"
 NAVIGATOR = "/nix/store/abc-tmux-navigator/bin/tmux-navigator pane"
@@ -23,9 +24,10 @@ def row(
     floating="0",
     issues_board="",
     pid="100",
+    layout="",
 ):
     fields = [session, group, window, index, name, pane, active, verdict, command]
-    rest = [path, title, start, floating, issues_board, pid]
+    rest = [path, title, start, floating, issues_board, pid, layout]
     return model.FIELD_SEPARATOR.join(fields + rest)
 
 
@@ -163,6 +165,27 @@ class ParseTest(unittest.TestCase):
         sessions = model.parse(text, HOME).sessions
         self.assertEqual([s.name for s in sessions], ["default", "scratch"])
         self.assertEqual(len(sessions[0].windows[0].panes), 1)
+
+    def test_panes_come_in_layout_order_with_their_groups(self):
+        # The navigator's column, then review 1 above #5, then review 2 above #6; tmux numbered them otherwise.
+        spec = ("h", ["%9", ("v", ["%3", "%1"]), ("v", ["%4", "%2"]), "%5"])
+        laid_out = test_layout.window(spec)
+        text = "\n".join(
+            row(pane=pane, start=NAVIGATOR if pane == "%9" else "", layout=laid_out)
+            for pane in ("%1", "%2", "%3", "%4", "%5", "%9")
+        )
+        (window,) = model.parse(text, HOME).sessions[0].windows
+        self.assertEqual(
+            [(p.id, p.group) for p in window.panes],
+            [("%3", 1), ("%1", 1), ("%4", 2), ("%2", 2), ("%5", 0)],
+        )
+
+    def test_without_a_layout_panes_keep_tmux_s_order_and_no_groups(self):
+        text = "\n".join([row(pane="%2"), row(pane="%1")])
+        (window,) = model.parse(text, HOME).sessions[0].windows
+        self.assertEqual(
+            [(p.id, p.group) for p in window.panes], [("%2", 0), ("%1", 0)]
+        )
 
     def test_home_becomes_a_tilde_only_on_a_path_boundary(self):
         text = "\n".join(

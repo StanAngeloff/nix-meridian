@@ -203,6 +203,63 @@ class BranchTest(unittest.TestCase):
         self.assertEqual(canvas.text(4 + draw.WORKFLOW_ROWS).strip(), "")
 
 
+def grouped_window(last_zsh=True):
+    panes = [
+        Pane("%1", "claude", "~", "✳ review 1", "read", group=1),
+        Pane("%5", "claude", "~", "✳ #5", "read", group=1),
+        Pane("%2", "claude", "~", "✳ review 2", "read", group=2),
+        Pane("%6", "claude", "~", "✳ #6", "read", group=2),
+    ]
+    if last_zsh:
+        panes.append(Pane("%7", "zsh", "~"))
+    return [Session("default", [Window("@1", 1, "pairs", panes)])]
+
+
+class GroupTest(unittest.TestCase):
+    def test_a_groups_panes_hang_off_a_fork_on_its_first(self):
+        canvas = render(sessions=grouped_window(), cols=36)
+        lines = [canvas.text(y).rstrip() for y in range(1, 7)]
+        self.assertEqual(
+            lines,
+            [
+                "  1│ pairs",
+                "   │ ├─┬ ● review 1",
+                "   │ │ └ ● #5",
+                "   │ ├─┬ ● review 2",
+                "   │ │ └ ● #6",
+                "   ╵ └─ \uf489 zsh  ~",
+            ],
+        )
+
+    def test_a_group_last_in_its_window_ends_the_windows_line(self):
+        canvas = render(sessions=grouped_window(last_zsh=False), cols=36)
+        self.assertEqual(canvas.text(4).rstrip(), "   │ └─┬ ● review 2")
+        self.assertEqual(canvas.text(5).rstrip(), "   ╵   └ ● #6")
+
+    def test_a_branch_under_a_grouped_pane_keeps_both_lines(self):
+        sessions = grouped_window()
+        sessions[0].windows[0].panes[0].branches = [
+            Branch("agent", "a1", "research", True)
+        ]
+        canvas = render(sessions=sessions, cols=36)
+        self.assertEqual(canvas.text(3).rstrip(), "   │ │ │ └─ ● research")
+        self.assertEqual(canvas.targets[3], ("@1", "%1"))
+
+    def test_while_grouping_the_window_is_grey_and_the_pane_under_the_cursor_cyan(self):
+        grey = ("▌", draw.FOCUSED_TAB_BG, draw.CURSOR_BG)
+        cyan = ("▌", draw.CURSOR_ON_CYAN, draw.FOCUSED_TAB_BG)
+        for open_window in ("@1", "@9"):  # the window the navigator is in, or another
+            view = draw.View(open_window, "@1", True, cursor_pane="%5")
+            canvas = draw.draw(grouped_window(), view, 36, 14)
+            self.assertEqual(canvas.cells[1][0][:3], grey)
+            self.assertEqual(canvas.cells[2][0][:3], grey)
+            self.assertEqual(canvas.cells[3][0][:3], cyan)
+            self.assertEqual(canvas.cells[4][0][:3], grey)
+            self.assertEqual(
+                canvas.cells[3][draw.CONTENT_X + 4][1], draw.DOT_ON_CYAN["read"]
+            )
+
+
 class DragTest(unittest.TestCase):
     def test_a_dragged_window_shows_raised_in_its_new_place_with_the_numbers_after_the_drop(
         self,
