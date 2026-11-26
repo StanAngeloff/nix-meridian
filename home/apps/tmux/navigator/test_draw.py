@@ -79,6 +79,29 @@ class TreeTest(unittest.TestCase):
             canvas.cells[4][draw.CONTENT_X + 3][1], draw.DOT_ON_DARK["blocked"]
         )
 
+    def test_in_the_open_window_the_pane_you_are_in_is_darker(self):
+        panes = [
+            Pane("%2", "claude", "~", "✳ Wait", "blocked"),
+            Pane("%3", "tig", "~/repo", active=True),
+        ]
+        sessions = [
+            Session(
+                "default",
+                [
+                    Window("@1", 1, "task", panes),
+                    Window("@2", 2, "other", [Pane("%4", "tig", "~", active=True)]),
+                ],
+            )
+        ]
+        canvas = render(sessions=sessions)
+        label_x = draw.CONTENT_X + 5
+        self.assertTrue(canvas.text(3).startswith("   │ └─ \ue702 tig"))
+        colours = [canvas.cells[y][label_x][1] for y in (2, 3, 5)]
+        self.assertEqual(
+            colours, [draw.FOCUSED_TAB_DIM, draw.FOCUSED_TAB_HERE, draw.DIM]
+        )
+        self.assertFalse(any(cell[3] for cell in canvas.cells[3][label_x:]))
+
     def test_long_text_ends_in_an_ellipsis_inside_the_pane(self):
         canvas = render(cols=13)
         self.assertEqual(canvas.text(2).rstrip()[-1], draw.ELLIPSIS)

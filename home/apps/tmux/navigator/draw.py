@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 import links
-from model import Branch, Pane, Session, Window
+from model import Branch, Pane, Session, Window, current_pane
 
 # Colours, from home/apps/tmux/tmux.conf, PALETTE.md and the Ghostty palette.
 TERMINAL_BG = "#000000"
@@ -12,6 +12,7 @@ STATUS_FG = "#9e9e9e"  # colour247, unfocused tab text
 FOCUSED_TAB_BG = "#00afff"  # colour39, the anchor
 FOCUSED_TAB_FG = "#000000"
 FOCUSED_TAB_DIM = "#00557c"  # secondary text and lines on the cyan of the open window
+FOCUSED_TAB_HERE = "#003852"  # the line of the pane you are in: the same hue, lightness 24% down to 16%
 SESSION_FG = "#d0d0d0"  # colour252, as in status-left
 SESSION_BG = "#808080"  # colour244
 DIM = "#6c6c6c"  # colour242
@@ -276,9 +277,11 @@ class RowPainter:
             title_width = width
         self.c.put_fitted(x, y, text, title_width, fg, self.bg, bold)
 
-    def secondary(self, x: int, y: int, text: str) -> None:
+    def secondary(self, x: int, y: int, text: str, here: bool = False) -> None:
+        """Secondary text from x; here marks the pane you are in, a shade darker where the row is cyan."""
         width = self.c.cols - x - 1
-        self.c.put_fitted(x, y, text, width, self.secondary_fg, self.bg)
+        fg = FOCUSED_TAB_HERE if here and self.on_cyan else self.secondary_fg
+        self.c.put_fitted(x, y, text, width, fg, self.bg)
 
     def icon(self, x: int, y: int, pane: Pane) -> None:
         glyph, fg = icon(pane, self.on_cyan, self.glyphs)
@@ -336,7 +339,7 @@ def list_lines(c: Canvas, view: View, sessions: list[Session]) -> list[Line]:
 def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line]:
     """The window's name, then one tree line per pane, each followed by its branches (agents.py);
     the window line has no icon, as state belongs to panes. A group's panes hang off a fork on its first pane's line.
-    A row of a pane's branch opens that pane.
+    A row of a pane's branch opens that pane. In the open window, the pane you are in has its line a shade darker.
 
     While its panes are being grouped, the window shows grey under the cursor and the pane under it cyan.
     """
@@ -344,6 +347,7 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
     grouping = view.focused and any(p.id == view.cursor_pane for p in panes)
     row = RowPainter(c, view, window, grouped_pane=False if grouping else None)
     marked = RowPainter(c, view, window, grouped_pane=True) if grouping else row
+    here = current_pane(window) if window.id == view.open_window else None
 
     def name_line(y, trunk):
         row.start(y, trunk, str(window.index))
@@ -397,7 +401,7 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
                     painter.c.put(CONTENT_X, y, "│", fg, bg)
                 painter.c.put(CONTENT_X + 2, y, "└" if last_of_group else "├", fg, bg)
             painter.icon(base, y, pane)
-            painter.secondary(base + 2, y, pane.label)
+            painter.secondary(base + 2, y, pane.label, pane is here)
 
         drawers.append((pane_line, pane.id))
         expanded = window.id in view.expanded

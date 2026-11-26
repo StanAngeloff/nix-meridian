@@ -40,6 +40,7 @@ FIELDS = [
     "@issues-board",
     "pane_pid",
     "window_layout",
+    "pane_last",
 ]
 PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
 
@@ -80,6 +81,7 @@ class Pane:
     pid: str = ""  # #{pane_pid}, the process tmux started in the pane
     # The group the pane is in, numbered within its window from 1; 0 on its own (layout.py).
     group: int = 0
+    last: bool = False  # #{pane_last}: the window's pane used before the active one
     branches: list[Branch] = field(
         default_factory=list
     )  # a Claude Code pane's, which agents.Scanner adds
@@ -183,6 +185,7 @@ def parse(text: str, home: str) -> Snapshot:
             issues_board,
             pid,
             window_layout,
+            last,
         ) = fields
         pane_windows[pane_id] = window_id
         layouts.setdefault(window_id, window_layout)
@@ -204,6 +207,7 @@ def parse(text: str, home: str) -> Snapshot:
         state = VERDICT_STATES.get(verdict, "")
         role = "issues" if issues_board == "1" else ""
         pane = Pane(pane_id, command, path, title, state, active == "1", role, pid)
+        pane.last = last == "1"
         session.windows[-1].panes.append(pane)
     for session in sessions.values():
         for window in session.windows:
@@ -227,6 +231,15 @@ def arrange(window: Window, arrangement: layout.Arrangement) -> None:
     window.panes.sort(key=lambda pane: order.get(pane.id, len(order)))
     for pane in window.panes:
         pane.group = groups.get(pane.id, 0)
+
+
+def current_pane(window: Window) -> Pane | None:
+    """The pane you are in: the window's active pane, or, while the navigator or a floating pane has focus, the pane
+    used before it, which Tab and Esc in the navigator go back to (control.leave); None when that is not listed either.
+    """
+    return next((pane for pane in window.panes if pane.active), None) or next(
+        (pane for pane in window.panes if pane.last), None
+    )
 
 
 def claude_pane(window: Window) -> Pane | None:

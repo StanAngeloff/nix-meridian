@@ -25,9 +25,10 @@ def row(
     issues_board="",
     pid="100",
     layout="",
+    last="0",
 ):
     fields = [session, group, window, index, name, pane, active, verdict, command]
-    rest = [path, title, start, floating, issues_board, pid, layout]
+    rest = [path, title, start, floating, issues_board, pid, layout, last]
     return model.FIELD_SEPARATOR.join(fields + rest)
 
 
@@ -69,6 +70,30 @@ class ClaudePaneTest(unittest.TestCase):
             model.claude_pane(model.Window("@1", 1, "w", [shell, first])), first
         )
         self.assertIsNone(model.claude_pane(model.Window("@1", 1, "w", [shell])))
+
+
+class CurrentPaneTest(unittest.TestCase):
+    def test_the_active_pane_else_the_one_used_before_else_none(self):
+        before = model.Pane("%1", "zsh", "~", last=True)
+        other = model.Pane("%2", "tig", "~")
+        active = model.Pane("%3", "nvim", "~", active=True)
+        window = model.Window("@1", 1, "w", [before, other, active])
+        self.assertIs(model.current_pane(window), active)
+        window.panes = [before, other]
+        self.assertIs(model.current_pane(window), before)
+        window.panes = [other]
+        self.assertIsNone(model.current_pane(window))
+
+    def test_with_the_navigator_focused_it_is_the_pane_used_before(self):
+        text = "\n".join(
+            [
+                row(pane="%1", start=NAVIGATOR, active="1"),
+                row(pane="%2", active="0", last="1"),
+                row(pane="%3", active="0"),
+            ]
+        )
+        window = model.parse(text, HOME).sessions[0].windows[0]
+        self.assertEqual(model.current_pane(window).id, "%2")
 
 
 class ReorderedTest(unittest.TestCase):
