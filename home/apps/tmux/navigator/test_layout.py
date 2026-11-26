@@ -5,6 +5,7 @@ import layout
 from layout import Arrangement
 
 COLUMN = "%9"
+BOARD = "%8"  # the issue board
 
 
 def window(spec, width=200, height=50, floating=()) -> str:
@@ -54,6 +55,12 @@ class ReadTest(unittest.TestCase):
     def test_a_column_squeezed_in_among_the_panes_is_still_left_out(self):
         found = arrangement_of(("v", [COLUMN, "%1", "%2"]))
         self.assertEqual(found, Arrangement("v", [["%1"], ["%2"]]))
+
+    def test_the_issue_board_is_not_an_item_but_is_kept(self):
+        spec = ("h", [COLUMN, ("v", ["%1", "%2"]), BOARD])
+        read = layout.read(window(spec), {COLUMN}, {BOARD})
+        self.assertEqual(read.arrangement, Arrangement("v", [["%1"], ["%2"]]))
+        self.assertEqual(read.board["I"], BOARD)
 
     def test_floating_panes_are_not_items_but_are_kept(self):
         read = layout.read(window(("h", ["%1", "%2"]), floating=["%7"]), set())
@@ -220,6 +227,21 @@ class DocumentTest(unittest.TestCase):
             [(p["x"], p["w"]) for p in root["L"]["c"]], [(0, 100), (101, 99)]
         )
 
+    def test_the_issue_board_keeps_its_width_down_the_right_edge(self):
+        spec = ("h", [COLUMN, "%1", "%2", BOARD])
+        read = layout.read(window(spec), {COLUMN}, {BOARD})
+        self.assertEqual(read.board["w"], 49)
+        root = json.loads(
+            layout.document(read, Arrangement("h", [["%1"], ["%2"]]), 36)
+        )["L"]
+        column, first, second, board = root["c"]
+        self.assertEqual(
+            (board["I"], board["x"], board["w"], board["h"]), (BOARD, 151, 49, 50)
+        )
+        self.assertEqual(
+            [(p["x"], p["w"]) for p in (first, second)], [(37, 56), (94, 56)]
+        )
+
 
 class ArrangedTest(unittest.TestCase):
     def test_an_even_layout_cycles_and_an_uneven_one_is_evened_out_first(self):
@@ -242,6 +264,15 @@ class ArrangedTest(unittest.TestCase):
         self.assertEqual(
             layout.arranged(read, "%1", 36), Arrangement("v", [["%1"], ["%2"]])
         )
+
+    def test_an_issue_board_beside_one_pane_only_counts_as_uneven(self):
+        spec = ("h", [COLUMN, ("v", [("h", ["%1", BOARD]), "%2"])])
+        read = layout.read(window(spec), {COLUMN}, {BOARD})
+        self.assertEqual(
+            layout.arranged(read, "%1", 36), Arrangement("v", [["%1"], ["%2"]])
+        )
+        root = json.loads(layout.document(read, read.arrangement, 36))["L"]
+        self.assertEqual((root["c"][-1]["I"], root["c"][-1]["h"]), (BOARD, 50))
 
     def test_four_panes_side_by_side_go_straight_to_pairs(self):
         read = layout.read(window(("h", ["%1", "%2", "%3", "%4"])), set())

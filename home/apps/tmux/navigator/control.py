@@ -391,14 +391,21 @@ def leave(navigator: str) -> None:
 def window_layout(window_id: str) -> tuple[layout.Layout | None, int]:
     """The window's layout as tmux has it, and the width its column, if it has one, should have."""
     fields = SEPARATOR.join(
-        ["#{window_layout}", "#{pane_id}", "#{pane_start_command}", f"#{{{WIDTH}}}"]
+        [
+            "#{window_layout}",
+            "#{pane_id}",
+            "#{pane_start_command}",
+            "#{@issues-board}",
+            f"#{{{WIDTH}}}",
+        ]
     )
     rows = panes(["-t", window_id], fields)
     if not rows:
         return None, DEFAULT_WIDTH
-    columns = {pane_id for _, pane_id, start, _ in rows if model.is_column(start)}
-    width = rows[0][3]
-    return layout.read(rows[0][0], columns), (
+    columns = {row[1] for row in rows if model.is_column(row[2])}
+    boards = {row[1] for row in rows if row[3] == "1"}
+    width = rows[0][4]
+    return layout.read(rows[0][0], columns, boards), (
         int(width) if width.isdigit() else DEFAULT_WIDTH
     )
 

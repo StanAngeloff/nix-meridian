@@ -8,7 +8,8 @@ so one command can regroup a window's panes, move them and size them.
 The navigator reads the tree as a row of items across the window's main split.
 An item is a pane on its own, or a group: the panes tmux draws together in one cell across that split,
 such as a column of stacked panes in a window split side by side.
-The navigator's column and floating panes are not items, and every layout applied keeps them.
+The navigator's column, the issue board and floating panes are not items, and every layout applied keeps them:
+the column down the left edge, the board down the right edge at its own width, floating panes where they are.
 """
 
 import json
@@ -48,21 +49,26 @@ class Layout:
     # The navigator's column or a placeholder, when the window has one.
     column: dict | None
     floating: list[dict]
+    # The issue board (prefix C-i), when the window has one.
+    board: dict | None = None
 
 
-def read(text: str, columns: set[str]) -> Layout | None:
-    """The layout in a #{window_layout}, with the panes in columns taken as the window's column;
-    None when tmux wrote something other than the JSON form."""
+def read(text: str, columns: set[str], boards: set[str] = frozenset()) -> Layout | None:
+    """The layout in a #{window_layout}, with the panes in columns taken as the window's column
+    and those in boards as its issue board; None when tmux wrote something other than the JSON form.
+    """
     try:
         root = json.loads(text)["L"]
     except (ValueError, KeyError, TypeError):
         return None
-    leaves, column, floating = {}, None, []
+    leaves, column, floating, board = {}, None, [], None
     for leaf in all_leaves(root):
         if "z" in leaf:
             floating.append(leaf)
         elif leaf.get("I") in columns:
             column = column or leaf
+        elif leaf.get("I") in boards and board is None:
+            board = leaf
         else:
             leaves[leaf["I"]] = leaf
     tree = tidied(root, set(leaves))
@@ -73,7 +79,7 @@ def read(text: str, columns: set[str]) -> Layout | None:
     else:
         items = [[leaf["I"] for leaf in all_leaves(child)] for child in tree["c"]]
         arrangement = Arrangement(tree["t"], items)
-    return Layout(root["w"], root["h"], arrangement, leaves, column, floating)
+    return Layout(root["w"], root["h"], arrangement, leaves, column, floating, board)
 
 
 def all_leaves(node: dict) -> list[dict]:
@@ -209,7 +215,8 @@ def arranged(layout: Layout, lead: str, column_width: int) -> Arrangement | None
 
 
 def is_even(layout: Layout, arrangement: Arrangement, column_width: int) -> bool:
-    """Whether every pane, and the column, already has about the size an even layout of the arrangement gives it."""
+    """Whether every pane, the column and the board already have about the size and place an even layout of the
+    arrangement gives them."""
     built = all_leaves(tree(layout, arrangement, column_width))
     actual = {leaf.get("I"): leaf for leaf in leaves_as_read(layout)}
     for leaf in built:
@@ -225,13 +232,14 @@ def is_even(layout: Layout, arrangement: Arrangement, column_width: int) -> bool
 
 
 def leaves_as_read(layout: Layout) -> list[dict]:
-    column = [layout.column] if layout.column else []
-    return column + list(layout.leaves.values())
+    edges = [leaf for leaf in (layout.column, layout.board) if leaf]
+    return edges + list(layout.leaves.values())
 
 
 def document(layout: Layout, arrangement: Arrangement, column_width: int) -> str:
     """The JSON select-layout takes for the arrangement, every item and every group's panes sharing their space evenly;
-    the column is column_width wide down the left edge, and floating panes stay as they are.
+    the column is column_width wide down the left edge, the board keeps its width down the right edge,
+    and floating panes stay as they are.
     """
     root = tree(layout, arrangement, column_width)
     return json.dumps({"V": 2, "L": root}, separators=(",", ":"))
@@ -240,14 +248,21 @@ def document(layout: Layout, arrangement: Arrangement, column_width: int) -> str
 def tree(layout: Layout, arrangement: Arrangement, column_width: int) -> dict:
     width, height = layout.width, layout.height
     direction = arrangement.direction
-    if layout.column:
-        column = leaf(layout.column, column_width, height, 0, 0)
-        x = column_width + 1
-        content = cell(layout, arrangement, width - x, height, x, 0)
+    if layout.column or layout.board:
+        left, right = [], []
+        start, end = 0, width  # the content's first column and the one past its last
+        if layout.column:
+            left = [leaf(layout.column, column_width, height, 0, 0)]
+            start = column_width + 1
+        if layout.board:
+            board_width = layout.board["w"]
+            right = [leaf(layout.board, board_width, height, width - board_width, 0)]
+            end = width - board_width - 1
+        content = cell(layout, arrangement, end - start, height, start, 0)
         # A content split side by side, like the root, hands the root its items, as tmux itself keeps it.
         children = content["c"] if direction == "h" and "c" in content else [content]
         root = {"t": "h", "w": width, "h": height, "x": 0, "y": 0}
-        root["c"] = [column] + children
+        root["c"] = left + children + right
     else:
         root = cell(layout, arrangement, width, height, 0, 0)
     if layout.floating:

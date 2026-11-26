@@ -164,6 +164,7 @@ def parse(text: str, home: str) -> Snapshot:
     active_panes: set[str] = set()
     layouts: dict[str, str] = {}
     columns: dict[str, set[str]] = {}
+    boards: dict[str, set[str]] = {}
     for line in text.splitlines():
         fields = line.split(FIELD_SEPARATOR)
         if len(fields) != len(FIELDS):
@@ -191,6 +192,8 @@ def parse(text: str, home: str) -> Snapshot:
         layouts.setdefault(window_id, window_layout)
         if is_column(start_command):
             columns.setdefault(window_id, set()).add(pane_id)
+        if issues_board == "1":
+            boards.setdefault(window_id, set()).add(pane_id)
         if active == "1":
             active_panes.add(pane_id)
         group = group or session_name
@@ -211,7 +214,11 @@ def parse(text: str, home: str) -> Snapshot:
         session.windows[-1].panes.append(pane)
     for session in sessions.values():
         for window in session.windows:
-            read = layout.read(layouts[window.id], columns.get(window.id, set()))
+            read = layout.read(
+                layouts[window.id],
+                columns.get(window.id, set()),
+                boards.get(window.id, set()),
+            )
             if read:
                 arrange(window, read.arrangement)
     return Snapshot(

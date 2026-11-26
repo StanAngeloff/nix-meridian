@@ -205,6 +205,19 @@ class ParseTest(unittest.TestCase):
             [("%3", 1), ("%1", 1), ("%4", 2), ("%2", 2), ("%5", 0)],
         )
 
+    def test_the_issue_board_is_in_no_group_and_comes_last(self):
+        spec = ("h", ["%1", ("v", ["%2", "%3"]), "%8"])
+        laid_out = test_layout.window(spec)
+        text = "\n".join(
+            row(pane=pane, issues_board="1" if pane == "%8" else "", layout=laid_out)
+            for pane in ("%8", "%1", "%2", "%3")
+        )
+        (window,) = model.parse(text, HOME).sessions[0].windows
+        self.assertEqual(
+            [(p.id, p.group) for p in window.panes],
+            [("%1", 0), ("%2", 2), ("%3", 2), ("%8", 0)],
+        )
+
     def test_without_a_layout_panes_keep_tmux_s_order_and_no_groups(self):
         text = "\n".join([row(pane="%2"), row(pane="%1")])
         (window,) = model.parse(text, HOME).sessions[0].windows
