@@ -119,8 +119,8 @@ let
   claudeCopy = pkgs.callPackage ./claude-copy/package.nix { };
 
   # Right-click and Alt+right-click on a pane: tmux's own pane menu, pasted into pane-menu/stock.conf,
-  # with an Open entry first for the file or directory named under the pointer (pane-menu/open_file.py).
-  openFile = pkgs.callPackage ./pane-menu/package.nix { inherit claudeCopy; };
+  # with Open and Copy Path entries first for the file or directory named under the pointer (pane-menu/file_under_pointer.py).
+  fileUnderPointer = pkgs.callPackage ./pane-menu/package.nix { inherit claudeCopy; };
   stockPaneMenuBinding =
     key:
     let
@@ -140,26 +140,27 @@ let
     assert pkgs.lib.assertMsg (pkgs.lib.hasSuffix menuSuffix binding)
       "pane-menu/stock.conf: the right-click binding no longer ends in the Alt+right-click menu";
     pkgs.lib.removeSuffix menuSuffix binding;
-  # The Open entry goes between the menu's title and placement and its first item.
+  # The entries go between the menu's title and placement and its first item.
   stockPaneMenuHeader = ''display-menu -T "#[align=centre]#{pane_index} (#{pane_id})" -t = -x M -y M '';
   stockPaneMenuItems =
     assert pkgs.lib.assertMsg (pkgs.lib.hasPrefix stockPaneMenuHeader stockPaneMenu)
       "pane-menu/stock.conf: the pane menu no longer starts with its title and placement";
     pkgs.lib.removePrefix stockPaneMenuHeader stockPaneMenu;
-  paneMenuWithOpenFile = builtins.concatStringsSep " ; " [
-    ''run-shell -t = "${pkgs.lib.getExe openFile} find --pane #{pane_id} --x=#{mouse_x} --y=#{mouse_y} --scroll=#{scroll_position} --height=#{pane_height} --path=#{q:pane_current_path} --hyperlink=#{q:mouse_hyperlink}"''
+  paneMenuWithFileEntries = builtins.concatStringsSep " ; " [
+    ''run-shell -t = "${pkgs.lib.getExe fileUnderPointer} find --pane #{pane_id} --x=#{mouse_x} --y=#{mouse_y} --scroll=#{scroll_position} --height=#{pane_height} --path=#{q:pane_current_path} --hyperlink=#{q:mouse_hyperlink}"''
     (
       stockPaneMenuHeader
-      + ''"#{?@open-file-path,Open #[underscore]#{=/-40/...:@open-file-label},-Open File}" o { run-shell -b -t = "${pkgs.lib.getExe openFile} open --pane #{pane_id}" } ''
+      + ''"#{?@file-under-pointer,Open #[underscore]#{=/-40/...:@file-under-pointer-label},-Open File}" o { run-shell -b -t = "${pkgs.lib.getExe fileUnderPointer} open --pane #{pane_id}" } ''
+      + ''"#{?@file-under-pointer,Copy Path,-Copy Path}" y { run-shell -b -t = "${pkgs.lib.getExe fileUnderPointer} copy --pane #{pane_id} --client=#{q:client_name}" } ''
       + "'' "
       + stockPaneMenuItems
     )
   ];
   paneMenu = ''
-    bind -n MouseDown3Pane ${stockPaneMenuCondition} { ${paneMenuWithOpenFile} }
-    bind -n M-MouseDown3Pane { ${paneMenuWithOpenFile} }
+    bind -n MouseDown3Pane ${stockPaneMenuCondition} { ${paneMenuWithFileEntries} }
+    bind -n M-MouseDown3Pane { ${paneMenuWithFileEntries} }
   '';
-  # Fails the build when tmux's own pane menus no longer match pane-menu/stock.conf, or the menus with the Open entry don't load.
+  # Fails the build when tmux's own pane menus no longer match pane-menu/stock.conf, or the menus with the file entries don't load.
   paneMenuCheck =
     pkgs.runCommand "tmux-pane-menu-check"
       {
@@ -176,8 +177,8 @@ let
           echo "tmux ${pkgs.tmux.version} has changed its own pane menus: replace the bind-key lines in home/apps/tmux/pane-menu/stock.conf with the + lines above." >&2
           exit 1
         fi
-        if [ "$(list_menus open-file ${pkgs.writeText "tmux-pane-menu.conf" paneMenu} | grep -c '@open-file-path')" != 2 ]; then
-          echo "The pane menus with the Open entry do not load in tmux ${pkgs.tmux.version}." >&2
+        if [ "$(list_menus file-entries ${pkgs.writeText "tmux-pane-menu.conf" paneMenu} | grep -c '@file-under-pointer')" != 2 ]; then
+          echo "The pane menus with the file entries do not load in tmux ${pkgs.tmux.version}." >&2
           exit 1
         fi
         touch "$out"

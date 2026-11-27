@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from open_file import hyperlink_path, label, names_under, resolve
+from file_under_pointer import hyperlink_path, label, names_under, resolve
 
 
 def click(lines: list[str], y: int, needle: str) -> list[str]:

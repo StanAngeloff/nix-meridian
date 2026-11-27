@@ -1,11 +1,12 @@
-"""Finds the file or directory named under the pointer in a pane, and opens it: the Open entry of the right-click pane menu.
+"""Finds the file or directory named under the pointer in a pane, for the Open and Copy Path entries of the right-click pane menu.
 
 `find` runs just before the menu opens (home/apps/tmux/default.nix). It reads the rows on screen,
 drops the glowup mod's bar from each as the copy cleanup does (claude-copy/),
 and takes the name under the pointer together with its pieces on the rows above and below, when Claude Code wrapped it.
-The path goes into the pane's @open-file-path and the entry's text into @open-file-label;
-when the name is no file, both are unset and the entry is greyed out.
-`open` is the entry itself: xdg-open opens the path, as it does for a link Ghostty opens.
+The path goes into the pane's @file-under-pointer and the Open entry's text into @file-under-pointer-label;
+when the name is no file, both are unset and the entries are greyed out.
+`open` is the Open entry: xdg-open opens the path, as it does for a link Ghostty opens.
+`copy` is the Copy Path entry: the path goes to a tmux buffer and to the clipboard, as a copy in the pane does.
 """
 
 import argparse
@@ -184,39 +185,64 @@ def find(
         path = resolve(name, pane_path)
         if path:
             subprocess.run(
-                ["tmux", "set", "-p", "-t", pane, "@open-file-path", path, ";"]
-                + ["set", "-p", "-t", pane, "@open-file-label", label(path, pane_path)],
+                ["tmux", "set", "-p", "-t", pane, "@file-under-pointer", path, ";"]
+                + [
+                    "set",
+                    "-p",
+                    "-t",
+                    pane,
+                    "@file-under-pointer-label",
+                    label(path, pane_path),
+                ],
                 check=False,
             )
             return
     subprocess.run(
-        ["tmux", "set", "-pu", "-t", pane, "@open-file-path", ";"]
-        + ["set", "-pu", "-t", pane, "@open-file-label"],
+        ["tmux", "set", "-pu", "-t", pane, "@file-under-pointer", ";"]
+        + ["set", "-pu", "-t", pane, "@file-under-pointer-label"],
         check=False,
     )
 
 
-def open_path(pane: str) -> None:
-    path = (
+def found_path(pane: str) -> str:
+    """The path find stored for the pane, or an empty string."""
+    return (
         subprocess.run(
-            ["tmux", "show", "-pqv", "-t", pane, "@open-file-path"],
+            ["tmux", "show", "-pqv", "-t", pane, "@file-under-pointer"],
             capture_output=True,
             check=False,
         )
         .stdout.decode("utf-8", "surrogateescape")
         .removesuffix("\n")
     )
+
+
+def open_path(pane: str) -> None:
+    path = found_path(pane)
     if path:
         os.execvp("xdg-open", ["xdg-open", path])
 
 
+def copy_path(pane: str, client: str) -> None:
+    path = found_path(pane)
+    if path:
+        # As the copy bindings in a Claude Code pane do (claude-copy/):
+        # -w sends the buffer to the clipboard of the client that opened the menu, through its terminal, as tmux's own copies go.
+        target = ["-t", client] if client else []
+        subprocess.run(
+            ["tmux", "load-buffer", "-w", *target, "-"],
+            input=path.encode("utf-8", "surrogateescape"),
+            check=False,
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Finds and opens the file named under the pointer in a tmux pane."
+        description="Finds the file named under the pointer in a tmux pane, and opens or copies it."
     )
     actions = parser.add_subparsers(dest="action", required=True)
     find_parser = actions.add_parser(
-        "find", help="store the file under the pointer for the menu's Open entry"
+        "find", help="store the file under the pointer for the menu's entries"
     )
     find_parser.add_argument("--pane", required=True, help="#{pane_id}")
     find_parser.add_argument("--x", default="", help="#{mouse_x}")
@@ -229,6 +255,9 @@ def main() -> None:
     find_parser.add_argument("--hyperlink", default="", help="#{mouse_hyperlink}")
     open_parser = actions.add_parser("open", help="open the stored file")
     open_parser.add_argument("--pane", required=True, help="#{pane_id}")
+    copy_parser = actions.add_parser("copy", help="copy the stored file's path")
+    copy_parser.add_argument("--pane", required=True, help="#{pane_id}")
+    copy_parser.add_argument("--client", default="", help="#{client_name}")
     arguments = parser.parse_args()
 
     if arguments.action == "find":
@@ -241,8 +270,10 @@ def main() -> None:
             arguments.path,
             arguments.hyperlink,
         )
-    else:
+    elif arguments.action == "open":
         open_path(arguments.pane)
+    else:
+        copy_path(arguments.pane, arguments.client)
 
 
 if __name__ == "__main__":
