@@ -119,15 +119,8 @@ let
   claudeCopy = pkgs.callPackage ./claude-copy/package.nix { };
 
   # Right-click and Alt+right-click on a pane: tmux's own pane menu, pasted into pane-menu/stock.conf,
-  # with an Open entry first for the file or directory named under the pointer (pane-menu/open-file.sh).
-  openFile = pkgs.writeShellApplication {
-    name = "tmux-open-file";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.tmux
-    ];
-    text = builtins.readFile ./pane-menu/open-file.sh;
-  };
+  # with an Open entry first for the file or directory named under the pointer (pane-menu/open_file.py).
+  openFile = pkgs.callPackage ./pane-menu/package.nix { inherit claudeCopy; };
   stockPaneMenuBinding =
     key:
     let
@@ -153,15 +146,11 @@ let
     assert pkgs.lib.assertMsg (pkgs.lib.hasPrefix stockPaneMenuHeader stockPaneMenu)
       "pane-menu/stock.conf: the pane menu no longer starts with its title and placement";
     pkgs.lib.removePrefix stockPaneMenuHeader stockPaneMenu;
-  # tmux's word-separators split a path at every / and ., so they are narrowed while run-shell reads #{mouse_word}, then put back.
   paneMenuWithOpenFile = builtins.concatStringsSep " ; " [
-    ''set -gF @open-file-separators "#{word-separators}"''
-    ''set -g word-separators " \"'`()[]{}<>|;"''
-    ''run-shell -t = "${pkgs.lib.getExe openFile} find #{pane_id} x#{q:pane_current_path} x#{q:mouse_hyperlink} x#{q:mouse_word}"''
-    ''set -gF word-separators "#{@open-file-separators}"''
+    ''run-shell -t = "${pkgs.lib.getExe openFile} find --pane #{pane_id} --x=#{mouse_x} --y=#{mouse_y} --scroll=#{scroll_position} --height=#{pane_height} --path=#{q:pane_current_path} --hyperlink=#{q:mouse_hyperlink}"''
     (
       stockPaneMenuHeader
-      + ''"#{?@open-file-path,Open #[underscore]#{=/-40/...:@open-file-label},-Open File}" o { run-shell -b -t = "${pkgs.lib.getExe openFile} open #{pane_id}" } ''
+      + ''"#{?@open-file-path,Open #[underscore]#{=/-40/...:@open-file-label},-Open File}" o { run-shell -b -t = "${pkgs.lib.getExe openFile} open --pane #{pane_id}" } ''
       + "'' "
       + stockPaneMenuItems
     )
