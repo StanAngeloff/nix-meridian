@@ -290,8 +290,8 @@ def sectioned(*more):
     return [Session("default", [windows[0], work, windows[1], *more])]
 
 
-COSUNO = Window(
-    "@7", 7, "--- Cosuno ---", [Pane("%7", "nvim", "/data/x")], section="Cosuno"
+PROJECTS = Window(
+    "@7", 7, "--- Projects ---", [Pane("%7", "nvim", "/data/x")], section="Projects"
 )
 
 
@@ -328,10 +328,10 @@ class SectionTest(unittest.TestCase):
         self.assertFalse(any(cell[5] for row in canvas.cells for cell in row))
 
     def test_a_section_header_with_work_in_it_shows_its_panes_below_its_band(self):
-        canvas = render(sessions=sectioned(COSUNO), rows=16)
+        canvas = render(sessions=sectioned(PROJECTS), rows=16)
         lines = [canvas.text(y).rstrip() for y in range(12)]
         self.assertEqual(lines[8], "   │")
-        self.assertEqual(lines[9], "   │ Cosuno")
+        self.assertEqual(lines[9], "   │ Projects")
         self.assertTrue(lines[10].startswith("   ╵ └─"))
         self.assertIn("nvim  /data/x", lines[10])
         self.assertEqual(canvas.cells[10][0][2], draw.TERMINAL_BG, "only the band")

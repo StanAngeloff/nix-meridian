@@ -66,14 +66,14 @@ class SectionTest(unittest.TestCase):
                 row(window="@2", index="2", pane="%2", name="two"),
                 model.FIELD_SEPARATOR.join(["@1", "Work", "1"]),
                 model.FIELD_SEPARATOR.join(["@2", "", "0"]),
-                row(window="@3", index="3", pane="%3", name="-- Cosuno --"),
-                model.FIELD_SEPARATOR.join(["@3", "Cosuno", "0"]),
+                row(window="@3", index="3", pane="%3", name="-- Projects --"),
+                model.FIELD_SEPARATOR.join(["@3", "Projects", "0"]),
             ]
         )
         windows = model.parse(text, HOME).sessions[0].windows
         self.assertEqual(
             [(w.section, w.section_empty) for w in windows],
-            [("Work", True), ("", False), ("Cosuno", False)],
+            [("Work", True), ("", False), ("Projects", False)],
         )
         windows = windows[:2]
         self.assertEqual(
