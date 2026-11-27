@@ -28,7 +28,11 @@ PROFILE_VARIABLE = "CLAUDE_BUBBLE_PROFILE"
 
 
 def read_snapshot(home: str) -> model.Snapshot:
-    snapshot = model.parse(tmux("list-panes", "-a", "-F", model.PANES_FORMAT), home)
+    listing = tmux(
+        *("list-panes", "-a", "-F", model.PANES_FORMAT, ";"),
+        *("list-windows", "-a", "-F", model.SECTIONS_FORMAT),
+    )
+    snapshot = model.parse(listing, home)
     # A pane attached to a tmux of its own shows as tmux, not as whatever started it; Claude Code panes are skipped.
     for session in snapshot.sessions:
         for window in session.windows:

@@ -58,6 +58,31 @@ class WindowNameTest(unittest.TestCase):
             self.assertEqual(self.title_and_repository(name), (name, ""))
 
 
+class SectionTest(unittest.TestCase):
+    def test_a_window_tmux_calls_a_section_header_carries_its_title(self):
+        text = "\n".join(
+            [
+                row(window="@1", pane="%1", name="-- Work --"),
+                row(window="@2", index="2", pane="%2", name="two"),
+                model.FIELD_SEPARATOR.join(["@1", "Work", "1"]),
+                model.FIELD_SEPARATOR.join(["@2", "", "0"]),
+                row(window="@3", index="3", pane="%3", name="-- Cosuno --"),
+                model.FIELD_SEPARATOR.join(["@3", "Cosuno", "0"]),
+            ]
+        )
+        windows = model.parse(text, HOME).sessions[0].windows
+        self.assertEqual(
+            [(w.section, w.section_empty) for w in windows],
+            [("Work", True), ("", False), ("Cosuno", False)],
+        )
+        windows = windows[:2]
+        self.assertEqual(
+            [(w.name, w.section) for w in windows],
+            [("-- Work --", "Work"), ("two", "")],
+        )
+        self.assertEqual([p.id for p in windows[0].panes], ["%1"])
+
+
 class ClaudePaneTest(unittest.TestCase):
     def test_the_active_claude_pane_else_the_first_else_none(self):
         shell = model.Pane("%1", "zsh", "~", active=True)

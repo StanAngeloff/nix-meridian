@@ -1,4 +1,9 @@
-{ pkgs, osConfig, ... }:
+{
+  config,
+  pkgs,
+  osConfig,
+  ...
+}:
 let
   tmux = "${pkgs.tmux}/bin/tmux";
 
@@ -232,9 +237,11 @@ in
       ${builtins.replaceStrings [ "@issuesToggle@" ] [ (pkgs.lib.getExe issuesToggle) ] (
         builtins.readFile ./abilities/tmux.issues.conf
       )}
-      ${builtins.replaceStrings [ "@navigator@" ] [ (pkgs.lib.getExe navigator) ] (
-        builtins.readFile ./abilities/tmux.navigator.conf
-      )}
+      ${builtins.replaceStrings
+        [ "@navigator@" "@home@" ]
+        [ (pkgs.lib.getExe navigator) config.home.homeDirectory ]
+        (builtins.readFile ./abilities/tmux.navigator.conf)
+      }
       ${paneMenu}
     '';
   };

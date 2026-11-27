@@ -43,6 +43,26 @@ class DigitTest(unittest.TestCase):
         self.assertEqual(press(("2", 0.0), start="@s1"), "@s2")
 
 
+class SectionTest(unittest.TestCase):
+    def sessions(self):
+        work = Window("@w", 2, "-- Work --", [Pane("%w", "zsh", "~")], section="Work")
+        return [Session("default", [*windows("d", 1), work, *windows("e", 3)[2:]])]
+
+    def test_j_and_k_stop_on_a_section_header(self):
+        cursor = keys.Cursor(window="@d1")
+        keys.handle_key(cursor, self.sessions(), "j", 0.0, {})
+        self.assertEqual(cursor.window, "@w")
+        keys.handle_key(cursor, self.sessions(), "j", 0.0, {})
+        self.assertEqual(cursor.window, "@e3")
+
+    def test_digits_skip_a_section_header_which_shows_no_number(self):
+        cursor = keys.Cursor(window="@d1")
+        keys.handle_key(cursor, self.sessions(), "2", 0.0, {})
+        self.assertEqual(cursor.window, "@d1")
+        keys.handle_key(cursor, self.sessions(), "3", 2.0, {})
+        self.assertEqual(cursor.window, "@e3")
+
+
 class MoveTest(unittest.TestCase):
     def test_j_and_k_cross_sessions_and_wrap(self):
         self.assertEqual(press(("j", 0.0), start="@d12"), "@s1")

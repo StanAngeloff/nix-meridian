@@ -247,11 +247,14 @@ def type_digit(cursor: Cursor, sessions: list[Session], digit: str, now: float):
 
     A digit within NUMBER_TIMEOUT of the previous one extends the number when that window exists (1 then 2 is 12);
     otherwise the digit starts a new number, so 1 then 2 lands on 2 in a session without a window 12.
+    A section header shows no number, so no digits land on it.
     """
     session = session_of(sessions, cursor.window) or (sessions[0] if sessions else None)
     if session is None:
         return
-    by_index = {str(window.index): window.id for window in session.windows}
+    by_index = {
+        str(window.index): window.id for window in session.windows if not window.section
+    }
     recent = now - cursor.number_typed_at <= NUMBER_TIMEOUT
     for number in (cursor.number + digit if recent else "", digit):
         if number in by_index:

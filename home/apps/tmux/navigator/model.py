@@ -1,4 +1,5 @@
-"""What the navigator shows: every window of every session, read from one `tmux list-panes -a`."""
+"""What the navigator shows: every window of every session, read from one tmux call:
+`list-panes -a`, then `list-windows -a` for the section headers."""
 
 import re
 from dataclasses import dataclass, field, replace
@@ -43,6 +44,12 @@ FIELDS = [
     "pane_last",
 ]
 PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
+# Each window's section header title, if it is one, and whether it is empty, read with list-windows:
+# the emptiness takes a pane loop, and in a list-panes format a pane loop re-sorts the array list-panes walks.
+# Both share one static array in tmux 3.8 (sort_get_panes_window), so the listing's rows would repeat.
+SECTIONS_FORMAT = FIELD_SEPARATOR.join(
+    ["#{window_id}", "#{E:@navigator-section}", "#{E:@navigator-section-empty}"]
+)
 
 
 @dataclass
@@ -103,6 +110,11 @@ class Window:
     index: int
     name: str
     panes: list[Pane] = field(default_factory=list)
+    # A section header's title, which tmux reads in the window's name (@navigator-section in tmux.navigator.conf);
+    # empty for any other window. A header is drawn as a band with its title, its panes below it.
+    section: str = ""
+    # A section header whose one pane is a zsh in the home directory (@navigator-section-empty): that pane is not drawn.
+    section_empty: bool = False
 
     @property
     def title(self) -> str:
@@ -157,6 +169,8 @@ def parse(text: str, home: str) -> Snapshot:
     The sessions of a group share their windows: the phone hub's remote session is grouped with default.
     The navigator, its placeholders and floating panes are left out, and so is a window with nothing else in it.
     A window's panes come in the order tmux lays them out, top left first, each with its group.
+    An empty section header keeps its pane, which the navigator does not draw.
+    text has the lines of PANES_FORMAT and those of SECTIONS_FORMAT.
     """
     sessions: dict[str, Session] = {}
     session_of_group: dict[str, str] = {}
@@ -165,8 +179,9 @@ def parse(text: str, home: str) -> Snapshot:
     layouts: dict[str, str] = {}
     columns: dict[str, set[str]] = {}
     boards: dict[str, set[str]] = {}
-    for line in text.splitlines():
-        fields = line.split(FIELD_SEPARATOR)
+    lines = [line.split(FIELD_SEPARATOR) for line in text.splitlines()]
+    sections = {fields[0]: fields[1:] for fields in lines if len(fields) == 3}
+    for fields in lines:
         if len(fields) != len(FIELDS):
             continue
         (
@@ -204,7 +219,10 @@ def parse(text: str, home: str) -> Snapshot:
             continue
         session = sessions.setdefault(group, Session(group, []))
         if not session.windows or session.windows[-1].id != window_id:
-            session.windows.append(Window(window_id, int(window_index), window_name))
+            section, empty = sections.get(window_id, ("", "0"))
+            window = Window(window_id, int(window_index), window_name)
+            window.section, window.section_empty = section, empty == "1"
+            session.windows.append(window)
         if path == home or path.startswith(home + "/"):
             path = "~" + path[len(home) :]
         state = VERDICT_STATES.get(verdict, "")

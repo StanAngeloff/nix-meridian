@@ -91,9 +91,11 @@ class Picker:
 
 
 def extendable(sessions: list[Session], window_id: str, number: str) -> bool:
-    """Whether another digit could still make number a longer window number in the window's session."""
+    """Whether another digit could still make number a longer window number in the window's session;
+    a section header's number is not shown, so it does not count."""
     session = model.session_of(sessions, window_id)
-    numbers = [str(w.index) for w in session.windows] if session else []
+    windows = session.windows if session else []
+    numbers = [str(w.index) for w in windows if not w.section]
     return any(n.startswith(number) and n != number for n in numbers)
 
 

@@ -1,4 +1,5 @@
-"""Drawing the navigator: every session as a header, every window as a line, its panes as a tree below it."""
+"""Drawing the navigator: every session as a header, every window as a line, its panes as a tree below it,
+and a section header as a band across the column."""
 
 from dataclasses import dataclass
 
@@ -22,6 +23,11 @@ CURSOR_BG = "#262626"  # colour235
 CURSOR_ON_CYAN = "#ffffff"
 LIFTED_BG = "#3a3a3a"  # colour237, a window being dragged
 TEXT = "#bcbcbc"  # colour250
+# A section header's band, the shade of the status bar's widget patches; the session's trunk through it,
+# fainter than beside a window; and the line drawn above it, a divider (draw_divider).
+SECTION_BG = "#161616"
+SECTION_TRUNK = "#3a3a3a"
+SECTION_LINE = DIMMER
 
 # Traffic-light dots: shade 500 on the dark bar, shade 600 on the cyan tab (PALETTE.md).
 DOT_ON_DARK = {
@@ -130,24 +136,29 @@ class View:
 
 
 class Canvas:
-    """A grid of cells, each (character, foreground, background, bold, link URL), written out as ANSI."""
+    """A grid of cells, each (character, foreground, background, bold, link URL, underline), written out as ANSI.
+
+    An underline is drawn in the cell's foreground colour, blank cells included."""
 
     def __init__(self, cols: int, rows: int, rules: list[links.Rule] = ()):
         self.cols, self.rows = cols, rows
         self.rules = rules  # what put_fitted links (links.py)
-        blank = (" ", TERMINAL_FG, TERMINAL_BG, False, "")
+        blank = (" ", TERMINAL_FG, TERMINAL_BG, False, "", False)
         self.cells = [[blank] * cols for _ in range(rows)]
         # What a click on each row opens: (window ID, pane ID), the pane empty on a window's own row.
         self.targets: dict[int, tuple[str, str]] = {}
 
-    def put(self, x, y, text, fg, bg=TERMINAL_BG, bold=False, urls=()) -> int:
+    def put(
+        self, x, y, text, fg, bg=TERMINAL_BG, bold=False, urls=(), underline=False
+    ) -> int:
         """Writes text at (x, y), clipped to the canvas; returns the column after it. urls are the links of the
-        first characters, as many as it has."""
+        first characters, as many as it has.
+        """
         if 0 <= y < self.rows:
             for i, character in enumerate(text):
                 if 0 <= x < self.cols:
                     url = urls[i] if i < len(urls) else ""
-                    self.cells[y][x] = (character, fg, bg, bold, url)
+                    self.cells[y][x] = (character, fg, bg, bold, url, underline)
                 x += 1
         return x
 
@@ -172,13 +183,15 @@ class Canvas:
         link = ""
         for y, row in enumerate(self.cells):
             out.append(f"\x1b[{y + 1};1H")
-            for character, fg, bg, bold, url in row:
+            for character, fg, bg, bold, url, underline in row:
                 if url != link:
                     link = url
                     out.append(hyperlink(url))
-                if (fg, bg, bold) != previous:
-                    previous = (fg, bg, bold)
+                if (fg, bg, bold, underline) != previous:
+                    previous = (fg, bg, bold, underline)
                     out.append("\x1b[0m" + ("\x1b[1m" if bold else ""))
+                    if underline:
+                        out.append("\x1b[4m")
                     out.append(sgr(fg, 38) + sgr(bg, 48))
                 out.append(character)
         if link:
@@ -277,6 +290,22 @@ class RowPainter:
             title_width = width
         self.c.put_fitted(x, y, text, title_width, fg, self.bg, bold)
 
+    def section(self, y: int, trunk: str, title: str) -> None:
+        """A section header's row: a band across the column, the session's trunk through it, fainter,
+        and the title in bold where window titles start.
+        Under the cursor or open, the band takes the row's own grey or cyan, and the trunk its usual shade.
+        """
+        bg = SECTION_BG if self.bg == TERMINAL_BG else self.bg
+        self.c.fill(0, y, self.c.cols, bg)
+        if self.under_cursor:
+            bar = CURSOR_ON_CYAN if self.on_cyan else FOCUSED_TAB_BG
+            self.c.put(0, y, "▌", bar, bg)
+        trunk_fg = SECTION_TRUNK if bg == SECTION_BG else self.trunk_fg
+        self.c.put(TRUNK_X, y, trunk, trunk_fg, bg)
+        fg = FOCUSED_TAB_FG if self.on_cyan else TEXT
+        width = self.c.cols - CONTENT_X - 1
+        self.c.put_fitted(CONTENT_X, y, title, width, fg, bg, bold=True)
+
     def secondary(self, x: int, y: int, text: str, here: bool = False) -> None:
         """Secondary text from x; here marks the pane you are in, a shade darker where the row is cyan."""
         width = self.c.cols - x - 1
@@ -332,6 +361,9 @@ def list_lines(c: Canvas, view: View, sessions: list[Session]) -> list[Line]:
             Line(lambda y, session=session: draw_header(c, y, session, view.glyphs))
         )
         for w, window in enumerate(session.windows):
+            # A section header first in its session has the session's own header right above it instead.
+            if window.section and w:
+                lines.append(Line(lambda y: draw_divider(c, y), window.id))
             lines += window_lines(c, view, window, w == len(session.windows) - 1)
     return lines
 
@@ -342,14 +374,20 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
     A row of a pane's branch opens that pane. In the open window, the pane you are in has its line a shade darker.
 
     While its panes are being grouped, the window shows grey under the cursor and the pane under it cyan.
+
+    A section header's line is a band with its title and no number (RowPainter.section), its panes below it;
+    an empty one, whose only pane is a zsh in the home directory, is the band alone.
     """
-    panes = window.panes
+    panes = [] if window.section_empty else window.panes
     grouping = view.focused and any(p.id == view.cursor_pane for p in panes)
     row = RowPainter(c, view, window, grouped_pane=False if grouping else None)
     marked = RowPainter(c, view, window, grouped_pane=True) if grouping else row
     here = current_pane(window) if window.id == view.open_window else None
 
     def name_line(y, trunk):
+        if window.section:
+            row.section(y, trunk, window.section)
+            return
         row.start(y, trunk, str(window.index))
         repository = (
             f"{view.glyphs.repository} {window.repository}" if window.repository else ""
@@ -467,6 +505,14 @@ def branch_rows(
                 children = children[: WORKFLOW_ROWS - 1] + [more]
         rows += branch_rows(children, expanded, guides + (not last,))
     return rows
+
+
+def draw_divider(c: Canvas, y: int) -> None:
+    """The row above a section header's band: blank and underlined across, a thin line near its foot,
+    which the session's trunk crosses. The underline takes each cell's foreground colour, so the blanks carry it.
+    """
+    c.put(0, y, " " * c.cols, SECTION_LINE, underline=True)
+    c.put(TRUNK_X, y, "│", DIMMER, underline=True)
 
 
 def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:

@@ -283,6 +283,85 @@ class GroupTest(unittest.TestCase):
             )
 
 
+def sectioned(*more):
+    """The first session with an empty section header named Work between its two windows, then the windows given."""
+    work = Window("@3", 3, "-- Work --", [Pane("%6", "zsh", "~")], "Work", True)
+    windows = SESSIONS[0].windows
+    return [Session("default", [windows[0], work, windows[1], *more])]
+
+
+COSUNO = Window(
+    "@7", 7, "--- Cosuno ---", [Pane("%7", "nvim", "/data/x")], section="Cosuno"
+)
+
+
+class SectionTest(unittest.TestCase):
+    def test_an_empty_section_header_is_a_band_with_its_title_the_trunk_through_it(
+        self,
+    ):
+        canvas = render(sessions=sectioned(), cols=30)
+        lines = [canvas.text(y).rstrip() for y in range(7)]
+        self.assertEqual(lines[4], "   │ Work")
+        self.assertEqual(lines[5], "  2│ other")
+        band = canvas.cells[4]
+        self.assertEqual({cell[2] for cell in band}, {draw.SECTION_BG})
+        self.assertFalse(any(cell[5] for cell in band), "no line on the band itself")
+        self.assertEqual(band[draw.TRUNK_X][1], draw.SECTION_TRUNK)
+        self.assertEqual(
+            band[draw.CONTENT_X][:4], ("W", draw.TEXT, draw.SECTION_BG, True)
+        )
+        self.assertEqual(canvas.targets[4], ("@3", ""))
+
+    def test_a_divider_above_the_band_underlined_across_the_trunk_crossing_it(self):
+        canvas = render(sessions=sectioned(), cols=30)
+        self.assertEqual(canvas.text(3).rstrip(), "   │")
+        divider = canvas.cells[3]
+        self.assertTrue(all(cell[5] for cell in divider), "underlined across")
+        self.assertEqual({cell[1] for cell in divider}, {draw.SECTION_LINE})
+        self.assertEqual({cell[2] for cell in divider}, {draw.TERMINAL_BG})
+        self.assertEqual(canvas.targets[3], ("@3", ""))
+
+    def test_a_section_header_first_in_its_session_has_no_divider(self):
+        first = Session("default", sectioned()[0].windows[1:])
+        canvas = render(sessions=[first], cols=30)
+        self.assertEqual(canvas.text(1).rstrip(), "   │ Work")
+        self.assertFalse(any(cell[5] for row in canvas.cells for cell in row))
+
+    def test_a_section_header_with_work_in_it_shows_its_panes_below_its_band(self):
+        canvas = render(sessions=sectioned(COSUNO), rows=16)
+        lines = [canvas.text(y).rstrip() for y in range(12)]
+        self.assertEqual(lines[8], "   │")
+        self.assertEqual(lines[9], "   │ Cosuno")
+        self.assertTrue(lines[10].startswith("   ╵ └─"))
+        self.assertIn("nvim  /data/x", lines[10])
+        self.assertEqual(canvas.cells[10][0][2], draw.TERMINAL_BG, "only the band")
+        self.assertEqual(canvas.targets[10], ("@7", "%7"))
+
+    def test_under_the_cursor_it_gets_the_bar_and_open_it_turns_cyan(self):
+        canvas = render(sessions=sectioned(), cursor="@3", focused=True)
+        self.assertEqual(
+            canvas.cells[4][0][:3], ("▌", draw.FOCUSED_TAB_BG, draw.CURSOR_BG)
+        )
+        self.assertEqual(canvas.cells[3][0][2], draw.TERMINAL_BG, "the divider stays")
+        view = draw.View(open_window="@3", cursor="@3", focused=False)
+        canvas = draw.draw(sectioned(), view, 30, 14)
+        self.assertEqual(canvas.cells[4][0][2], draw.FOCUSED_TAB_BG)
+        self.assertEqual(canvas.cells[4][draw.TRUNK_X][1], draw.FOCUSED_TAB_DIM)
+        self.assertEqual(canvas.cells[4][draw.CONTENT_X][1], draw.FOCUSED_TAB_FG)
+        self.assertEqual(canvas.cells[3][0][2], draw.TERMINAL_BG, "the divider stays")
+
+    def test_a_section_header_last_in_its_session_ends_the_trunk(self):
+        last = Window("@9", 9, "- Last -", [Pane("%9", "zsh", "~")], "Last", True)
+        canvas = render(sessions=sectioned(last), rows=16)
+        self.assertEqual(canvas.text(9).rstrip(), "   ╵ Last")
+        self.assertEqual(canvas.text(8).rstrip(), "   │")
+
+    def test_the_divider_goes_out_underlined_in_its_colour(self):
+        ansi = render(sessions=sectioned()).to_ansi()
+        self.assertIn("\x1b[4m\x1b[38;2;78;78;78m\x1b[49m   ", ansi)
+        self.assertNotIn("\x1b[53m", ansi)
+
+
 class DragTest(unittest.TestCase):
     def test_a_dragged_window_shows_raised_in_its_new_place_with_the_numbers_after_the_drop(
         self,

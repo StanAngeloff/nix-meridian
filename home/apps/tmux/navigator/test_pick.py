@@ -85,6 +85,12 @@ class NumberTest(unittest.TestCase):
         self.assertIsNone(picker.key(SESSIONS, "7", 0.0, TARGETS))
         self.assertFalse(picker.typing)
 
+    def test_a_section_headers_number_does_not_hold_a_shorter_one_back(self):
+        header = Window("@15", 15, "-- Work --", [Pane("%9", "zsh", "~")], "Work")
+        sessions = [Session("default", [*SESSIONS[0].windows[:2], header])]
+        picked = pick.Picker().key(sessions, "1", 0.0, TARGETS)
+        self.assertEqual(picked, pick.Picked("open", "@1", "%2"))
+
 
 class KeyTest(unittest.TestCase):
     def test_n_asks_for_a_new_session_and_q_quits(self):
