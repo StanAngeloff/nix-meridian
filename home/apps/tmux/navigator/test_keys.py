@@ -73,14 +73,21 @@ class SectionTest(unittest.TestCase):
 
 
 class RenameTest(unittest.TestCase):
-    def test_r_renames_the_window_under_the_cursor(self):
+    def test_prefix_comma_renames_the_window_under_the_cursor_even_while_grouping(
+        self,
+    ):
         cursor = keys.Cursor(window="@d3")
-        action = keys.handle_key(cursor, SESSIONS, "r", 0.0, {})
+        action = keys.handle_key(cursor, SESSIONS, keys.RENAME, 0.0, {})
         self.assertEqual(action, Action("rename", window="@d3"))
+        grouping = keys.Cursor(window="@d3", pane="%d3")
+        action = keys.handle_key(grouping, SESSIONS, keys.RENAME, 0.0, {})
+        self.assertEqual(action, Action("rename", window="@d3"))
+        self.assertEqual(grouping.pane, "%d3", "still grouping")
 
-    def test_r_while_grouping_renames_nothing(self):
-        cursor = keys.Cursor(window="@d3", pane="%d3")
+    def test_r_is_no_key_and_the_sequence_reads_as_one(self):
+        cursor = keys.Cursor(window="@d3")
         self.assertIsNone(keys.handle_key(cursor, SESSIONS, "r", 0.0, {}))
+        self.assertEqual(list(keys.split_keys(keys.RENAME + "j")), [keys.RENAME, "j"])
 
 
 class MoveTest(unittest.TestCase):

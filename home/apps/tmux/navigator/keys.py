@@ -23,7 +23,9 @@ SPACE = " "
 MOVE_DOWN = ("J", SHIFT_DOWN)
 MOVE_UP = ("K", SHIFT_UP)
 GROUP = "g"  # starts grouping the panes of the cursor's window, and ends it
-RENAME = "r"  # renames the window under the cursor, where prefix , renames the window on screen
+# What prefix , sends the navigator while it has focus (tmux.conf): a control sequence no key types,
+# asking to rename the window under the cursor rather than the window on screen.
+RENAME = "\x1b[9001~"
 # While grouping: a pane joins a group, or leaves its group (layout.py, joined and left).
 NEST = ("l", "\x1b[C")
 UNNEST = ("h", "\x1b[D")
@@ -105,6 +107,8 @@ def handle_key(
     A click while grouping ends the grouping and counts as it would otherwise.
     """
     mouse = MOUSE.fullmatch(key)
+    if key == RENAME:
+        return Action("rename", window=cursor.window) if cursor.window else None
     if cursor.pane and not mouse:
         return handle_grouping(cursor, sessions, key)
     cursor.pane = ""
@@ -131,8 +135,6 @@ def handle_key(
         window = window_of(sessions, cursor.window)
         if window and len(window.panes) > 1:
             cursor.pane = window.panes[0].id
-    elif key == RENAME and cursor.window:
-        return Action("rename", window=cursor.window)
     return None
 
 

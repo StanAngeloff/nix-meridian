@@ -375,7 +375,7 @@ def move(window_id: str, neighbour_id: str, side: str) -> None:
 
 
 def rename(navigator: str, window_id: str, name: str) -> None:
-    """r: tmux's own prompt to rename the window under the cursor, on the client looking at the navigator,
+    """prefix , in the navigator: tmux's own prompt to rename the window under the cursor, on the client looking at it,
     with the window's name to edit. tmux keeps a backslash in a name as two, which the prompt gets back as one,
     or each rename would double it; the prompt expands formats and strftime codes in its starting text,
     so every # and % in the name is doubled. -l keeps a comma in it from splitting it, and -b returns at once,
