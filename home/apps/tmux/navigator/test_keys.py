@@ -55,6 +55,15 @@ class SectionTest(unittest.TestCase):
         keys.handle_key(cursor, self.sessions(), "j", 0.0, {})
         self.assertEqual(cursor.window, "@e3")
 
+    def test_space_on_a_section_colours_it_and_expands_nothing(self):
+        cursor = keys.Cursor(window="@w")
+        action = keys.handle_key(cursor, self.sessions(), " ", 0.0, {})
+        self.assertEqual(action, Action("colour", window="@w"))
+        self.assertEqual(cursor.expanded, set())
+        cursor = keys.Cursor(window="@d1")
+        self.assertIsNone(keys.handle_key(cursor, self.sessions(), " ", 0.0, {}))
+        self.assertEqual(cursor.expanded, {"@d1"})
+
     def test_digits_skip_a_section_header_which_shows_no_number(self):
         cursor = keys.Cursor(window="@d1")
         keys.handle_key(cursor, self.sessions(), "2", 0.0, {})

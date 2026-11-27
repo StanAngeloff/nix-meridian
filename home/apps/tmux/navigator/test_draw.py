@@ -1,3 +1,4 @@
+import colorsys
 import re
 import unittest
 
@@ -303,12 +304,12 @@ class SectionTest(unittest.TestCase):
         lines = [canvas.text(y).rstrip() for y in range(7)]
         self.assertEqual(lines[4], "   │ Work")
         self.assertEqual(lines[5], "  2│ other")
-        band = canvas.cells[4]
-        self.assertEqual({cell[2] for cell in band}, {draw.SECTION_BG})
+        band, colours = canvas.cells[4], draw.GREY_SECTION
+        self.assertEqual({cell[2] for cell in band}, {colours.band})
         self.assertFalse(any(cell[5] for cell in band), "no line on the band itself")
         self.assertEqual(band[draw.TRUNK_X][1], draw.SECTION_TRUNK)
         self.assertEqual(
-            band[draw.CONTENT_X][:4], ("W", draw.TEXT, draw.SECTION_BG, True)
+            band[draw.CONTENT_X][:4], ("W", colours.title, colours.band, True)
         )
         self.assertEqual(canvas.targets[4], ("@3", ""))
 
@@ -317,7 +318,7 @@ class SectionTest(unittest.TestCase):
         self.assertEqual(canvas.text(3).rstrip(), "   │")
         divider = canvas.cells[3]
         self.assertTrue(all(cell[5] for cell in divider), "underlined across")
-        self.assertEqual({cell[1] for cell in divider}, {draw.SECTION_LINE})
+        self.assertEqual({cell[1] for cell in divider}, {draw.GREY_SECTION.line})
         self.assertEqual({cell[2] for cell in divider}, {draw.TERMINAL_BG})
         self.assertEqual(canvas.targets[3], ("@3", ""))
 
@@ -339,9 +340,8 @@ class SectionTest(unittest.TestCase):
 
     def test_under_the_cursor_it_gets_the_bar_and_open_it_turns_cyan(self):
         canvas = render(sessions=sectioned(), cursor="@3", focused=True)
-        self.assertEqual(
-            canvas.cells[4][0][:3], ("▌", draw.FOCUSED_TAB_BG, draw.CURSOR_BG)
-        )
+        lighter = draw.GREY_SECTION.band_under_cursor
+        self.assertEqual(canvas.cells[4][0][:3], ("▌", draw.FOCUSED_TAB_BG, lighter))
         self.assertEqual(canvas.cells[3][0][2], draw.TERMINAL_BG, "the divider stays")
         view = draw.View(open_window="@3", cursor="@3", focused=False)
         canvas = draw.draw(sectioned(), view, 30, 14)
@@ -358,8 +358,48 @@ class SectionTest(unittest.TestCase):
 
     def test_the_divider_goes_out_underlined_in_its_colour(self):
         ansi = render(sessions=sectioned()).to_ansi()
-        self.assertIn("\x1b[4m\x1b[38;2;78;78;78m\x1b[49m   ", ansi)
-        self.assertNotIn("\x1b[53m", ansi)
+        line = draw.GREY_SECTION.line
+        underline = f"\x1b[4m{draw.sgr(line, 58)}{draw.sgr(line, 38)}\x1b[49m   "
+        self.assertIn(underline, ansi)
+
+    def test_space_steps_from_grey_through_the_rainbow_and_back(self):
+        seen, colour = [], ""
+        for _ in range(7):
+            colour = draw.next_section_colour(colour)
+            seen.append(colour)
+        self.assertEqual(
+            seen, ["red", "amber", "yellow", "green", "blue", "purple", ""]
+        )
+        self.assertEqual(draw.section_colours(""), draw.GREY_SECTION)
+        self.assertEqual(draw.section_colours("teal"), draw.GREY_SECTION)
+
+    def test_a_coloured_section_draws_its_band_title_and_divider_in_its_shades(self):
+        sessions = sectioned()
+        sessions[0].windows[1].section_colour = "blue"
+        canvas = render(sessions=sessions, cols=30)
+        blue = draw.hue_colours(draw.SECTION_HUES["blue"])
+        self.assertEqual(canvas.cells[4][draw.CONTENT_X][1:3], (blue.title, blue.band))
+        divider = canvas.cells[3]
+        self.assertEqual({cell[5] for cell in divider}, {blue.line}, "the line")
+        self.assertEqual(divider[draw.TRUNK_X][:2], ("│", draw.DIMMER), "grey trunk")
+
+    def test_a_hue_gives_shades_from_a_dark_band_up_to_a_bright_title(self):
+        colours = draw.hue_colours(240)
+        shades = [
+            colours.band,
+            colours.band_under_cursor,
+            colours.line,
+            colours.title,
+        ]
+        hls = [
+            colorsys.rgb_to_hls(*(int(c[i : i + 2], 16) / 255 for i in (1, 3, 5)))
+            for c in shades
+        ]
+        self.assertEqual([round(h * 360) for h, _, _ in hls], [240] * 4)
+        self.assertEqual(
+            [lightness for _, lightness, _ in hls],
+            sorted(lightness for _, lightness, _ in hls),
+        )
 
 
 class DragTest(unittest.TestCase):

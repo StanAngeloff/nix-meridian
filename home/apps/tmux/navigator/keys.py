@@ -16,7 +16,9 @@ SHIFT_UP = "\x1b[1;2A"
 ENTER = ("\r", "\n")
 LEAVE = ("\t", "\x1b")  # Tab hands focus back to the pane; so does Esc
 HELP = "?"  # shows the key hints, and hides them again
-SPACE = " "  # lists the workflows of the cursor's window agent by agent, and folds them back into a count
+# Space lists the workflows of the cursor's window agent by agent, and folds them back into a count;
+# on a section header, it gives the section its next colour instead, and its workflows stay folded.
+SPACE = " "
 # Shift+J and Shift+K do what Shift+Down and Shift+Up do: move the window under the cursor, or a pane while grouping.
 MOVE_DOWN = ("J", SHIFT_DOWN)
 MOVE_UP = ("K", SHIFT_UP)
@@ -44,7 +46,8 @@ WHEEL_DOWN = 65
 class Action:
     """What a key or click asks for: "open" the cursor's window, keeping focus in the navigator or giving it to
     pane; "leave" for the window's pane; "move" window before or after neighbour, a drop; "rename" window;
-    while grouping, "regroup" pane of window, side "join" or "leave", or "swap" pane with its neighbour, a pane too.
+    "colour" the section header window; while grouping, "regroup" pane of window, side "join" or "leave",
+    or "swap" pane with its neighbour, a pane too.
     """
 
     kind: str
@@ -120,6 +123,9 @@ def handle_key(
     elif key == HELP:
         cursor.help = not cursor.help
     elif key == SPACE and cursor.window:
+        window = window_of(sessions, cursor.window)
+        if window and window.section:
+            return Action("colour", window=cursor.window)
         cursor.expanded ^= {cursor.window}
     elif key == GROUP:
         window = window_of(sessions, cursor.window)

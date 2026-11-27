@@ -44,11 +44,18 @@ FIELDS = [
     "pane_last",
 ]
 PANES_FORMAT = FIELD_SEPARATOR.join("#{" + name + "}" for name in FIELDS)
-# Each window's section header title, if it is one, and whether it is empty, read with list-windows:
+# A window option: a section header's colour, a name in draw.SECTION_HUES; the section is grey without it.
+SECTION_COLOUR = "@navigator-section-colour"
+# Each window's section header title, if it is one, whether it is empty, and its colour, read with list-windows:
 # the emptiness takes a pane loop, and in a list-panes format a pane loop re-sorts the array list-panes walks.
 # Both share one static array in tmux 3.8 (sort_get_panes_window), so the listing's rows would repeat.
 SECTIONS_FORMAT = FIELD_SEPARATOR.join(
-    ["#{window_id}", "#{E:@navigator-section}", "#{E:@navigator-section-empty}"]
+    [
+        "#{window_id}",
+        "#{E:@navigator-section}",
+        "#{E:@navigator-section-empty}",
+        "#{" + SECTION_COLOUR + "}",
+    ]
 )
 
 
@@ -115,6 +122,9 @@ class Window:
     section: str = ""
     # A section header whose one pane is a zsh in the home directory (@navigator-section-empty): that pane is not drawn.
     section_empty: bool = False
+    section_colour: str = (
+        ""  # a section header's colour (SECTION_COLOUR); grey when empty
+    )
 
     @property
     def title(self) -> str:
@@ -180,7 +190,7 @@ def parse(text: str, home: str) -> Snapshot:
     columns: dict[str, set[str]] = {}
     boards: dict[str, set[str]] = {}
     lines = [line.split(FIELD_SEPARATOR) for line in text.splitlines()]
-    sections = {fields[0]: fields[1:] for fields in lines if len(fields) == 3}
+    sections = {fields[0]: fields[1:] for fields in lines if len(fields) == 4}
     for fields in lines:
         if len(fields) != len(FIELDS):
             continue
@@ -219,9 +229,10 @@ def parse(text: str, home: str) -> Snapshot:
             continue
         session = sessions.setdefault(group, Session(group, []))
         if not session.windows or session.windows[-1].id != window_id:
-            section, empty = sections.get(window_id, ("", "0"))
+            section, empty, colour = sections.get(window_id, ("", "0", ""))
             window = Window(window_id, int(window_index), window_name)
             window.section, window.section_empty = section, empty == "1"
+            window.section_colour = colour
             session.windows.append(window)
         if path == home or path.startswith(home + "/"):
             path = "~" + path[len(home) :]

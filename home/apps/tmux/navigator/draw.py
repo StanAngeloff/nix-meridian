@@ -1,6 +1,7 @@
 """Drawing the navigator: every session as a header, every window as a line, its panes as a tree below it,
 and a section header as a band across the column."""
 
+import colorsys
 from dataclasses import dataclass
 
 import links
@@ -23,11 +24,8 @@ CURSOR_BG = "#262626"  # colour235
 CURSOR_ON_CYAN = "#ffffff"
 LIFTED_BG = "#3a3a3a"  # colour237, a window being dragged
 TEXT = "#bcbcbc"  # colour250
-# A section header's band, the shade of the status bar's widget patches; the session's trunk through it,
-# fainter than beside a window; and the line drawn above it, a divider (draw_divider).
-SECTION_BG = "#161616"
+# The session's trunk through a section header's band, fainter than beside a window.
 SECTION_TRUNK = "#3a3a3a"
-SECTION_LINE = DIMMER
 
 # Traffic-light dots: shade 500 on the dark bar, shade 600 on the cyan tab (PALETTE.md).
 DOT_ON_DARK = {
@@ -136,20 +134,20 @@ class View:
 
 
 class Canvas:
-    """A grid of cells, each (character, foreground, background, bold, link URL, underline), written out as ANSI.
-
-    An underline is drawn in the cell's foreground colour, blank cells included."""
+    """A grid of cells, each (character, foreground, background, bold, link URL, underline colour), written out as
+    ANSI. An underline goes out in its own colour (SGR 58); a terminal without one draws it in the foreground colour.
+    """
 
     def __init__(self, cols: int, rows: int, rules: list[links.Rule] = ()):
         self.cols, self.rows = cols, rows
         self.rules = rules  # what put_fitted links (links.py)
-        blank = (" ", TERMINAL_FG, TERMINAL_BG, False, "", False)
+        blank = (" ", TERMINAL_FG, TERMINAL_BG, False, "", "")
         self.cells = [[blank] * cols for _ in range(rows)]
         # What a click on each row opens: (window ID, pane ID), the pane empty on a window's own row.
         self.targets: dict[int, tuple[str, str]] = {}
 
     def put(
-        self, x, y, text, fg, bg=TERMINAL_BG, bold=False, urls=(), underline=False
+        self, x, y, text, fg, bg=TERMINAL_BG, bold=False, urls=(), underline=""
     ) -> int:
         """Writes text at (x, y), clipped to the canvas; returns the column after it. urls are the links of the
         first characters, as many as it has.
@@ -191,7 +189,7 @@ class Canvas:
                     previous = (fg, bg, bold, underline)
                     out.append("\x1b[0m" + ("\x1b[1m" if bold else ""))
                     if underline:
-                        out.append("\x1b[4m")
+                        out.append("\x1b[4m" + sgr(underline, 58))
                     out.append(sgr(fg, 38) + sgr(bg, 48))
                 out.append(character)
         if link:
@@ -290,19 +288,23 @@ class RowPainter:
             title_width = width
         self.c.put_fitted(x, y, text, title_width, fg, self.bg, bold)
 
-    def section(self, y: int, trunk: str, title: str) -> None:
+    def section(self, y: int, trunk: str, title: str, colour: str) -> None:
         """A section header's row: a band across the column, the session's trunk through it, fainter,
-        and the title in bold where window titles start.
-        Under the cursor or open, the band takes the row's own grey or cyan, and the trunk its usual shade.
+        and the title in bold where window titles start, in the section's colours (SectionColours).
+        Under the cursor, the band takes its lighter shade; open, it is the row's own cyan with a black title.
         """
-        bg = SECTION_BG if self.bg == TERMINAL_BG else self.bg
+        colours = section_colours(colour)
+        if self.on_cyan or self.bg == LIFTED_BG:
+            bg = self.bg
+        else:
+            bg = colours.band_under_cursor if self.under_cursor else colours.band
         self.c.fill(0, y, self.c.cols, bg)
         if self.under_cursor:
             bar = CURSOR_ON_CYAN if self.on_cyan else FOCUSED_TAB_BG
             self.c.put(0, y, "▌", bar, bg)
-        trunk_fg = SECTION_TRUNK if bg == SECTION_BG else self.trunk_fg
+        trunk_fg = SECTION_TRUNK if bg == colours.band else self.trunk_fg
         self.c.put(TRUNK_X, y, trunk, trunk_fg, bg)
-        fg = FOCUSED_TAB_FG if self.on_cyan else TEXT
+        fg = FOCUSED_TAB_FG if self.on_cyan else colours.title
         width = self.c.cols - CONTENT_X - 1
         self.c.put_fitted(CONTENT_X, y, title, width, fg, bg, bold=True)
 
@@ -363,7 +365,10 @@ def list_lines(c: Canvas, view: View, sessions: list[Session]) -> list[Line]:
         for w, window in enumerate(session.windows):
             # A section header first in its session has the session's own header right above it instead.
             if window.section and w:
-                lines.append(Line(lambda y: draw_divider(c, y), window.id))
+                line = section_colours(window.section_colour).line
+                lines.append(
+                    Line(lambda y, line=line: draw_divider(c, y, line), window.id)
+                )
             lines += window_lines(c, view, window, w == len(session.windows) - 1)
     return lines
 
@@ -386,7 +391,7 @@ def window_lines(c: Canvas, view: View, window: Window, last: bool) -> list[Line
 
     def name_line(y, trunk):
         if window.section:
-            row.section(y, trunk, window.section)
+            row.section(y, trunk, window.section, window.section_colour)
             return
         row.start(y, trunk, str(window.index))
         repository = (
@@ -507,12 +512,61 @@ def branch_rows(
     return rows
 
 
-def draw_divider(c: Canvas, y: int) -> None:
-    """The row above a section header's band: blank and underlined across, a thin line near its foot,
-    which the session's trunk crosses. The underline takes each cell's foreground colour, so the blanks carry it.
+@dataclass(frozen=True)
+class SectionColours:
+    """A section header's colours: grey (GREY_SECTION), or the shades of one hue (hue_colours)."""
+
+    title: str  # the title, bright
+    line: str  # the divider above the band, dim
+    band: str  # the band, dark
+    band_under_cursor: str  # the band under the cursor, a shade lighter
+
+
+# The band in the shade of the status bar's widget patches, and the cursor's own grey over it.
+GREY_SECTION = SectionColours(TEXT, DIMMER, "#161616", CURSOR_BG)
+
+
+# The colours Space steps a section through after grey, in the rainbow's order, each a hue (hue_colours).
+SECTION_HUES = {
+    "red": 0,
+    "amber": 35,
+    "yellow": 55,
+    "green": 120,
+    "blue": 220,
+    "purple": 270,
+}
+
+
+def section_colours(colour: str) -> SectionColours:
+    """A section header's colours by its colour's name; grey for no name, or one not in SECTION_HUES."""
+    return hue_colours(SECTION_HUES[colour]) if colour in SECTION_HUES else GREY_SECTION
+
+
+def next_section_colour(colour: str) -> str:
+    """The colour after this one as Space steps through them: grey, then each of SECTION_HUES, then grey again."""
+    names = ["", *SECTION_HUES]
+    return names[(names.index(colour) + 1) % len(names) if colour in names else 1]
+
+
+def hue_colours(hue: int) -> SectionColours:
+    """A section header's colours in one hue, from a bright title down to a band only just off black."""
+    return SectionColours(
+        hsl(hue, 70, 72), hsl(hue, 35, 32), hsl(hue, 35, 11), hsl(hue, 35, 18)
+    )
+
+
+def hsl(hue: int, saturation: int, lightness: int) -> str:
+    red, green, blue = colorsys.hls_to_rgb(hue / 360, lightness / 100, saturation / 100)
+    return "#{:02x}{:02x}{:02x}".format(*(round(c * 255) for c in (red, green, blue)))
+
+
+def draw_divider(c: Canvas, y: int, line: str) -> None:
+    """The row above a section header's band: blank and underlined across in the section's line colour,
+    a thin line near its foot, which the session's trunk crosses in its own grey.
+    The blanks carry the line's colour too, for a terminal that draws an underline in the foreground colour.
     """
-    c.put(0, y, " " * c.cols, SECTION_LINE, underline=True)
-    c.put(TRUNK_X, y, "│", DIMMER, underline=True)
+    c.put(0, y, " " * c.cols, line, underline=line)
+    c.put(TRUNK_X, y, "│", DIMMER, underline=line)
 
 
 def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
@@ -524,7 +578,7 @@ def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
 HINTS = [
     [("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")],
     [("⇧↑ ⇧↓", "reorder"), ("1-9", "jump"), ("r", "rename")],
-    [("space", "workflow agents"), ("g", "group")],
+    [("space", "agents, colour"), ("g", "group")],
 ]
 # While a window's panes are grouped (g), always: the keys differ, and they say which mode the navigator is in.
 GROUP_HINTS = [

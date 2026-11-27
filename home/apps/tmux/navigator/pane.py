@@ -151,14 +151,19 @@ def run() -> None:
                     window = keys.window_of(sessions, action.window)
                     if window:
                         control.rename(own_pane, window.id, window.name)
-                elif action and action.kind in ("move", "regroup", "swap"):
+                elif action and action.kind in ("move", "regroup", "swap", "colour"):
                     if action.kind == "move":
                         control.move(action.window, action.neighbour, action.side)
                     elif action.kind == "regroup":
                         control.regroup(action.window, action.pane, action.side)
-                    else:
+                    elif action.kind == "swap":
                         control.swap(action.pane, action.neighbour)
-                    # Keys still to come in this read, a held Shift+Down say, move from where things are now.
+                    else:
+                        window = keys.window_of(sessions, action.window)
+                        if window:
+                            colour = draw.next_section_colour(window.section_colour)
+                            control.colour_section(window.id, colour)
+                    # Keys still to come in this read, a held Shift+Down or quick Spaces say, act on things as they are now.
                     snapshot = read_snapshot(home)
                     sessions = snapshot.sessions
             except TmuxError:

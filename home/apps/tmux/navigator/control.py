@@ -390,6 +390,15 @@ def rename(navigator: str, window_id: str, name: str) -> None:
     )
 
 
+def colour_section(window_id: str, colour: str) -> None:
+    """Space on a section header: gives it colour, kept as a window option for as long as the window lives;
+    grey takes the option away."""
+    if colour:
+        tmux("set", "-w", "-t", window_id, model.SECTION_COLOUR, colour)
+    else:
+        tmux("set", "-wu", "-t", window_id, model.SECTION_COLOUR)
+
+
 def leave(navigator: str) -> None:
     """Tab: focus goes to the pane last used in the navigator's window."""
     window_id = tmux("display", "-p", "-t", navigator, "#{window_id}").strip()
