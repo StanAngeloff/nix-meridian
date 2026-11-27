@@ -523,7 +523,7 @@ def draw_header(c: Canvas, y: int, session: Session, glyphs: Glyphs) -> None:
 
 HINTS = [
     [("j k", "move"), ("⏎", "open"), ("⇥", "pane"), ("?", "hide")],
-    [("⇧↑ ⇧↓", "reorder"), ("1-9", "jump")],
+    [("⇧↑ ⇧↓", "reorder"), ("1-9", "jump"), ("r", "rename")],
     [("space", "workflow agents"), ("g", "group")],
 ]
 # While a window's panes are grouped (g), always: the keys differ, and they say which mode the navigator is in.

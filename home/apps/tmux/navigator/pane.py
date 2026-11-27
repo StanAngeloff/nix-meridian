@@ -147,6 +147,10 @@ def run() -> None:
                     control.go(own_pane, cursor.window, action.pane)
                 elif action and action.kind == "leave":
                     control.leave(own_pane)
+                elif action and action.kind == "rename":
+                    window = keys.window_of(sessions, action.window)
+                    if window:
+                        control.rename(own_pane, window.id, window.name)
                 elif action and action.kind in ("move", "regroup", "swap"):
                     if action.kind == "move":
                         control.move(action.window, action.neighbour, action.side)

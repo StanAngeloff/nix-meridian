@@ -374,6 +374,22 @@ def move(window_id: str, neighbour_id: str, side: str) -> None:
         tmux("move-window", "-r", "-t", name)
 
 
+def rename(navigator: str, window_id: str, name: str) -> None:
+    """r: tmux's own prompt to rename the window under the cursor, on the client looking at the navigator,
+    with the window's name to edit. tmux keeps a backslash in a name as two, which the prompt gets back as one,
+    or each rename would double it; the prompt expands formats and strftime codes in its starting text,
+    so every # and % in the name is doubled. -l keeps a comma in it from splitting it, and -b returns at once,
+    as the navigator must not wait for the typing. The navigator redraws as soon as the name changes.
+    """
+    client, _ = focused_client(navigator)
+    text = name.replace("\\\\", "\\").replace("#", "##").replace("%", "%%")
+    template = f"rename-window -t {window_id} -- '%%' ; run-shell -b 'kill -WINCH {os.getpid()}'"
+    tmux(
+        *("command-prompt", "-b", "-l", "-t", client, "-p", "(rename-window) "),
+        *("-I", text, template),
+    )
+
+
 def leave(navigator: str) -> None:
     """Tab: focus goes to the pane last used in the navigator's window."""
     window_id = tmux("display", "-p", "-t", navigator, "#{window_id}").strip()

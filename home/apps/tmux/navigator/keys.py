@@ -21,6 +21,7 @@ SPACE = " "  # lists the workflows of the cursor's window agent by agent, and fo
 MOVE_DOWN = ("J", SHIFT_DOWN)
 MOVE_UP = ("K", SHIFT_UP)
 GROUP = "g"  # starts grouping the panes of the cursor's window, and ends it
+RENAME = "r"  # renames the window under the cursor, where prefix , renames the window on screen
 # While grouping: a pane joins a group, or leaves its group (layout.py, joined and left).
 NEST = ("l", "\x1b[C")
 UNNEST = ("h", "\x1b[D")
@@ -42,8 +43,8 @@ WHEEL_DOWN = 65
 @dataclass
 class Action:
     """What a key or click asks for: "open" the cursor's window, keeping focus in the navigator or giving it to
-    pane; "leave" for the window's pane; "move" window before or after neighbour, a drop; while grouping, "regroup"
-    pane of window, side "join" or "leave", or "swap" pane with its neighbour, a pane too.
+    pane; "leave" for the window's pane; "move" window before or after neighbour, a drop; "rename" window;
+    while grouping, "regroup" pane of window, side "join" or "leave", or "swap" pane with its neighbour, a pane too.
     """
 
     kind: str
@@ -124,6 +125,8 @@ def handle_key(
         window = window_of(sessions, cursor.window)
         if window and len(window.panes) > 1:
             cursor.pane = window.panes[0].id
+    elif key == RENAME and cursor.window:
+        return Action("rename", window=cursor.window)
     return None
 
 

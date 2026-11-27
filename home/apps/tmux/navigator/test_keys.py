@@ -63,6 +63,17 @@ class SectionTest(unittest.TestCase):
         self.assertEqual(cursor.window, "@e3")
 
 
+class RenameTest(unittest.TestCase):
+    def test_r_renames_the_window_under_the_cursor(self):
+        cursor = keys.Cursor(window="@d3")
+        action = keys.handle_key(cursor, SESSIONS, "r", 0.0, {})
+        self.assertEqual(action, Action("rename", window="@d3"))
+
+    def test_r_while_grouping_renames_nothing(self):
+        cursor = keys.Cursor(window="@d3", pane="%d3")
+        self.assertIsNone(keys.handle_key(cursor, SESSIONS, "r", 0.0, {}))
+
+
 class MoveTest(unittest.TestCase):
     def test_j_and_k_cross_sessions_and_wrap(self):
         self.assertEqual(press(("j", 0.0), start="@d12"), "@s1")
